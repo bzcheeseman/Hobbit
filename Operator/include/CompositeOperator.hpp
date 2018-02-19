@@ -29,16 +29,19 @@
 #include "ReductionOp.hpp"
 
 namespace Hobbit {
-  class CompositeOperator : public Operator {
+  class CompositeOperator {
     CompositeOperator() = default;
     explicit CompositeOperator(std::deque<ElementWiseOp *> &elemwise_table, std::deque<ReductionOp *> &reduction_table);
 
     void PushOperator(ElementWiseOp *op);
     void PushOperator(ReductionOp *op);
 
-//    llvm::Value *Emit(llvm::IRBuilder<> &builder, llvm::Value *input, llvm::Type *vector_type);
+    llvm::Value *Emit(llvm::IRBuilder<> &builder, llvm::Value *input, llvm::Type *vector_type);
 
   protected:
+    virtual llvm::Value *EmitElemwise_(llvm::IRBuilder<> &builder, llvm::Value *input, llvm::Type *vector_type) = 0;
+    virtual llvm::Value *EmitReduction_(llvm::IRBuilder<> &builder, llvm::Value *input, llvm::Type *vector_type) = 0;
+
     std::deque<ElementWiseOp *> elemwise_op_table_;
     std::deque<ReductionOp *> reduction_op_table_;
   };

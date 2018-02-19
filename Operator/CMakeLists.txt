@@ -14,4 +14,5 @@ target_include_directories(HobbitOperator PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/inc
 
 if (BUILD_TESTS)
     add_gtest(ElementWiseOp HobbitOperator)
+    add_gtest(ReductionOp HobbitOperator)
 endif (BUILD_TESTS)

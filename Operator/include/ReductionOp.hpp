@@ -45,11 +45,18 @@ public:
   llvm::Value *Emit(llvm::IRBuilder<> &builder, llvm::Value *input, llvm::Type *vector_type) override;
 
 private:
-  llvm::Value *SequenceHFAdd(llvm::IRBuilder<> &builder, llvm::Value *input);
-  llvm::Value *SequenceHAdd(llvm::IRBuilder<> &builder, llvm::Value *input);
+  llvm::Value *
+  ArrayVectorPack_(llvm::IRBuilder<> &builder, llvm::Value *array,
+                   llvm::Type *vector_type);
 
-  llvm::Value *VectorHFAdd(llvm::IRBuilder<> &builder, llvm::Value *input);
-  llvm::Value *VectorHAdd(llvm::IRBuilder<> &builder, llvm::Value *input);
+  llvm::Value *PtrVectorPack_(llvm::IRBuilder<> &builder, llvm::Value *ptr,
+                              llvm::Type *vector_type);
+
+  llvm::Value *SequenceHFAdd_(llvm::IRBuilder<> &builder, llvm::Value *input);
+  llvm::Value *SequenceHAdd_(llvm::IRBuilder<> &builder, llvm::Value *input);
+
+  llvm::Value *VectorHFAdd_(llvm::IRBuilder<> &builder, llvm::Value *input);
+  llvm::Value *VectorHAdd_(llvm::IRBuilder<> &builder, llvm::Value *input);
 };
 }
 

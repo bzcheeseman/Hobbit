@@ -1,5 +1,5 @@
 //
-// Created by Aman LaChapelle on 2/17/18.
+// Created by Aman LaChapelle on 2/19/18.
 //
 // Hobbit
 // Copyright (c) 2018 Aman LaChapelle
@@ -33,9 +33,9 @@
 #include <llvm/Support/ManagedStatic.h>
 #include <llvm/Support/TargetSelect.h>
 
-#include "ElementWiseOp.hpp"
+#include "ReductionOp.hpp"
 
-TEST(TestElementWiseProduct, VectorCodegen) {
+TEST(TestHorizontalSumReduction, VectorCodegen) {
 
   llvm::InitializeAllTargets();
   llvm::InitializeAllTargetMCs();
@@ -44,7 +44,7 @@ TEST(TestElementWiseProduct, VectorCodegen) {
 
   llvm::LLVMContext ctx;
 
-  Hobbit::ElementWiseProduct prod(ctx);
+  Hobbit::HorizontalSumReduction hsum(ctx);
 
   std::unique_ptr<llvm::Module> Mod = llvm::make_unique<llvm::Module>("test", ctx);
   llvm::Function *f = llvm::cast<llvm::Function>(Mod->getOrInsertFunction("vec_codegen", llvm::Type::getInt32Ty(ctx), nullptr));
@@ -53,17 +53,10 @@ TEST(TestElementWiseProduct, VectorCodegen) {
   llvm::IRBuilder<> builder (entry);
 
   llvm::Value *one = builder.getInt32(1);
-  llvm::Value *two = builder.getInt32(2);
-  llvm::Value *three = builder.getInt32(3);
-  llvm::Value *four = builder.getInt32(4);
 
   llvm::Value *one_array = builder.CreateVectorSplat(4, one);
-  llvm::Value *two_array = builder.CreateVectorSplat(4, two);
 
-  EXPECT_TRUE(prod.SetConstant(two_array));
-
-  llvm::Value *ret = prod.Emit(builder, one_array, one_array->getType());
-  ret = builder.CreateExtractElement(ret, (uint64_t)0);
+  llvm::Value *ret = hsum.Emit(builder, one_array, one_array->getType());
 
   builder.CreateRet(ret);
 
@@ -78,7 +71,7 @@ TEST(TestElementWiseProduct, VectorCodegen) {
 
 }
 
-TEST(TestElementWiseProduct, ArrayCodegen) {
+TEST(TestHorizontalSumReduction, ArrayCodegen) {
 
   llvm::InitializeAllTargets();
   llvm::InitializeAllTargetMCs();
@@ -87,7 +80,7 @@ TEST(TestElementWiseProduct, ArrayCodegen) {
 
   llvm::LLVMContext ctx;
 
-  Hobbit::ElementWiseProduct prod(ctx);
+  Hobbit::HorizontalSumReduction hsum(ctx);
 
   std::unique_ptr<llvm::Module> Mod = llvm::make_unique<llvm::Module>("test", ctx);
   llvm::Function *f = llvm::cast<llvm::Function>(Mod->getOrInsertFunction("arr_codegen", llvm::Type::getInt32Ty(ctx), nullptr));
@@ -96,15 +89,11 @@ TEST(TestElementWiseProduct, ArrayCodegen) {
   llvm::IRBuilder<> builder (entry);
 
   llvm::Value *one_array = llvm::UndefValue::get(llvm::ArrayType::get(llvm::Type::getInt32Ty(ctx), 4));
-  llvm::Value *two_array = llvm::UndefValue::get(llvm::ArrayType::get(llvm::Type::getInt32Ty(ctx), 4));
   for (int i = 0; i < 4; i++) {
     one_array = builder.CreateInsertValue(one_array, builder.getInt32(1), i);
-    two_array = builder.CreateInsertValue(two_array, builder.getInt32(2), i);
   }
 
-  prod.SetConstant(two_array);
-  llvm::Value *ret = prod.Emit(builder, one_array, nullptr);
-//  ret = builder.CreateLoad(builder.CreateGEP(ret, builder.getInt32(0)));
+  llvm::Value *ret = hsum.Emit(builder, one_array, nullptr);
 
   builder.CreateRet(ret);
 
@@ -119,7 +108,7 @@ TEST(TestElementWiseProduct, ArrayCodegen) {
 
 }
 
-TEST(TestElementWiseProduct, MixedCodegen) {
+TEST(TestHorizontalSumReduction, ConvertToVector) {
 
   llvm::InitializeAllTargets();
   llvm::InitializeAllTargetMCs();
@@ -128,7 +117,7 @@ TEST(TestElementWiseProduct, MixedCodegen) {
 
   llvm::LLVMContext ctx;
 
-  Hobbit::ElementWiseProduct prod(ctx);
+  Hobbit::HorizontalSumReduction hsum(ctx);
 
   std::unique_ptr<llvm::Module> Mod = llvm::make_unique<llvm::Module>("test", ctx);
   llvm::Function *f = llvm::cast<llvm::Function>(Mod->getOrInsertFunction("mixed_codegen", llvm::Type::getInt32Ty(ctx), nullptr));
@@ -136,16 +125,12 @@ TEST(TestElementWiseProduct, MixedCodegen) {
   llvm::BasicBlock *entry = llvm::BasicBlock::Create(ctx, "entry", f);
   llvm::IRBuilder<> builder (entry);
 
-  llvm::Value *one_array = builder.CreateVectorSplat(4, builder.getInt32(1));
-
   llvm::Value *two_array = llvm::UndefValue::get(llvm::ArrayType::get(llvm::Type::getInt32Ty(ctx), 4));
   for (int i = 0; i < 4; i++) {
     two_array = builder.CreateInsertValue(two_array, builder.getInt32(2), i);
   }
 
-  prod.SetConstant(two_array);
-  llvm::Value *ret = prod.Emit(builder, one_array, one_array->getType());
-  ret = builder.CreateExtractElement(ret, (uint64_t)0);
+  llvm::Value *ret = hsum.Emit(builder, two_array, llvm::VectorType::get(llvm::Type::getInt32Ty(ctx), 4));
 
   builder.CreateRet(ret);
 
@@ -159,4 +144,3 @@ TEST(TestElementWiseProduct, MixedCodegen) {
   llvm::errs() << "Module run result: " << run() << "\n";
 
 }
-

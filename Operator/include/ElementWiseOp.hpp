@@ -36,21 +36,12 @@ public:
 
   virtual llvm::Value *Emit(llvm::IRBuilder<> &builder, llvm::Value *input, llvm::Type *vector_type) = 0;
 
-  llvm::Type *Geti1VectorType(int width);
-  llvm::Type *Geti8VectorType(int width);
-  llvm::Type *Geti16VectorType(int width);
-  llvm::Type *Geti32VectorType(int width);
-  llvm::Type *Geti64VectorType(int width);
-  llvm::Type *Getf16VectorType(int width);
-  llvm::Type *Getf32VectorType(int width);
-  llvm::Type *Getf64VectorType(int width);
-
 protected:
   llvm::Value *
   ArrayVectorPack_(llvm::IRBuilder<> &builder, llvm::Value *array,
                    llvm::Type *vector_type);
 
-  llvm::Value *PtrVectorPack_(llvm::IRBuilder<> &builder, llvm::Value *array,
+  llvm::Value *PtrVectorPack_(llvm::IRBuilder<> &builder, llvm::Value *ptr,
                               llvm::Type *vector_type);
 
   llvm::Value *constant = nullptr;

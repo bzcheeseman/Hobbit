@@ -28,3 +28,16 @@ Hobbit::CompositeOperator::CompositeOperator(std::deque<ElementWiseOp *> &elemwi
   elemwise_op_table_ = std::move(elemwise_table);
   reduction_op_table_ = std::move(reduction_table);
 }
+
+void Hobbit::CompositeOperator::PushOperator(Hobbit::ElementWiseOp *op) {
+  elemwise_op_table_.push_back(op);
+}
+
+void Hobbit::CompositeOperator::PushOperator(Hobbit::ReductionOp *op) {
+  reduction_op_table_.push_back(op);
+}
+
+llvm::Value *Hobbit::CompositeOperator::Emit(llvm::IRBuilder<> &builder, llvm::Value *input, llvm::Type *vector_type) {
+  llvm::Value *intermezzo = this->EmitElemwise_(builder, input, vector_type);
+  return this->EmitReduction_(builder, intermezzo, vector_type);
+}
