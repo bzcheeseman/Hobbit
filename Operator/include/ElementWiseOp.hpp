@@ -20,10 +20,12 @@
     limitations under the License.
  */
 
-#ifndef C_SCIENCE_ELEMENTWISEOP_HPP
-#define C_SCIENCE_ELEMENTWISEOP_HPP
+#ifndef HOBBIT_ELEMENTWISEOP_HPP
+#define HOBBIT_ELEMENTWISEOP_HPP
 
-#include "Operator.hpp"
+#include <llvm/IR/LLVMContext.h>
+#include <llvm/IR/Value.h>
+#include <llvm/IR/IRBuilder.h>
 
 namespace Hobbit {
 class ElementWiseOp {
@@ -76,4 +78,4 @@ private:
 };
 }
 
-#endif // C_SCIENCE_ELEMENTWISEOP_HPP
+#endif // HOBBIT_ELEMENTWISEOP_HPP

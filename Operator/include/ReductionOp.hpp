@@ -20,10 +20,12 @@
     limitations under the License.
  */
 
-#ifndef C_SCIENCE_REDUCTIONOP_HPP
-#define C_SCIENCE_REDUCTIONOP_HPP
+#ifndef HOBBIT_REDUCTIONOP_HPP
+#define HOBBIT_REDUCTIONOP_HPP
 
-#include "Operator.hpp"
+#include <llvm/IR/LLVMContext.h>
+#include <llvm/IR/Value.h>
+#include <llvm/IR/IRBuilder.h>
 
 namespace Hobbit {
 class ReductionOp {
@@ -51,4 +53,4 @@ private:
 };
 }
 
-#endif // C_SCIENCE_REDUCTIONOP_HPP
+#endif // HOBBIT_REDUCTIONOP_HPP
