@@ -27,14 +27,16 @@ Hobbit::ElementWiseOp::ElementWiseOp(llvm::LLVMContext &ctx) {
 }
 
 bool Hobbit::ElementWiseOp::SetConstant(llvm::Value *constant) {
-  if (this->constant != nullptr) return false;
+  if (this->constant != nullptr)
+    return false;
 
   this->constant = std::move(constant);
   return true;
 }
 
-llvm::Value *Hobbit::ElementWiseOp::ArrayVectorPack_(
-        llvm::IRBuilder<> &builder, llvm::Value *array, llvm::Type *vector_type) {
+llvm::Value *Hobbit::ElementWiseOp::ArrayVectorPack_(llvm::IRBuilder<> &builder,
+                                                     llvm::Value *array,
+                                                     llvm::Type *vector_type) {
 
   uint64_t vector_elements = vector_type->getVectorNumElements();
 
@@ -43,13 +45,13 @@ llvm::Value *Hobbit::ElementWiseOp::ArrayVectorPack_(
   llvm::Type *vector_element_type = vector_type->getVectorElementType();
   llvm::Type *array_element_type = array->getType()->getArrayElementType();
 
-  // make sure the if the vector type is float then everyone's a float...otherwise break
-  if (vector_element_type->isFPOrFPVectorTy() && !array_element_type->isFPOrFPVectorTy()) {
+  // make sure the if the vector type is float then everyone's a
+  // float...otherwise break
+  if (vector_element_type->isFPOrFPVectorTy() &&
+      !array_element_type->isFPOrFPVectorTy()) {
     for (uint64_t i = 0; i < vector_elements; i++) {
       llvm::Value *array_element = builder.CreateFPCast(
-              builder.CreateExtractValue(array, i),
-              vector_element_type
-      );
+          builder.CreateExtractValue(array, i), vector_element_type);
       output = builder.CreateInsertElement(output, array_element, i,
                                            array->getName() + ".pack");
     }
@@ -57,8 +59,10 @@ llvm::Value *Hobbit::ElementWiseOp::ArrayVectorPack_(
     return output;
   }
 
-  if (vector_element_type->isIntOrIntVectorTy() && array_element_type->isFPOrFPVectorTy()) {
-    throw std::runtime_error("Attempting to cast float to int, not yet supported");
+  if (vector_element_type->isIntOrIntVectorTy() &&
+      array_element_type->isFPOrFPVectorTy()) {
+    throw std::runtime_error(
+        "Attempting to cast float to int, not yet supported");
   }
 
   for (uint64_t i = 0; i < vector_elements; i++) {
@@ -70,8 +74,9 @@ llvm::Value *Hobbit::ElementWiseOp::ArrayVectorPack_(
   return output;
 }
 
-llvm::Value *
-Hobbit::ElementWiseOp::PtrVectorPack_(llvm::IRBuilder<> &builder, llvm::Value *ptr, llvm::Type *vector_type) {
+llvm::Value *Hobbit::ElementWiseOp::PtrVectorPack_(llvm::IRBuilder<> &builder,
+                                                   llvm::Value *ptr,
+                                                   llvm::Type *vector_type) {
   uint64_t vector_elements = vector_type->getVectorNumElements();
 
   llvm::Value *output = llvm::UndefValue::get(vector_type);
@@ -79,10 +84,10 @@ Hobbit::ElementWiseOp::PtrVectorPack_(llvm::IRBuilder<> &builder, llvm::Value *p
   llvm::Type *vector_element_type = vector_type->getVectorElementType();
 
   for (uint64_t i = 0; i < vector_elements; i++) {
-    llvm::Value *ptr_element = builder.CreateFPCast( // force the pointer values to the right type
+    llvm::Value *ptr_element =
+        builder.CreateFPCast( // force the pointer values to the right type
             builder.CreateLoad(builder.CreateGEP(ptr, builder.getInt64(i))),
-            vector_element_type
-    );
+            vector_element_type);
     output = builder.CreateInsertElement(output, ptr_element, i,
                                          ptr->getName() + ".pack");
   }
@@ -95,7 +100,9 @@ Hobbit::ElementWiseOp::PtrVectorPack_(llvm::IRBuilder<> &builder, llvm::Value *p
 Hobbit::ElementWiseProduct::ElementWiseProduct(llvm::LLVMContext &ctx)
     : ElementWiseOp(ctx) {}
 
-llvm::Value *Hobbit::ElementWiseProduct::Emit(llvm::IRBuilder<> &builder, llvm::Value *input, llvm::Type *vector_type) {
+llvm::Value *Hobbit::ElementWiseProduct::Emit(llvm::IRBuilder<> &builder,
+                                              llvm::Value *input,
+                                              llvm::Type *vector_type) {
   llvm::Type *constant_type = this->constant->getType();
 
   llvm::Type *input_type = input->getType();
@@ -104,16 +111,14 @@ llvm::Value *Hobbit::ElementWiseProduct::Emit(llvm::IRBuilder<> &builder, llvm::
     // Check the constant
     if (!constant_type->isVectorTy() && constant_type->isArrayTy()) {
       this->constant = ArrayVectorPack_(builder, this->constant, vector_type);
-    }
-    else if (!constant_type->isVectorTy() && constant_type->isPointerTy()) {
+    } else if (!constant_type->isVectorTy() && constant_type->isPointerTy()) {
       this->constant = PtrVectorPack_(builder, this->constant, vector_type);
     }
 
     // Check the input
     if (!input_type->isVectorTy() && input_type->isArrayTy()) {
       input = ArrayVectorPack_(builder, input, vector_type);
-    }
-    else if (!input_type->isVectorTy() && input_type->isPointerTy()) {
+    } else if (!input_type->isVectorTy() && input_type->isPointerTy()) {
       input = PtrVectorPack_(builder, input, vector_type);
     }
 
@@ -125,9 +130,12 @@ llvm::Value *Hobbit::ElementWiseProduct::Emit(llvm::IRBuilder<> &builder, llvm::
 
   if (constant_type->isArrayTy() && input_type->isArrayTy()) {
 
-    if (constant_type->getArrayElementType() != input_type->getArrayElementType()) throw std::runtime_error("Unequal array types");
+    if (constant_type->getArrayElementType() !=
+        input_type->getArrayElementType())
+      throw std::runtime_error("Unequal array types");
 
-    if (constant_type->getArrayElementType()->isFPOrFPVectorTy() && input_type->getArrayElementType()->isFPOrFPVectorTy()) {
+    if (constant_type->getArrayElementType()->isFPOrFPVectorTy() &&
+        input_type->getArrayElementType()->isFPOrFPVectorTy()) {
       return this->SequenceFMul_(builder, this->constant, input);
     }
 
@@ -135,12 +143,11 @@ llvm::Value *Hobbit::ElementWiseProduct::Emit(llvm::IRBuilder<> &builder, llvm::
   }
 
   return nullptr;
-
 }
 
 llvm::Value *
 Hobbit::ElementWiseProduct::SequenceFMul_(llvm::IRBuilder<> &builder,
-                                           llvm::Value *lhs, llvm::Value *rhs) {
+                                          llvm::Value *lhs, llvm::Value *rhs) {
 
   uint64_t sequence_len = lhs->getType()->getArrayNumElements();
 
@@ -158,7 +165,7 @@ Hobbit::ElementWiseProduct::SequenceFMul_(llvm::IRBuilder<> &builder,
 
 llvm::Value *
 Hobbit::ElementWiseProduct::SequenceMul_(llvm::IRBuilder<> &builder,
-                                          llvm::Value *lhs, llvm::Value *rhs) {
+                                         llvm::Value *lhs, llvm::Value *rhs) {
 
   uint64_t sequence_len = lhs->getType()->getArrayNumElements();
 
@@ -174,14 +181,14 @@ Hobbit::ElementWiseProduct::SequenceMul_(llvm::IRBuilder<> &builder,
   return output;
 }
 
-llvm::Value *
-Hobbit::ElementWiseProduct::VectorFMul_(llvm::IRBuilder<> &builder,
-                                          llvm::Value *lhs, llvm::Value *rhs) {
+llvm::Value *Hobbit::ElementWiseProduct::VectorFMul_(llvm::IRBuilder<> &builder,
+                                                     llvm::Value *lhs,
+                                                     llvm::Value *rhs) {
   return builder.CreateFMul(lhs, rhs, "ewise_product.vector.fmul");
 }
 
-llvm::Value *
-Hobbit::ElementWiseProduct::VectorMul_(llvm::IRBuilder<> &builder,
-                                         llvm::Value *lhs, llvm::Value *rhs) {
+llvm::Value *Hobbit::ElementWiseProduct::VectorMul_(llvm::IRBuilder<> &builder,
+                                                    llvm::Value *lhs,
+                                                    llvm::Value *rhs) {
   return builder.CreateMul(lhs, rhs, "ewise_product.vector.mul");
 }

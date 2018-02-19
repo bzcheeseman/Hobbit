@@ -10,9 +10,9 @@
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
     You may obtain a copy of the License at
-    
+
         http://www.apache.org/licenses/LICENSE-2.0
-    
+
     Unless required by applicable law or agreed to in writing, software
     distributed under the License is distributed on an "AS IS" BASIS,
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -20,19 +20,16 @@
     limitations under the License.
  */
 
-
 #include "DAGNodeVisitor.hpp"
 
 void Hobbit::FusionVisitor::Visit(Hobbit::DAGNode *node) {
 
-  DAGNode *child = node->sink;
-
   // Move the operators into this node
-//  std::move(child->operators.begin(), child->operators.end(), std::back_inserter(node->operators));
+  node->op->PushOperator(node->sink->op);
 
   // Link the child's sinks to this node
-//  node->sink = std::move(child->sink);
+  node->sink = std::move(node->sink->sink);
 
   // And finally delete the child
-  delete child;
+  delete node->sink;
 }

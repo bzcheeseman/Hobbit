@@ -23,50 +23,50 @@
 #ifndef HOBBIT_ELEMENTWISEOP_HPP
 #define HOBBIT_ELEMENTWISEOP_HPP
 
+#include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Value.h>
-#include <llvm/IR/IRBuilder.h>
 
 namespace Hobbit {
-class ElementWiseOp {
-public:
-  explicit ElementWiseOp(llvm::LLVMContext &ctx);
+  class ElementWiseOp {
+  public:
+    explicit ElementWiseOp(llvm::LLVMContext &ctx);
 
-  bool SetConstant(llvm::Value *constant);
+    bool SetConstant(llvm::Value *constant);
 
-  virtual llvm::Value *Emit(llvm::IRBuilder<> &builder, llvm::Value *input, llvm::Type *vector_type) = 0;
+    virtual llvm::Value *Emit(llvm::IRBuilder<> &builder, llvm::Value *input,
+                              llvm::Type *vector_type) = 0;
 
-protected:
-  llvm::Value *
-  ArrayVectorPack_(llvm::IRBuilder<> &builder, llvm::Value *array,
-                   llvm::Type *vector_type);
+  protected:
+    llvm::Value *ArrayVectorPack_(llvm::IRBuilder<> &builder,
+                                  llvm::Value *array, llvm::Type *vector_type);
 
-  llvm::Value *PtrVectorPack_(llvm::IRBuilder<> &builder, llvm::Value *ptr,
-                              llvm::Type *vector_type);
+    llvm::Value *PtrVectorPack_(llvm::IRBuilder<> &builder, llvm::Value *ptr,
+                                llvm::Type *vector_type);
 
-  llvm::Value *constant = nullptr;
-};
+    llvm::Value *constant = nullptr;
+  };
 
-class ElementWiseProduct : public ElementWiseOp {
-public:
-  explicit ElementWiseProduct(llvm::LLVMContext &ctx);
+  class ElementWiseProduct : public ElementWiseOp {
+  public:
+    explicit ElementWiseProduct(llvm::LLVMContext &ctx);
 
-  llvm::Value *Emit(llvm::IRBuilder<> &builder, llvm::Value *input, llvm::Type *vector_type) override;
+    llvm::Value *Emit(llvm::IRBuilder<> &builder, llvm::Value *input,
+                      llvm::Type *vector_type) override;
 
-private:
+  private:
+    // Returns an array of size sequence_len
+    llvm::Value *SequenceFMul_(llvm::IRBuilder<> &builder, llvm::Value *lhs,
+                               llvm::Value *rhs);
+    llvm::Value *SequenceMul_(llvm::IRBuilder<> &builder, llvm::Value *lhs,
+                              llvm::Value *rhs);
 
-  // Returns an array of size sequence_len
-  llvm::Value *SequenceFMul_(llvm::IRBuilder<> &builder, llvm::Value *lhs,
+    // Returns a vector that's the same size as the inputs
+    llvm::Value *VectorFMul_(llvm::IRBuilder<> &builder, llvm::Value *lhs,
+                             llvm::Value *rhs);
+    llvm::Value *VectorMul_(llvm::IRBuilder<> &builder, llvm::Value *lhs,
                             llvm::Value *rhs);
-  llvm::Value *SequenceMul_(llvm::IRBuilder<> &builder, llvm::Value *lhs,
-                           llvm::Value *rhs);
-
-  // Returns a vector that's the same size as the inputs
-  llvm::Value *VectorFMul_(llvm::IRBuilder<> &builder, llvm::Value *lhs,
-                           llvm::Value *rhs);
-  llvm::Value *VectorMul_(llvm::IRBuilder<> &builder, llvm::Value *lhs,
-                          llvm::Value *rhs);
-};
+  };
 }
 
 #endif // HOBBIT_ELEMENTWISEOP_HPP

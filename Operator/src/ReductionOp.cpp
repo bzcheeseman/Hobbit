@@ -29,22 +29,20 @@ Hobbit::ReductionOp::ReductionOp(llvm::LLVMContext &ctx) {
 Hobbit::HorizontalSumReduction::HorizontalSumReduction(llvm::LLVMContext &ctx)
     : ReductionOp(ctx) {}
 
-llvm::Value *
-Hobbit::HorizontalSumReduction::Emit(llvm::IRBuilder<> &builder, llvm::Value *input, llvm::Type *vector_type) {
+llvm::Value *Hobbit::HorizontalSumReduction::Emit(llvm::IRBuilder<> &builder,
+                                                  llvm::Value *input,
+                                                  llvm::Type *vector_type) {
   llvm::Type *input_type = input->getType();
 
   if (input_type->isArrayTy() && vector_type != nullptr) {
     input = ArrayVectorPack_(builder, input, vector_type);
     input_type = vector_type;
-  }
-  else if (input_type->isArrayTy() && vector_type == nullptr) {
+  } else if (input_type->isArrayTy() && vector_type == nullptr) {
     input_type = input_type->getArrayElementType();
-  }
-  else if (input_type->isPointerTy() && vector_type != nullptr) {
+  } else if (input_type->isPointerTy() && vector_type != nullptr) {
     input = PtrVectorPack_(builder, input, vector_type);
     input_type = vector_type;
-  }
-  else if (input_type->isPointerTy() && vector_type == nullptr) {
+  } else if (input_type->isPointerTy() && vector_type == nullptr) {
     return nullptr;
   }
 
@@ -63,11 +61,10 @@ Hobbit::HorizontalSumReduction::Emit(llvm::IRBuilder<> &builder, llvm::Value *in
   }
 
   return nullptr;
-
 }
 
-llvm::Value *Hobbit::HorizontalSumReduction::ArrayVectorPack_(llvm::IRBuilder<> &builder, llvm::Value *array,
-                                                              llvm::Type *vector_type) {
+llvm::Value *Hobbit::HorizontalSumReduction::ArrayVectorPack_(
+    llvm::IRBuilder<> &builder, llvm::Value *array, llvm::Type *vector_type) {
 
   uint64_t vector_elements = vector_type->getVectorNumElements();
 
@@ -76,13 +73,13 @@ llvm::Value *Hobbit::HorizontalSumReduction::ArrayVectorPack_(llvm::IRBuilder<> 
   llvm::Type *vector_element_type = vector_type->getVectorElementType();
   llvm::Type *array_element_type = array->getType()->getArrayElementType();
 
-  // make sure the if the vector type is float then everyone's a float...otherwise break
-  if (vector_element_type->isFPOrFPVectorTy() && !array_element_type->isFPOrFPVectorTy()) {
+  // make sure the if the vector type is float then everyone's a
+  // float...otherwise break
+  if (vector_element_type->isFPOrFPVectorTy() &&
+      !array_element_type->isFPOrFPVectorTy()) {
     for (uint64_t i = 0; i < vector_elements; i++) {
       llvm::Value *array_element = builder.CreateFPCast(
-              builder.CreateExtractValue(array, i),
-              vector_element_type
-      );
+          builder.CreateExtractValue(array, i), vector_element_type);
       output = builder.CreateInsertElement(output, array_element, i,
                                            array->getName() + ".pack");
     }
@@ -90,8 +87,10 @@ llvm::Value *Hobbit::HorizontalSumReduction::ArrayVectorPack_(llvm::IRBuilder<> 
     return output;
   }
 
-  if (vector_element_type->isIntOrIntVectorTy() && array_element_type->isFPOrFPVectorTy()) {
-    throw std::runtime_error("Attempting to cast float to int, not yet supported");
+  if (vector_element_type->isIntOrIntVectorTy() &&
+      array_element_type->isFPOrFPVectorTy()) {
+    throw std::runtime_error(
+        "Attempting to cast float to int, not yet supported");
   }
 
   for (uint64_t i = 0; i < vector_elements; i++) {
@@ -103,8 +102,8 @@ llvm::Value *Hobbit::HorizontalSumReduction::ArrayVectorPack_(llvm::IRBuilder<> 
   return output;
 }
 
-llvm::Value *Hobbit::HorizontalSumReduction::PtrVectorPack_(llvm::IRBuilder<> &builder, llvm::Value *ptr,
-                                                            llvm::Type *vector_type) {
+llvm::Value *Hobbit::HorizontalSumReduction::PtrVectorPack_(
+    llvm::IRBuilder<> &builder, llvm::Value *ptr, llvm::Type *vector_type) {
   uint64_t vector_elements = vector_type->getVectorNumElements();
 
   llvm::Value *output = llvm::UndefValue::get(vector_type);
@@ -112,10 +111,10 @@ llvm::Value *Hobbit::HorizontalSumReduction::PtrVectorPack_(llvm::IRBuilder<> &b
   llvm::Type *vector_element_type = vector_type->getVectorElementType();
 
   for (uint64_t i = 0; i < vector_elements; i++) {
-    llvm::Value *ptr_element = builder.CreateFPCast( // force the pointer values to the right type
+    llvm::Value *ptr_element =
+        builder.CreateFPCast( // force the pointer values to the right type
             builder.CreateLoad(builder.CreateGEP(ptr, builder.getInt64(i))),
-            vector_element_type
-    );
+            vector_element_type);
     output = builder.CreateInsertElement(output, ptr_element, i,
                                          ptr->getName() + ".pack");
   }
@@ -123,7 +122,9 @@ llvm::Value *Hobbit::HorizontalSumReduction::PtrVectorPack_(llvm::IRBuilder<> &b
   return output;
 }
 
-llvm::Value *Hobbit::HorizontalSumReduction::SequenceHFAdd_(llvm::IRBuilder<> &builder, llvm::Value *input) {
+llvm::Value *
+Hobbit::HorizontalSumReduction::SequenceHFAdd_(llvm::IRBuilder<> &builder,
+                                               llvm::Value *input) {
 
   llvm::Type *output_type = input->getType()->getArrayElementType();
   llvm::Value *output = builder.getInt64(0);
@@ -132,14 +133,18 @@ llvm::Value *Hobbit::HorizontalSumReduction::SequenceHFAdd_(llvm::IRBuilder<> &b
   uint64_t array_num_elements = input->getType()->getArrayNumElements();
 
   for (uint64_t i = 0; i < array_num_elements; i++) {
-    output = builder.CreateFAdd(output, builder.CreateExtractValue(input, i)); // add the next element of the input
+    output =
+        builder.CreateFAdd(output,
+                           builder.CreateExtractValue(
+                               input, i)); // add the next element of the input
   }
 
   return output;
-
 }
 
-llvm::Value *Hobbit::HorizontalSumReduction::SequenceHAdd_(llvm::IRBuilder<> &builder, llvm::Value *input) {
+llvm::Value *
+Hobbit::HorizontalSumReduction::SequenceHAdd_(llvm::IRBuilder<> &builder,
+                                              llvm::Value *input) {
   llvm::Type *output_type = input->getType()->getArrayElementType();
   llvm::Value *output = builder.getInt64(0);
   output = builder.CreateBitCast(output, output_type);
@@ -147,13 +152,18 @@ llvm::Value *Hobbit::HorizontalSumReduction::SequenceHAdd_(llvm::IRBuilder<> &bu
   uint64_t array_num_elements = input->getType()->getArrayNumElements();
 
   for (uint64_t i = 0; i < array_num_elements; i++) {
-    output = builder.CreateAdd(output, builder.CreateExtractValue(input, i)); // add the next element of the input
+    output =
+        builder.CreateAdd(output,
+                          builder.CreateExtractValue(
+                              input, i)); // add the next element of the input
   }
 
   return output;
 }
 
-llvm::Value *Hobbit::HorizontalSumReduction::VectorHFAdd_(llvm::IRBuilder<> &builder, llvm::Value *input) {
+llvm::Value *
+Hobbit::HorizontalSumReduction::VectorHFAdd_(llvm::IRBuilder<> &builder,
+                                             llvm::Value *input) {
 
   uint64_t vector_width = input->getType()->getVectorNumElements();
 
@@ -162,17 +172,19 @@ llvm::Value *Hobbit::HorizontalSumReduction::VectorHFAdd_(llvm::IRBuilder<> &bui
   output = builder.CreateBitCast(output, output_type);
 
   for (uint64_t i = 0; i < vector_width; i += 2) {
-    output = builder.CreateFAdd(output,
-                               builder.CreateFAdd(builder.CreateExtractElement(input, i),
-                                                 builder.CreateExtractElement(input, i + 1)),
-                                "hsum_reduction.vector.hfadd"
-    );
+    output = builder.CreateFAdd(
+        output,
+        builder.CreateFAdd(builder.CreateExtractElement(input, i),
+                           builder.CreateExtractElement(input, i + 1)),
+        "hsum_reduction.vector.hfadd");
   }
 
   return output;
 }
 
-llvm::Value *Hobbit::HorizontalSumReduction::VectorHAdd_(llvm::IRBuilder<> &builder, llvm::Value *input) {
+llvm::Value *
+Hobbit::HorizontalSumReduction::VectorHAdd_(llvm::IRBuilder<> &builder,
+                                            llvm::Value *input) {
 
   uint64_t vector_width = input->getType()->getVectorNumElements();
 
@@ -181,11 +193,11 @@ llvm::Value *Hobbit::HorizontalSumReduction::VectorHAdd_(llvm::IRBuilder<> &buil
   output = builder.CreateBitCast(output, output_type);
 
   for (uint64_t i = 0; i < vector_width; i += 2) {
-    output = builder.CreateAdd(output,
-                               builder.CreateAdd(builder.CreateExtractElement(input, i),
-                                                 builder.CreateExtractElement(input, i + 1)),
-                               "hsum_reduction.vector.hadd"
-    );
+    output = builder.CreateAdd(
+        output,
+        builder.CreateAdd(builder.CreateExtractElement(input, i),
+                          builder.CreateExtractElement(input, i + 1)),
+        "hsum_reduction.vector.hadd");
   }
 
   return output;

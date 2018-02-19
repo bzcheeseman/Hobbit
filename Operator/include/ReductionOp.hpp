@@ -23,41 +23,42 @@
 #ifndef HOBBIT_REDUCTIONOP_HPP
 #define HOBBIT_REDUCTIONOP_HPP
 
+#include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Value.h>
-#include <llvm/IR/IRBuilder.h>
 
 namespace Hobbit {
-class ReductionOp {
-public:
-  explicit ReductionOp(llvm::LLVMContext &ctx);
+  class ReductionOp {
+  public:
+    explicit ReductionOp(llvm::LLVMContext &ctx);
 
-  virtual llvm::Value *Emit(llvm::IRBuilder<> &builder, llvm::Value *input, llvm::Type *vector_type) = 0;
+    virtual llvm::Value *Emit(llvm::IRBuilder<> &builder, llvm::Value *input,
+                              llvm::Type *vector_type) = 0;
 
-protected:
-  llvm::Value *constant;
-};
+  protected:
+    llvm::Value *constant;
+  };
 
-class HorizontalSumReduction : public ReductionOp {
-public:
-  explicit HorizontalSumReduction(llvm::LLVMContext &ctx);
+  class HorizontalSumReduction : public ReductionOp {
+  public:
+    explicit HorizontalSumReduction(llvm::LLVMContext &ctx);
 
-  llvm::Value *Emit(llvm::IRBuilder<> &builder, llvm::Value *input, llvm::Type *vector_type) override;
+    llvm::Value *Emit(llvm::IRBuilder<> &builder, llvm::Value *input,
+                      llvm::Type *vector_type) override;
 
-private:
-  llvm::Value *
-  ArrayVectorPack_(llvm::IRBuilder<> &builder, llvm::Value *array,
-                   llvm::Type *vector_type);
+  private:
+    llvm::Value *ArrayVectorPack_(llvm::IRBuilder<> &builder,
+                                  llvm::Value *array, llvm::Type *vector_type);
 
-  llvm::Value *PtrVectorPack_(llvm::IRBuilder<> &builder, llvm::Value *ptr,
-                              llvm::Type *vector_type);
+    llvm::Value *PtrVectorPack_(llvm::IRBuilder<> &builder, llvm::Value *ptr,
+                                llvm::Type *vector_type);
 
-  llvm::Value *SequenceHFAdd_(llvm::IRBuilder<> &builder, llvm::Value *input);
-  llvm::Value *SequenceHAdd_(llvm::IRBuilder<> &builder, llvm::Value *input);
+    llvm::Value *SequenceHFAdd_(llvm::IRBuilder<> &builder, llvm::Value *input);
+    llvm::Value *SequenceHAdd_(llvm::IRBuilder<> &builder, llvm::Value *input);
 
-  llvm::Value *VectorHFAdd_(llvm::IRBuilder<> &builder, llvm::Value *input);
-  llvm::Value *VectorHAdd_(llvm::IRBuilder<> &builder, llvm::Value *input);
-};
+    llvm::Value *VectorHFAdd_(llvm::IRBuilder<> &builder, llvm::Value *input);
+    llvm::Value *VectorHAdd_(llvm::IRBuilder<> &builder, llvm::Value *input);
+  };
 }
 
 #endif // HOBBIT_REDUCTIONOP_HPP
