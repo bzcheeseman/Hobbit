@@ -62,9 +62,8 @@ TEST(TestElementWiseProduct, VectorCodegen) {
   llvm::Value *one_array = builder.CreateVectorSplat(4, one);
   llvm::Value *two_array = builder.CreateVectorSplat(4, two);
 
-  EXPECT_TRUE(prod.SetConstant(two_array));
-
-  llvm::Value *ret = prod.Emit(builder, one_array, one_array->getType());
+  llvm::Value *ret =
+      prod.Emit(builder, one_array, two_array, one_array->getType());
   ret = builder.CreateExtractElement(ret, (uint64_t)0);
 
   builder.CreateRet(ret);
@@ -107,8 +106,7 @@ TEST(TestElementWiseProduct, ArrayCodegen) {
     two_array = builder.CreateInsertValue(two_array, builder.getInt32(2), i);
   }
 
-  prod.SetConstant(two_array);
-  llvm::Value *ret = prod.Emit(builder, one_array, nullptr);
+  llvm::Value *ret = prod.Emit(builder, one_array, two_array, nullptr);
   //  ret = builder.CreateLoad(builder.CreateGEP(ret, builder.getInt32(0)));
 
   builder.CreateRet(ret);
@@ -150,8 +148,8 @@ TEST(TestElementWiseProduct, MixedCodegen) {
     two_array = builder.CreateInsertValue(two_array, builder.getInt32(2), i);
   }
 
-  prod.SetConstant(two_array);
-  llvm::Value *ret = prod.Emit(builder, one_array, one_array->getType());
+  llvm::Value *ret =
+      prod.Emit(builder, one_array, two_array, one_array->getType());
   ret = builder.CreateExtractElement(ret, (uint64_t)0);
 
   builder.CreateRet(ret);

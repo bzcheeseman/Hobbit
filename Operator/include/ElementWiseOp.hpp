@@ -32,10 +32,8 @@ namespace Hobbit {
   public:
     explicit ElementWiseOp(llvm::LLVMContext &ctx);
 
-    bool SetConstant(llvm::Value *constant);
-
-    virtual llvm::Value *Emit(llvm::IRBuilder<> &builder, llvm::Value *input,
-                              llvm::Type *vector_type) = 0;
+    virtual llvm::Value *Emit(llvm::IRBuilder<> &builder, llvm::Value *lhs,
+                              llvm::Value *rhs, llvm::Type *vector_type) = 0;
 
   protected:
     llvm::Value *ArrayVectorPack_(llvm::IRBuilder<> &builder,
@@ -51,8 +49,8 @@ namespace Hobbit {
   public:
     explicit ElementWiseProduct(llvm::LLVMContext &ctx);
 
-    llvm::Value *Emit(llvm::IRBuilder<> &builder, llvm::Value *input,
-                      llvm::Type *vector_type) override;
+    llvm::Value *Emit(llvm::IRBuilder<> &builder, llvm::Value *lhs,
+                      llvm::Value *rhs, llvm::Type *vector_type) override;
 
   private:
     // Returns an array of size sequence_len

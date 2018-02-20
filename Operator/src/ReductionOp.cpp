@@ -133,10 +133,8 @@ Hobbit::HorizontalSumReduction::SequenceHFAdd_(llvm::IRBuilder<> &builder,
   uint64_t array_num_elements = input->getType()->getArrayNumElements();
 
   for (uint64_t i = 0; i < array_num_elements; i++) {
-    output =
-        builder.CreateFAdd(output,
-                           builder.CreateExtractValue(
-                               input, i)); // add the next element of the input
+    output = builder.CreateFAdd(output, builder.CreateExtractValue(input, i));
+    // add the next element of the input
   }
 
   return output;
@@ -152,10 +150,8 @@ Hobbit::HorizontalSumReduction::SequenceHAdd_(llvm::IRBuilder<> &builder,
   uint64_t array_num_elements = input->getType()->getArrayNumElements();
 
   for (uint64_t i = 0; i < array_num_elements; i++) {
-    output =
-        builder.CreateAdd(output,
-                          builder.CreateExtractValue(
-                              input, i)); // add the next element of the input
+    output = builder.CreateAdd(output, builder.CreateExtractValue(input, i));
+    // add the next element of the input
   }
 
   return output;

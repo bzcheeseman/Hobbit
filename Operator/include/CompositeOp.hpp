@@ -28,38 +28,67 @@
 #include <deque>
 
 namespace Hobbit {
+  enum ChunkStrategy {
+    FINISH_ELEMENTWISE_FIRST,
+    PIECEWISE_ELEMENTWISE_REDUCE,
+  };
+
+  struct ComputeStrategy {
+    uint64_t chunk_size;
+    std::deque<std::string> elemwise_op_names;
+    std::deque<std::string> reduction_op_names;
+    ChunkStrategy chunking_strategy;
+  };
+
   class CompositeOp {
   public:
-    CompositeOp();
-    CompositeOp(std::deque<ElementWiseOp *> &elemwise_table,
-                std::deque<ReductionOp *> &reduction_table);
-    CompositeOp(std::deque<ElementWiseOp *> &elemwise_table,
-                std::deque<ReductionOp *> &reduction_table,
-                std::deque<CompositeOp *> &composite_table);
+    CompositeOp() = default;
+    CompositeOp(std::map<std::string, ElementWiseOp *> &elemwise_table,
+                std::map<std::string, ReductionOp *> &reduction_table);
 
-    void PushOperator(ElementWiseOp *op);
-    void PushOperator(ReductionOp *op);
+    void PushOperator(const std::string &name, ElementWiseOp *op);
+    void PushOperator(const std::string &name, ReductionOp *op);
 
-    // This allows us to trivially fuse the generation of operators
     void PushOperator(CompositeOp *op);
 
-    llvm::Value *Emit(llvm::IRBuilder<> &builder, llvm::Value *input,
-                      llvm::Type *vector_type);
+    void SetComputeStrategy(ComputeStrategy &strategy);
+    const ComputeStrategy &GetComputeStrategy();
 
-  protected:
-    // Either of these two methods is fully allowed to be a no-op (just return
-    // input)
-    virtual llvm::Value *EmitElemwise_(llvm::IRBuilder<> &builder,
-                                       llvm::Value *input,
-                                       llvm::Type *vector_type) = 0;
-    virtual llvm::Value *EmitReduction_(llvm::IRBuilder<> &builder,
-                                        llvm::Value *input,
-                                        llvm::Type *vector_type) = 0;
+    llvm::Value *Emit(llvm::IRBuilder<> &builder,
+                      llvm::ArrayRef<llvm::Value *> operands);
 
-    std::deque<ElementWiseOp *> elemwise_op_table_;
-    std::deque<ReductionOp *> reduction_op_table_;
+  private:
+    std::vector<llvm::Value *> ChunkArrayOperand_(llvm::IRBuilder<> &builder,
+                                                  llvm::Value *operand);
+    std::vector<llvm::Value *> ChunkVectorOperand_(llvm::IRBuilder<> &builder,
+                                                   llvm::Value *operand);
+    llvm::Value *MergeOperandsArray_(llvm::IRBuilder<> &builder,
+                                     std::vector<llvm::Value *> operands);
+    llvm::Value *MergeOperandsVector_(llvm::IRBuilder<> &builder,
+                                      std::vector<llvm::Value *> operands);
 
-    std::deque<CompositeOp *> composite_op_table_;
+    // Applies the result of each elementwise operation as the lhs of the next
+    // elementwise operation - ordering is:
+    // second_reduction_op(
+    //  first_reduction_op(
+    //    third_ewise_op(second_ewise_op(first_ewise_op(_1, _2), _3), _4)...
+    //  )
+    // ), etc.
+    llvm::Value *EmitFinishElemwise_(llvm::IRBuilder<> &builder,
+                                     llvm::ArrayRef<llvm::Value *> &operands);
+
+    // Applies the result of each reduction operation as the lhs of the next
+    // elementwise operation - ordering is:
+    // second_reduction_op(
+    //  second_ewise_op(first_reduction_op(first_ewise_op(_1, _2)), _3)
+    // ), etc.
+    llvm::Value *EmitPiecewise_(llvm::IRBuilder<> &builder,
+                                llvm::ArrayRef<llvm::Value *> &operands);
+
+    std::map<std::string, ElementWiseOp *> elemwise_op_table_;
+    std::map<std::string, ReductionOp *> reduction_op_table_;
+
+    ComputeStrategy strategy_;
   };
 }
 

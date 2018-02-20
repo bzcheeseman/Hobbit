@@ -23,9 +23,9 @@
 #ifndef HOBBIT_MODULE_HPP
 #define HOBBIT_MODULE_HPP
 
+#include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
-#include <llvm/IR/IRBuilder.h>
 
 #include <deque>
 

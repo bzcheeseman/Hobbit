@@ -33,3 +33,11 @@ void Hobbit::FusionVisitor::Visit(Hobbit::DAGNode *node) {
   // And finally delete the child
   delete node->sink;
 }
+
+Hobbit::ReplacementVisitor::ReplacementVisitor(Hobbit::CompositeOp *op) {
+  this->op = std::move(op);
+}
+
+void Hobbit::ReplacementVisitor::Visit(Hobbit::DAGNode *node) {
+  node->op = this->op; // replace the operation with a new one do nothing else
+}

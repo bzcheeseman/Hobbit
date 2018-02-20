@@ -52,5 +52,7 @@ std::unique_ptr<llvm::Module> Hobbit::Module::ToLLVM() {
     current_sink = current_node->sink;
   }
 
+  // actually emit the IR to LLVM module
+
   return module;
 }

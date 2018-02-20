@@ -22,45 +22,287 @@
 
 #include "CompositeOp.hpp"
 
-Hobbit::CompositeOp::CompositeOp() { composite_op_table_.push_back(this); }
-
-Hobbit::CompositeOp::CompositeOp(std::deque<ElementWiseOp *> &elemwise_table,
-                                 std::deque<ReductionOp *> &reduction_table) {
-  composite_op_table_.push_back(this);
-
+Hobbit::CompositeOp::CompositeOp(
+    std::map<std::string, ElementWiseOp *> &elemwise_table,
+    std::map<std::string, ReductionOp *> &reduction_table) {
   elemwise_op_table_ = std::move(elemwise_table);
   reduction_op_table_ = std::move(reduction_table);
 }
 
-Hobbit::CompositeOp::CompositeOp(std::deque<ElementWiseOp *> &elemwise_table,
-                                 std::deque<ReductionOp *> &reduction_table,
-                                 std::deque<CompositeOp *> &composite_table) {
-  composite_op_table_ = std::move(composite_table);
-  elemwise_op_table_ = std::move(elemwise_table);
-  reduction_op_table_ = std::move(reduction_table);
+void Hobbit::CompositeOp::PushOperator(const std::string &name,
+                                       Hobbit::ElementWiseOp *op) {
+  if (elemwise_op_table_.find(name) != elemwise_op_table_.end())
+    throw std::runtime_error("Operator exists in the table");
+  elemwise_op_table_[name] = std::move(op);
 }
 
-void Hobbit::CompositeOp::PushOperator(Hobbit::ElementWiseOp *op) {
-  elemwise_op_table_.push_back(std::move(op));
-}
-
-void Hobbit::CompositeOp::PushOperator(Hobbit::ReductionOp *op) {
-  reduction_op_table_.push_back(std::move(op));
+void Hobbit::CompositeOp::PushOperator(const std::string &name,
+                                       Hobbit::ReductionOp *op) {
+  if (reduction_op_table_.find(name) != reduction_op_table_.end())
+    throw std::runtime_error("Operator exists in the table");
+  reduction_op_table_[name] = std::move(op);
 }
 
 void Hobbit::CompositeOp::PushOperator(Hobbit::CompositeOp *op) {
-  composite_op_table_.push_back(std::move(op));
+  // TODO: how to insert other operator's values into the table?
+  return;
 }
 
 llvm::Value *Hobbit::CompositeOp::Emit(llvm::IRBuilder<> &builder,
-                                       llvm::Value *input,
-                                       llvm::Type *vector_type) {
-  llvm::Value *output = input;
+                                       llvm::ArrayRef<llvm::Value *> operands) {
+  if (this->strategy_.chunking_strategy == FINISH_ELEMENTWISE_FIRST)
+    // TODO: size checking on the operands based on op name sizes
+    return EmitFinishElemwise_(builder, operands);
+  if (this->strategy_.chunking_strategy == PIECEWISE_ELEMENTWISE_REDUCE) {
+    if (this->strategy_.elemwise_op_names.size() != this->strategy_.reduction_op_names.size() &&
+            this->strategy_.elemwise_op_names.size() != this->strategy_.reduction_op_names.size()+1) {
+      throw std::runtime_error("Invalid number of operations for a piecewise composite operation");
+    }
+    return EmitPiecewise_(builder, operands);
+  }
 
-  for (auto &composite_op : composite_op_table_) {
-    output = composite_op->EmitElemwise_(builder, output, vector_type);
-    output = composite_op->EmitReduction_(builder, output, vector_type);
+  return nullptr;
+}
+
+void Hobbit::CompositeOp::SetComputeStrategy(
+    Hobbit::ComputeStrategy &strategy) {
+  strategy_ = std::move(strategy);
+}
+
+const Hobbit::ComputeStrategy &Hobbit::CompositeOp::GetComputeStrategy() {
+  return strategy_;
+}
+
+std::vector<llvm::Value *>
+Hobbit::CompositeOp::ChunkArrayOperand_(llvm::IRBuilder<> &builder,
+                                        llvm::Value *operand) {
+  uint64_t &chunk_size = this->strategy_.chunk_size;
+  llvm::Type *operand_type = operand->getType();
+
+  std::vector<llvm::Value *> output;
+
+  uint64_t operand_size = operand_type->getArrayNumElements();
+  uint64_t leftovers = operand_size % chunk_size;
+  uint64_t chunks = (operand_size - leftovers) / chunk_size;
+
+  llvm::Type *vector_type =
+      llvm::VectorType::get(operand_type->getArrayElementType(), chunk_size);
+
+  for (uint64_t i = 0; i < chunks; i++) {
+    llvm::Value *vector = llvm::UndefValue::get(vector_type);
+    for (uint64_t j = 0; j < chunk_size; j++) {
+      llvm::Value *operand_elt =
+          builder.CreateExtractValue(operand, i * chunk_size + j);
+      vector = builder.CreateInsertElement(vector, operand_elt, j);
+    }
+    output.push_back(vector);
+  }
+
+  llvm::Value *vector = llvm::UndefValue::get(vector_type);
+  for (uint64_t j = 0; j < leftovers; j++) {
+    llvm::Value *operand_elt =
+        builder.CreateExtractValue(operand, chunks * chunk_size + j);
+    vector = builder.CreateInsertElement(vector, operand_elt, j);
+  }
+  output.push_back(vector);
+
+  return output;
+}
+
+std::vector<llvm::Value *>
+Hobbit::CompositeOp::ChunkVectorOperand_(llvm::IRBuilder<> &builder,
+                                         llvm::Value *operand) {
+  uint64_t &chunk_size = this->strategy_.chunk_size;
+  llvm::Type *operand_type = operand->getType();
+
+  std::vector<llvm::Value *> output;
+
+  uint64_t operand_size = operand_type->getVectorNumElements();
+  uint64_t leftovers = operand_size % chunk_size;
+  uint64_t chunks = (operand_size - leftovers) / chunk_size;
+
+  llvm::Type *vector_type =
+      llvm::VectorType::get(operand_type->getVectorElementType(), chunk_size);
+
+  for (uint64_t i = 0; i < chunks; i++) {
+    llvm::Value *vector = llvm::UndefValue::get(vector_type);
+    for (uint64_t j = 0; j < chunk_size; j++) {
+      llvm::Value *operand_elt =
+          builder.CreateExtractElement(operand, i * chunk_size + j);
+      vector = builder.CreateInsertElement(vector, operand_elt, j);
+    }
+    output.push_back(vector);
+  }
+
+  llvm::Value *vector = llvm::UndefValue::get(vector_type);
+  for (uint64_t j = 0; j < leftovers; j++) {
+    llvm::Value *operand_elt =
+        builder.CreateExtractElement(operand, chunks * chunk_size + j);
+    vector = builder.CreateInsertElement(vector, operand_elt, j);
+  }
+  output.push_back(vector);
+
+  return output;
+}
+
+llvm::Value *
+Hobbit::CompositeOp::MergeOperandsArray_(llvm::IRBuilder<> &builder,
+                                         std::vector<llvm::Value *> operands) {
+  llvm::Type *element_type = operands[0]->getType();
+  llvm::Type *aggregate_type =
+      llvm::ArrayType::get(element_type, operands.size());
+
+  llvm::Value *output = llvm::UndefValue::get(aggregate_type);
+
+  for (uint64_t i = 0; i < operands.size(); i++) {
+    output = builder.CreateInsertValue(output, operands[i], i);
   }
 
   return output;
+}
+
+llvm::Value *
+Hobbit::CompositeOp::MergeOperandsVector_(llvm::IRBuilder<> &builder,
+                                          std::vector<llvm::Value *> operands) {
+  llvm::Type *element_type = operands[0]->getType();
+  llvm::Type *aggregate_type =
+      llvm::VectorType::get(element_type, operands.size());
+
+  llvm::Value *output = llvm::UndefValue::get(aggregate_type);
+
+  for (uint64_t i = 0; i < operands.size(); i++) {
+    output = builder.CreateInsertElement(output, operands[i], i);
+  }
+
+  return output;
+}
+
+llvm::Value *Hobbit::CompositeOp::EmitFinishElemwise_(
+    llvm::IRBuilder<> &builder, llvm::ArrayRef<llvm::Value *> &operands) {
+
+  llvm::ArrayRef<llvm::Value *> first_operands = operands.take_front(2);
+  operands.drop_front(2);
+
+  std::vector<llvm::Value *> chunked_lhs, chunked_rhs;
+
+  if (first_operands[0]->getType()->isVectorTy()) {
+    chunked_lhs = ChunkVectorOperand_(builder, first_operands[0]);
+  } else if (first_operands[0]->getType()->isArrayTy()) {
+    chunked_lhs = ChunkArrayOperand_(builder, first_operands[0]);
+  }
+
+  if (first_operands[1]->getType()->isVectorTy()) {
+    chunked_rhs = ChunkVectorOperand_(builder, first_operands[1]);
+  } else if (first_operands[1]->getType()->isArrayTy()) {
+    chunked_rhs = ChunkArrayOperand_(builder, first_operands[1]);
+  }
+
+  std::vector<llvm::Value *> chunked_result = chunked_lhs;
+  uint64_t num_chunks;
+  for (auto &ewise_op_name : this->strategy_.elemwise_op_names) {
+    ElementWiseOp *ewise_op = elemwise_op_table_[ewise_op_name];
+
+    num_chunks = chunked_rhs.size(); // rhs and previous result need to have the same number of chunks
+
+    for (uint64_t i = 0; i < num_chunks; i++) {
+      chunked_result[i] =
+          ewise_op->Emit(builder, chunked_result[i], chunked_rhs[i], nullptr);
+    }
+
+    llvm::Value *next_rhs = *operands.begin();
+    operands.drop_front(1);
+
+    if (next_rhs->getType()->isVectorTy()) {
+      chunked_rhs = ChunkVectorOperand_(builder, next_rhs);
+    } else if (next_rhs->getType()->isArrayTy()) {
+      chunked_rhs = ChunkArrayOperand_(builder, next_rhs);
+    }
+  }
+
+  llvm::Value *merged_result;
+  num_chunks = chunked_result.size();
+  for (auto &reduction_op_name : this->strategy_.reduction_op_names) {
+    ReductionOp *reduction_op = reduction_op_table_[reduction_op_name];
+
+    for (uint64_t i = 0; i < num_chunks; i++) {
+      chunked_result[i] =
+          reduction_op->Emit(builder, chunked_result[i], nullptr);
+    }
+    // now we have a bunch of single elements
+    merged_result = MergeOperandsArray_(builder, chunked_result);
+    chunked_result[0] = merged_result; // now there's only one chunk (on the
+                                       // second pass, there's only one element)
+    num_chunks = 1;
+  }
+
+  return chunked_result[0]; // the only piece we care about is the first element
+                            // at this point
+}
+
+llvm::Value *
+Hobbit::CompositeOp::EmitPiecewise_(llvm::IRBuilder<> &builder,
+                                    llvm::ArrayRef<llvm::Value *> &operands) {
+  llvm::ArrayRef<llvm::Value *> elemwise_operand = operands.take_front(1);
+  operands.drop_front(1);
+  std::vector<llvm::Value *> chunked_lhs, chunked_rhs;
+
+  if (elemwise_operand[0]->getType()->isVectorTy()) {
+    chunked_lhs = ChunkVectorOperand_(builder, elemwise_operand[0]);
+  } else if (elemwise_operand[0]->getType()->isArrayTy()) {
+    chunked_lhs = ChunkArrayOperand_(builder, elemwise_operand[0]);
+  }
+
+  uint64_t num_chunks = chunked_lhs.size();
+  std::vector<llvm::Value *> chunked_result = chunked_lhs;
+  uint64_t num_ops = this->strategy_.reduction_op_names.size(); // at least this many elementwise ops
+
+  for (uint64_t i = 0; i < num_ops; i++) {
+    std::string &ewise_op_name = this->strategy_.elemwise_op_names[i];
+    std::string &reduction_op_name = this->strategy_.reduction_op_names[i];
+    ElementWiseOp *ewise_op = elemwise_op_table_[ewise_op_name];
+    ReductionOp *reduction_op = reduction_op_table_[reduction_op_name];
+
+    llvm::Value *next_rhs = *operands.begin();
+    operands.drop_front(1);
+
+    if (next_rhs->getType()->isVectorTy()) {
+      chunked_rhs = ChunkVectorOperand_(builder, next_rhs);
+    } else if (next_rhs->getType()->isArrayTy()) {
+      chunked_rhs = ChunkArrayOperand_(builder, next_rhs);
+    }
+
+    for (uint64_t j = 0; j < num_chunks; j++) {
+      chunked_result[j] = ewise_op->Emit(builder, chunked_result[j], chunked_rhs[j], nullptr);
+      chunked_result[j] = reduction_op->Emit(builder, chunked_result[j], nullptr);
+    }
+
+    // Update the result and the rhs for the next round
+    chunked_result = ChunkVectorOperand_(builder, MergeOperandsVector_(builder, chunked_result));
+    num_chunks = chunked_result.size();
+  }
+
+  if (num_ops == this->strategy_.elemwise_op_names.size()) {
+    llvm::Value *result = MergeOperandsVector_(builder, chunked_result);
+    return result;
+  }
+
+  // At this point we only have one last operand in the list, so load it up and operate on it
+  std::string &ewise_op_name = this->strategy_.elemwise_op_names.back();
+  ElementWiseOp *ewise_op = elemwise_op_table_[ewise_op_name];
+
+  llvm::Value *next_rhs = *operands.begin();
+  operands.drop_front(1);
+
+  if (next_rhs->getType()->isVectorTy()) {
+    chunked_rhs = ChunkVectorOperand_(builder, next_rhs);
+  } else if (next_rhs->getType()->isArrayTy()) {
+    chunked_rhs = ChunkArrayOperand_(builder, next_rhs);
+  }
+
+  for (uint64_t j = 0; j < num_chunks; j++) {
+    chunked_result[j] = ewise_op->Emit(builder, chunked_result[j], chunked_rhs[j], nullptr);
+  }
+
+  llvm::Value *result = MergeOperandsVector_(builder, chunked_result);
+  return result;
 }

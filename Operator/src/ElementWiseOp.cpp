@@ -26,14 +26,6 @@ Hobbit::ElementWiseOp::ElementWiseOp(llvm::LLVMContext &ctx) {
   this->constant = nullptr;
 }
 
-bool Hobbit::ElementWiseOp::SetConstant(llvm::Value *constant) {
-  if (this->constant != nullptr)
-    return false;
-
-  this->constant = std::move(constant);
-  return true;
-}
-
 llvm::Value *Hobbit::ElementWiseOp::ArrayVectorPack_(llvm::IRBuilder<> &builder,
                                                      llvm::Value *array,
                                                      llvm::Type *vector_type) {
@@ -101,45 +93,47 @@ Hobbit::ElementWiseProduct::ElementWiseProduct(llvm::LLVMContext &ctx)
     : ElementWiseOp(ctx) {}
 
 llvm::Value *Hobbit::ElementWiseProduct::Emit(llvm::IRBuilder<> &builder,
-                                              llvm::Value *input,
+                                              llvm::Value *lhs,
+                                              llvm::Value *rhs,
                                               llvm::Type *vector_type) {
-  llvm::Type *constant_type = this->constant->getType();
+  llvm::Type *lhs_type = lhs->getType();
+  llvm::Type *rhs_type = rhs->getType();
 
-  llvm::Type *input_type = input->getType();
-
-  if (vector_type != nullptr || constant_type->isVectorTy()) {
-    // Check the constant
-    if (!constant_type->isVectorTy() && constant_type->isArrayTy()) {
-      this->constant = ArrayVectorPack_(builder, this->constant, vector_type);
-    } else if (!constant_type->isVectorTy() && constant_type->isPointerTy()) {
-      this->constant = PtrVectorPack_(builder, this->constant, vector_type);
+  if (lhs_type->isVectorTy() || rhs_type->isVectorTy()) {
+    if (!lhs_type->isVectorTy() && lhs_type->isArrayTy()) {
+      lhs = ArrayVectorPack_(builder, lhs, rhs_type);
+      lhs_type = rhs_type;
+    } else if (!lhs_type->isVectorTy() && lhs_type->isPointerTy()) {
+      lhs = PtrVectorPack_(builder, lhs, rhs_type);
+      lhs_type = rhs_type;
+    } else if (!rhs_type->isVectorTy() && rhs_type->isArrayTy()) {
+      rhs = ArrayVectorPack_(builder, rhs, lhs_type);
+      rhs_type = lhs_type;
+    } else if (!rhs_type->isVectorTy() && rhs_type->isPointerTy()) {
+      rhs = PtrVectorPack_(builder, rhs, lhs_type);
+      rhs_type = lhs_type;
     }
 
-    // Check the input
-    if (!input_type->isVectorTy() && input_type->isArrayTy()) {
-      input = ArrayVectorPack_(builder, input, vector_type);
-    } else if (!input_type->isVectorTy() && input_type->isPointerTy()) {
-      input = PtrVectorPack_(builder, input, vector_type);
+    // now they're both vectors
+    if (lhs_type->isFPOrFPVectorTy()) {
+      return VectorFMul_(builder, lhs, rhs);
     }
-
-    if (constant_type->isFPOrFPVectorTy() && input_type->isFPOrFPVectorTy()) {
-      return this->VectorFMul_(builder, this->constant, input);
+    if (lhs_type->isIntOrIntVectorTy()) {
+      return VectorMul_(builder, lhs, rhs);
     }
-    return this->VectorMul_(builder, this->constant, input);
   }
 
-  if (constant_type->isArrayTy() && input_type->isArrayTy()) {
+  if (lhs_type->isArrayTy() && rhs_type->isArrayTy()) {
+    llvm::Type *lhs_elt_type = lhs_type->getArrayElementType();
+    llvm::Type *rhs_elt_type = rhs_type->getArrayElementType();
 
-    if (constant_type->getArrayElementType() !=
-        input_type->getArrayElementType())
-      throw std::runtime_error("Unequal array types");
-
-    if (constant_type->getArrayElementType()->isFPOrFPVectorTy() &&
-        input_type->getArrayElementType()->isFPOrFPVectorTy()) {
-      return this->SequenceFMul_(builder, this->constant, input);
+    if (lhs_elt_type->isFPOrFPVectorTy() && rhs_elt_type->isFPOrFPVectorTy()) {
+      return SequenceFMul_(builder, lhs, rhs);
     }
-
-    return this->SequenceMul_(builder, this->constant, input);
+    if (lhs_elt_type->isIntOrIntVectorTy() &&
+        rhs_elt_type->isIntOrIntVectorTy()) {
+      return SequenceMul_(builder, lhs, rhs);
+    }
   }
 
   return nullptr;

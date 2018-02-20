@@ -13,6 +13,7 @@ target_link_libraries(HobbitOperator c++ ${llvm_libs})
 target_include_directories(HobbitOperator PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 if (BUILD_TESTS)
+    add_gtest(CompositeOp HobbitOperator)
     add_gtest(ElementWiseOp HobbitOperator)
     add_gtest(ReductionOp HobbitOperator)
 endif (BUILD_TESTS)

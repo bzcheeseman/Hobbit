@@ -151,3 +151,42 @@ TEST(TestHorizontalSumReduction, ConvertToVector) {
   int32_t (*run)() = (int32_t(*)())engine->getFunctionAddress("mixed_codegen");
   llvm::errs() << "Module run result: " << run() << "\n";
 }
+
+TEST(TestHorizontalSumReduction, SingleElement) {
+
+  llvm::InitializeAllTargets();
+  llvm::InitializeAllTargetMCs();
+  llvm::InitializeAllAsmPrinters();
+  llvm::InitializeAllAsmParsers();
+
+  llvm::LLVMContext ctx;
+
+  Hobbit::HorizontalSumReduction hsum(ctx);
+
+  std::unique_ptr<llvm::Module> Mod =
+          llvm::make_unique<llvm::Module>("test", ctx);
+  llvm::Function *f = llvm::cast<llvm::Function>(Mod->getOrInsertFunction(
+          "arr_codegen", llvm::Type::getInt32Ty(ctx), nullptr));
+
+  llvm::BasicBlock *entry = llvm::BasicBlock::Create(ctx, "entry", f);
+  llvm::IRBuilder<> builder(entry);
+
+  llvm::Value *one_array = llvm::UndefValue::get(
+          llvm::ArrayType::get(llvm::Type::getInt32Ty(ctx), 1));
+  for (int i = 0; i < 1; i++) {
+    one_array = builder.CreateInsertValue(one_array, builder.getInt32(1), i);
+  }
+
+  llvm::Value *ret = hsum.Emit(builder, one_array, nullptr);
+
+  builder.CreateRet(ret);
+
+  Mod->print(llvm::errs(), nullptr);
+  llvm::verifyFunction(*f);
+
+  llvm::EngineBuilder engineBuilder(std::move(Mod));
+  llvm::ExecutionEngine *engine = engineBuilder.create();
+
+  int32_t (*run)() = (int32_t(*)())engine->getFunctionAddress("arr_codegen");
+  llvm::errs() << "Module run result: " << run() << "\n";
+}

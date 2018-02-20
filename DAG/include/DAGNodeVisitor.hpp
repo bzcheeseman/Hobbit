@@ -36,6 +36,16 @@ namespace Hobbit {
   public:
     void Visit(DAGNode *node) override;
   };
+
+  class ReplacementVisitor : public DAGNodeVisitor {
+  public:
+    explicit ReplacementVisitor(CompositeOp *op);
+
+    void Visit(DAGNode *node) override;
+
+  private:
+    CompositeOp *op;
+  };
 }
 
 #endif // HOBBIT_DAGNODEVISITOR_HPP
