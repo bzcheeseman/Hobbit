@@ -28,6 +28,14 @@
 #include <llvm/IR/Value.h>
 
 namespace Hobbit {
+  class EWiseOp {
+     // trivial chunking
+  };
+
+  class ROp {
+    // chunking needs to be done carefully to not lose generality
+  };
+
   class ElementWiseOp {
   public:
     explicit ElementWiseOp(llvm::LLVMContext &ctx);
