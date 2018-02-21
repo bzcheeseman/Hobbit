@@ -164,15 +164,15 @@ TEST(TestHorizontalSumReduction, SingleElement) {
   Hobbit::HorizontalSumReduction hsum(ctx);
 
   std::unique_ptr<llvm::Module> Mod =
-          llvm::make_unique<llvm::Module>("test", ctx);
+      llvm::make_unique<llvm::Module>("test", ctx);
   llvm::Function *f = llvm::cast<llvm::Function>(Mod->getOrInsertFunction(
-          "arr_codegen", llvm::Type::getInt32Ty(ctx), nullptr));
+      "arr_codegen", llvm::Type::getInt32Ty(ctx), nullptr));
 
   llvm::BasicBlock *entry = llvm::BasicBlock::Create(ctx, "entry", f);
   llvm::IRBuilder<> builder(entry);
 
   llvm::Value *one_array = llvm::UndefValue::get(
-          llvm::ArrayType::get(llvm::Type::getInt32Ty(ctx), 1));
+      llvm::ArrayType::get(llvm::Type::getInt32Ty(ctx), 1));
   for (int i = 0; i < 1; i++) {
     one_array = builder.CreateInsertValue(one_array, builder.getInt32(1), i);
   }

@@ -54,9 +54,12 @@ llvm::Value *Hobbit::CompositeOp::Emit(llvm::IRBuilder<> &builder,
     // TODO: size checking on the operands based on op name sizes
     return EmitFinishElemwise_(builder, operands);
   if (this->strategy_.chunking_strategy == PIECEWISE_ELEMENTWISE_REDUCE) {
-    if (this->strategy_.elemwise_op_names.size() != this->strategy_.reduction_op_names.size() &&
-            this->strategy_.elemwise_op_names.size() != this->strategy_.reduction_op_names.size()+1) {
-      throw std::runtime_error("Invalid number of operations for a piecewise composite operation");
+    if (this->strategy_.elemwise_op_names.size() !=
+            this->strategy_.reduction_op_names.size() &&
+        this->strategy_.elemwise_op_names.size() !=
+            this->strategy_.reduction_op_names.size() + 1) {
+      throw std::runtime_error(
+          "Invalid number of operations for a piecewise composite operation");
     }
     return EmitPiecewise_(builder, operands);
   }
@@ -138,7 +141,7 @@ Hobbit::CompositeOp::ChunkVectorOperand_(llvm::IRBuilder<> &builder,
     llvm::Value *vector = llvm::UndefValue::get(vector_type);
     for (uint64_t j = 0; j < leftovers; j++) {
       llvm::Value *operand_elt =
-              builder.CreateExtractElement(operand, chunks * chunk_size + j);
+          builder.CreateExtractElement(operand, chunks * chunk_size + j);
       vector = builder.CreateInsertElement(vector, operand_elt, j);
     }
     output.push_back(vector);
@@ -207,7 +210,8 @@ llvm::Value *Hobbit::CompositeOp::EmitFinishElemwise_(
       chunked_rhs = ChunkArrayOperand_(builder, next_rhs);
     }
 
-    num_chunks = chunked_rhs.size(); // rhs and previous result need to have the same number of chunks
+    num_chunks = chunked_rhs.size(); // rhs and previous result need to have the
+                                     // same number of chunks
 
     for (uint64_t i = 0; i < num_chunks; i++) {
       chunked_result[i] =
@@ -224,7 +228,8 @@ llvm::Value *Hobbit::CompositeOp::EmitFinishElemwise_(
           reduction_op->Emit(builder, chunked_result[i], nullptr);
     }
     // now we have a bunch of single elements
-    chunked_result = ChunkVectorOperand_(builder, MergeOperandsVector_(builder, chunked_result));
+    chunked_result = ChunkVectorOperand_(
+        builder, MergeOperandsVector_(builder, chunked_result));
     num_chunks = chunked_result.size();
   }
 
@@ -247,7 +252,8 @@ Hobbit::CompositeOp::EmitPiecewise_(llvm::IRBuilder<> &builder,
 
   uint64_t num_chunks = chunked_lhs.size();
   std::vector<llvm::Value *> chunked_result = chunked_lhs;
-  uint64_t num_ops = this->strategy_.reduction_op_names.size(); // at least this many elementwise ops
+  uint64_t num_ops = this->strategy_.reduction_op_names
+                         .size(); // at least this many elementwise ops
 
   for (uint64_t i = 0; i < num_ops; i++) {
     std::string &ewise_op_name = this->strategy_.elemwise_op_names[i];
@@ -265,12 +271,15 @@ Hobbit::CompositeOp::EmitPiecewise_(llvm::IRBuilder<> &builder,
     }
 
     for (uint64_t j = 0; j < num_chunks; j++) {
-      chunked_result[j] = ewise_op->Emit(builder, chunked_result[j], chunked_rhs[j], nullptr);
-      chunked_result[j] = reduction_op->Emit(builder, chunked_result[j], nullptr);
+      chunked_result[j] =
+          ewise_op->Emit(builder, chunked_result[j], chunked_rhs[j], nullptr);
+      chunked_result[j] =
+          reduction_op->Emit(builder, chunked_result[j], nullptr);
     }
 
     // Update the result and the rhs for the next round
-    chunked_result = ChunkVectorOperand_(builder, MergeOperandsVector_(builder, chunked_result));
+    chunked_result = ChunkVectorOperand_(
+        builder, MergeOperandsVector_(builder, chunked_result));
     num_chunks = chunked_result.size();
   }
 
@@ -282,7 +291,8 @@ Hobbit::CompositeOp::EmitPiecewise_(llvm::IRBuilder<> &builder,
     return chunked_result[0];
   }
 
-  // At this point we only have one last operand in the list, so load it up and operate on it
+  // At this point we only have one last operand in the list, so load it up and
+  // operate on it
   std::string &ewise_op_name = this->strategy_.elemwise_op_names.back();
   ElementWiseOp *ewise_op = elemwise_op_table_[ewise_op_name];
 
@@ -296,7 +306,8 @@ Hobbit::CompositeOp::EmitPiecewise_(llvm::IRBuilder<> &builder,
   }
 
   for (uint64_t j = 0; j < num_chunks; j++) {
-    chunked_result[j] = ewise_op->Emit(builder, chunked_result[j], chunked_rhs[j], nullptr);
+    chunked_result[j] =
+        ewise_op->Emit(builder, chunked_result[j], chunked_rhs[j], nullptr);
   }
 
   llvm::Value *result = MergeOperandsVector_(builder, chunked_result);

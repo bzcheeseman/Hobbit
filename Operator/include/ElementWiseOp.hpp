@@ -28,29 +28,69 @@
 #include <llvm/IR/Value.h>
 
 namespace Hobbit {
+  // Use functors to generalize what we emit
+  // the functor operates on chunk(s) of data which are llvm::Vector's. It will
+  // be called once for each chunk in
+  // the operator input data
+  struct ElementWiseBinaryFunctor {
+    virtual llvm::Value *operator()(llvm::Value *lhs, llvm::Value *rhs) = 0;
+  };
+
+  struct ElementWiseUnaryFunctor {
+    virtual llvm::Value *operator()(llvm::Value *input) = 0;
+  };
+
+  // ElementWiseOp has PushUnaryFunctor(ElementWiseUnaryFunctor *f, llvm::Value
+  // *constant) (constant can be null)
+  // ElementWiseOp has PushBinaryFunctor(ElementWiseBinaryFunctor *f)
+  // now the only question is how to keep track of inputs as they come in...tag
+  // them maybe?
+
+  class EWiseOp {
+    // trivial chunking
+  };
+
+  class ROp {
+    // chunking needs to be done carefully to not lose generality
+  };
+
   class ElementWiseOp {
   public:
-    explicit ElementWiseOp(llvm::LLVMContext &ctx);
+    // single value (contains either an entire array or one llvm::Vector
+    virtual llvm::ArrayRef<llvm::Value *>
+    Emit(llvm::IRBuilder<> &builder, llvm::Value *lhs, uint64_t &lhs_size,
+         llvm::Value *rhs, uint64_t &rhs_size, llvm::Type *vector_type) = 0;
 
-    virtual llvm::Value *Emit(llvm::IRBuilder<> &builder, llvm::Value *lhs,
-                              llvm::Value *rhs, llvm::Type *vector_type) = 0;
+    // Chunked values (multiple values or one llvm::Vector)
+    virtual llvm::ArrayRef<llvm::Value *>
+    Emit(llvm::IRBuilder<> &builder, llvm::ArrayRef<llvm::Value *> lhs,
+         llvm::ArrayRef<llvm::Value *> rhs, llvm::Type *vector_type) = 0;
 
   protected:
-    llvm::Value *ArrayVectorPack_(llvm::IRBuilder<> &builder,
-                                  llvm::Value *array, llvm::Type *vector_type);
+    llvm::ArrayRef<llvm::Value *> ArrayVectorPack_(llvm::IRBuilder<> &builder,
+                                                   llvm::Value *array,
+                                                   llvm::Type *vector_type);
 
-    llvm::Value *PtrVectorPack_(llvm::IRBuilder<> &builder, llvm::Value *ptr,
-                                llvm::Type *vector_type);
-
-    llvm::Value *constant = nullptr;
+    llvm::ArrayRef<llvm::Value *> PtrVectorPack_(llvm::IRBuilder<> &builder,
+                                                 llvm::Value *ptr,
+                                                 uint64_t &array_num_elements,
+                                                 llvm::Type *vector_type);
   };
 
   class ElementWiseProduct : public ElementWiseOp {
   public:
-    explicit ElementWiseProduct(llvm::LLVMContext &ctx);
+    explicit ElementWiseProduct() = default;
 
-    llvm::Value *Emit(llvm::IRBuilder<> &builder, llvm::Value *lhs,
-                      llvm::Value *rhs, llvm::Type *vector_type) override;
+    // Returns an array of chunks
+    llvm::ArrayRef<llvm::Value *> Emit(llvm::IRBuilder<> &builder,
+                                       llvm::Value *lhs, uint64_t &lhs_size,
+                                       llvm::Value *rhs, uint64_t &rhs_size,
+                                       llvm::Type *vector_type) override;
+
+    llvm::ArrayRef<llvm::Value *> Emit(llvm::IRBuilder<> &builder,
+                                       llvm::ArrayRef<llvm::Value *> lhs,
+                                       llvm::ArrayRef<llvm::Value *> rhs,
+                                       llvm::Type *vector_type) override;
 
   private:
     // Returns an array of size sequence_len
