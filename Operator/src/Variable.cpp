@@ -14,6 +14,9 @@ llvm::ArrayRef<llvm::Value *> Hobbit::Variable::Pack(llvm::IRBuilder<> &builder,
                                                      uint32_t chunk_size) {
   llvm::Type *vector_type = llvm::VectorType::get(m_type_, chunk_size);
 
+//  llvm::AllocaInst *v = builder.CreateAlloca(m_type_, m_value_);
+//  v->getArraySize();
+
   llvm::ArrayRef<llvm::Value *> chunks;
   if (m_type_->isPointerTy()) {
     assert(ptr_array_size_ != 0);
