@@ -53,8 +53,6 @@ namespace Hobbit {
     Variable(llvm::IRBuilder<> &builder, llvm::Type *scalar_type, const Shape &shape);
 
     Variable(llvm::Value *value, llvm::Type *type, const Shape &shape, Variable *parent);
-    // maybe this just takes a scalar type and a shape, then it can be used as a buffer later on...
-    // if we do it this way, then we can set the indexing convention
 
     virtual ~Variable();
 
@@ -70,7 +68,7 @@ namespace Hobbit {
     // piece of a variable.
     llvm::ArrayRef<llvm::Value *> Pack(llvm::IRBuilder<> &builder, uint32_t &vector_size);
 
-  private:
+  protected:
     llvm::Value *m_value_;
     llvm::Type *m_type_;
     Shape m_shape_;
@@ -79,25 +77,7 @@ namespace Hobbit {
     std::list<Variable *> m_children_;
   };
 
-  // Accept C++ pointer and turn it into a llvm constant
-  template<typename T>
-  class Constant {
-  public:
-    Constant(T *ptr, const Shape &shape);
-
-    // As a general rule of thumb this should be used to split the object being wrapped into sse/avx style
-    // vectors
-    llvm::ArrayRef<llvm::Value *> Pack(llvm::IRBuilder<> &builder, uint32_t chunk_size);
-
-    // While this one should be used to split into arbitrary chunks - will allow you to further split if
-    // desired.
-    llvm::ArrayRef<Constant> Split(llvm::IRBuilder<> &builder, uint32_t chunk_size);
-
-  private:
-    llvm::Value *m_value_;
-    llvm::Type *m_type_;
-    uint64_t ptr_array_size_;
-  };
+  // TODO: Constant object with the same methods as Variable
 }
 
 
