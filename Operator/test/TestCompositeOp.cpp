@@ -52,11 +52,11 @@ TEST(TestCompositeOp, CreateDotEWiseFirst) {
 
   Hobbit::ComputeStrategy strategy;
   strategy.chunk_size = 2;
-  strategy.elemwise_op_names.push_back("prod"); // size is 16
-  strategy.reduction_op_names.push_back("hsum"); // size is 16/2
-  strategy.reduction_op_names.push_back("hsum"); // size is 16/2/2
-  strategy.reduction_op_names.push_back("hsum"); // size is 16/2/2/2
-  strategy.reduction_op_names.push_back("hsum"); // size is 16/2/2/2/2
+  strategy.elemwise_op_names.emplace_back("prod");  // size is 16
+  strategy.reduction_op_names.emplace_back("hsum"); // size is 16/2
+  strategy.reduction_op_names.emplace_back("hsum"); // size is 16/2/2
+  strategy.reduction_op_names.emplace_back("hsum"); // size is 16/2/2/2
+  strategy.reduction_op_names.emplace_back("hsum"); // size is 16/2/2/2/2
   strategy.chunking_strategy = Hobbit::FINISH_ELEMENTWISE_FIRST;
 
   dot.SetComputeStrategy(strategy);
@@ -79,7 +79,8 @@ TEST(TestCompositeOp, CreateDotEWiseFirst) {
   dot.PushOperator("prod", &prod);
   dot.PushOperator("hsum", &hsum);
 
-  llvm::Value *result = dot.Emit(builder, {one_array, two_array}); // Expect <i32 32, i32 undef>
+  llvm::Value *result =
+      dot.Emit(builder, {one_array, two_array}); // Expect <i32 32, i32 undef>
 
   builder.CreateRet(result);
 
@@ -108,17 +109,19 @@ TEST(TestCompositeOp, CreateDotPiecewise) {
 
   Hobbit::ComputeStrategy strategy;
   strategy.chunk_size = 2;
-  strategy.elemwise_op_names.push_back("prod");
-  strategy.reduction_op_names.push_back("hsum"); // first one reduces the size by a factor of chunk_size
-//  strategy.reduction_op_names.push_back("hsum"); // need log2(num) of these to output one number
+  strategy.elemwise_op_names.emplace_back("prod");
+  strategy.reduction_op_names.emplace_back(
+      "hsum"); // first one reduces the size by a factor of chunk_size
+  //  strategy.reduction_op_names.push_back("hsum"); // need log2(num) of these
+  //  to output one number
   strategy.chunking_strategy = Hobbit::PIECEWISE_ELEMENTWISE_REDUCE;
 
   dot.SetComputeStrategy(strategy);
 
   std::unique_ptr<llvm::Module> Mod =
-          llvm::make_unique<llvm::Module>("test", ctx);
+      llvm::make_unique<llvm::Module>("test", ctx);
   llvm::Function *f = llvm::cast<llvm::Function>(Mod->getOrInsertFunction(
-          "vec_codegen", llvm::Type::getInt32Ty(ctx), nullptr));
+      "vec_codegen", llvm::Type::getInt32Ty(ctx), nullptr));
 
   llvm::BasicBlock *entry = llvm::BasicBlock::Create(ctx, "entry", f);
   llvm::IRBuilder<> builder(entry);
@@ -133,7 +136,8 @@ TEST(TestCompositeOp, CreateDotPiecewise) {
   dot.PushOperator("prod", &prod);
   dot.PushOperator("hsum", &hsum);
 
-  llvm::Value *result = dot.Emit(builder, {one_array, two_array}); // expect <i32 4, i32 4>
+  llvm::Value *result =
+      dot.Emit(builder, {one_array, two_array}); // expect <i32 4, i32 4>
 
   builder.CreateRet(result);
 
@@ -144,5 +148,5 @@ TEST(TestCompositeOp, CreateDotPiecewise) {
   llvm::ExecutionEngine *engine = engineBuilder.create();
 
   int32_t (*run)() = (int32_t(*)())engine->getFunctionAddress("vec_codegen");
-//  llvm::errs() << "Module run result: " << run() << "\n";
+  //  llvm::errs() << "Module run result: " << run() << "\n";
 }

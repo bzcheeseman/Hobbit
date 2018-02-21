@@ -22,66 +22,108 @@
 
 #include "ElementWiseOp.hpp"
 
-Hobbit::ElementWiseOp::ElementWiseOp(llvm::LLVMContext &ctx) {
-  this->constant = nullptr;
-}
-
-llvm::Value *Hobbit::ElementWiseOp::ArrayVectorPack_(llvm::IRBuilder<> &builder,
-                                                     llvm::Value *array,
-                                                     llvm::Type *vector_type) {
+llvm::ArrayRef<llvm::Value *> Hobbit::ElementWiseOp::ArrayVectorPack_(
+    llvm::IRBuilder<> &builder, llvm::Value *array, llvm::Type *vector_type) {
 
   uint64_t vector_elements = vector_type->getVectorNumElements();
+  uint64_t array_elements = array->getType()->getArrayNumElements();
 
-  llvm::Value *output = llvm::UndefValue::get(vector_type);
+  uint64_t leftovers = array_elements % vector_elements;
+  uint64_t chunks = (array_elements - leftovers) / vector_elements;
+  if (leftovers != 0)
+    chunks += 1;
+
+  std::vector<llvm::Value *> output(chunks);
 
   llvm::Type *vector_element_type = vector_type->getVectorElementType();
   llvm::Type *array_element_type = array->getType()->getArrayElementType();
 
-  // make sure the if the vector type is float then everyone's a
-  // float...otherwise break
-  if (vector_element_type->isFPOrFPVectorTy() &&
-      !array_element_type->isFPOrFPVectorTy()) {
-    for (uint64_t i = 0; i < vector_elements; i++) {
-      llvm::Value *array_element = builder.CreateFPCast(
-          builder.CreateExtractValue(array, i), vector_element_type);
-      output = builder.CreateInsertElement(output, array_element, i,
-                                           array->getName() + ".pack");
+  if (vector_element_type != array_element_type) { // the types are not equal
+    if (vector_element_type
+            ->isFloatingPointTy()) { // we can totally cast int to float
+      for (uint64_t i = 0; i < chunks; i++) {
+        for (uint64_t j = 0; j < vector_elements; j++) {
+          llvm::Value *array_element = builder.CreateFPCast(
+              builder.CreateExtractValue(array, i * vector_elements + j),
+              vector_element_type);
+          output[i] = builder.CreateInsertElement(output[i], array_element, j,
+                                                  array->getName() + ".pack." +
+                                                      std::to_string(j));
+        }
+      }
+
+      return output;
     }
 
-    return output;
+    if (vector_element_type
+            ->isIntegerTy()) { // Don't want to cast float to int (yet)
+      throw std::runtime_error(
+          "Attempting to cast float to int, not yet supported");
+    }
   }
 
-  if (vector_element_type->isIntOrIntVectorTy() &&
-      array_element_type->isFPOrFPVectorTy()) {
-    throw std::runtime_error(
-        "Attempting to cast float to int, not yet supported");
-  }
-
-  for (uint64_t i = 0; i < vector_elements; i++) {
-    llvm::Value *array_element = builder.CreateExtractValue(array, i);
-    output = builder.CreateInsertElement(output, array_element, i,
-                                         array->getName() + ".pack");
+  for (uint64_t i = 0; i < chunks; i++) {
+    for (uint64_t j = 0; j < vector_elements; j++) {
+      llvm::Value *array_element =
+          builder.CreateExtractValue(array, i * vector_elements + j);
+      output[i] = builder.CreateInsertElement(output[i], array_element, j,
+                                              array->getName() + ".pack." +
+                                                  std::to_string(j));
+    }
   }
 
   return output;
 }
 
-llvm::Value *Hobbit::ElementWiseOp::PtrVectorPack_(llvm::IRBuilder<> &builder,
-                                                   llvm::Value *ptr,
-                                                   llvm::Type *vector_type) {
+llvm::ArrayRef<llvm::Value *> Hobbit::ElementWiseOp::PtrVectorPack_(
+    llvm::IRBuilder<> &builder, llvm::Value *ptr, uint64_t &array_num_elements,
+    llvm::Type *vector_type) {
+
   uint64_t vector_elements = vector_type->getVectorNumElements();
 
-  llvm::Value *output = llvm::UndefValue::get(vector_type);
+  uint64_t leftovers = array_num_elements % vector_elements;
+  uint64_t chunks = (array_num_elements - leftovers) / vector_elements;
+  if (leftovers != 0)
+    chunks += 1;
+
+  std::vector<llvm::Value *> output(chunks);
 
   llvm::Type *vector_element_type = vector_type->getVectorElementType();
+  llvm::Type *array_element_type = ptr->getType()->getPointerElementType();
 
-  for (uint64_t i = 0; i < vector_elements; i++) {
-    llvm::Value *ptr_element =
-        builder.CreateFPCast( // force the pointer values to the right type
-            builder.CreateLoad(builder.CreateGEP(ptr, builder.getInt64(i))),
-            vector_element_type);
-    output = builder.CreateInsertElement(output, ptr_element, i,
-                                         ptr->getName() + ".pack");
+  if (vector_element_type != array_element_type) { // the types are not equal
+    if (vector_element_type
+            ->isFloatingPointTy()) { // we can totally cast int to float
+      for (uint64_t i = 0; i < chunks; i++) {
+        for (uint64_t j = 0; j < vector_elements; j++) {
+          llvm::Value *array_element = builder.CreateFPCast(
+              builder.CreateLoad(builder.CreateGEP(
+                  ptr, builder.getInt64(i * vector_elements + j))),
+              vector_element_type);
+          output[i] = builder.CreateInsertElement(output[i], array_element, j,
+                                                  ptr->getName() + ".pack." +
+                                                      std::to_string(j));
+        }
+      }
+
+      return output;
+    }
+
+    if (vector_element_type
+            ->isIntegerTy()) { // Don't want to cast float to int (yet)
+      throw std::runtime_error(
+          "Attempting to cast float to int, not yet supported");
+    }
+  }
+
+  for (uint64_t i = 0; i < chunks; i++) {
+    for (uint64_t j = 0; j < vector_elements; j++) {
+      llvm::Value *array_element = builder.CreateLoad(
+          builder.CreateGEP(ptr, builder.getInt64(i * vector_elements + j)));
+      output[i] = builder.CreateInsertElement(output[i], array_element, j,
+                                              ptr->getName() + ".pack." +
+                                                  std::to_string(j));
+    }
   }
 
   return output;
@@ -89,54 +131,26 @@ llvm::Value *Hobbit::ElementWiseOp::PtrVectorPack_(llvm::IRBuilder<> &builder,
 
 // EWiseProduct /////////////////
 
-Hobbit::ElementWiseProduct::ElementWiseProduct(llvm::LLVMContext &ctx)
-    : ElementWiseOp(ctx) {}
+llvm::ArrayRef<llvm::Value *>
+Hobbit::ElementWiseProduct::Emit(llvm::IRBuilder<> &builder, llvm::Value *lhs,
+                                 uint64_t &lhs_size, llvm::Value *rhs,
+                                 uint64_t &rhs_size, llvm::Type *vector_type) {
 
-llvm::Value *Hobbit::ElementWiseProduct::Emit(llvm::IRBuilder<> &builder,
-                                              llvm::Value *lhs,
-                                              llvm::Value *rhs,
-                                              llvm::Type *vector_type) {
   llvm::Type *lhs_type = lhs->getType();
   llvm::Type *rhs_type = rhs->getType();
 
-  if (lhs_type->isVectorTy() || rhs_type->isVectorTy()) {
-    if (!lhs_type->isVectorTy() && lhs_type->isArrayTy()) {
-      lhs = ArrayVectorPack_(builder, lhs, rhs_type);
-      lhs_type = rhs_type;
-    } else if (!lhs_type->isVectorTy() && lhs_type->isPointerTy()) {
-      lhs = PtrVectorPack_(builder, lhs, rhs_type);
-      lhs_type = rhs_type;
-    } else if (!rhs_type->isVectorTy() && rhs_type->isArrayTy()) {
-      rhs = ArrayVectorPack_(builder, rhs, lhs_type);
-      rhs_type = lhs_type;
-    } else if (!rhs_type->isVectorTy() && rhs_type->isPointerTy()) {
-      rhs = PtrVectorPack_(builder, rhs, lhs_type);
-      rhs_type = lhs_type;
-    }
-
-    // now they're both vectors
-    if (lhs_type->isFPOrFPVectorTy()) {
-      return VectorFMul_(builder, lhs, rhs);
-    }
-    if (lhs_type->isIntOrIntVectorTy()) {
-      return VectorMul_(builder, lhs, rhs);
-    }
+  llvm::ArrayRef<llvm::Value *> lhs_chunked, rhs_chunked;
+  if (lhs_type->isPointerTy()) {
+    lhs_chunked = PtrVectorPack_(builder, lhs, lhs_size, vector_type);
+  } else if (lhs_type->isArrayTy()) {
+    lhs_chunked = ArrayVectorPack_(builder, lhs, vector_type);
   }
 
-  if (lhs_type->isArrayTy() && rhs_type->isArrayTy()) {
-    llvm::Type *lhs_elt_type = lhs_type->getArrayElementType();
-    llvm::Type *rhs_elt_type = rhs_type->getArrayElementType();
-
-    if (lhs_elt_type->isFPOrFPVectorTy() && rhs_elt_type->isFPOrFPVectorTy()) {
-      return SequenceFMul_(builder, lhs, rhs);
-    }
-    if (lhs_elt_type->isIntOrIntVectorTy() &&
-        rhs_elt_type->isIntOrIntVectorTy()) {
-      return SequenceMul_(builder, lhs, rhs);
-    }
+  if (rhs_type->isPointerTy()) {
+    rhs_chunked = PtrVectorPack_(builder, rhs, rhs_size, vector_type);
+  } else if (rhs_type->isArrayTy()) {
+    rhs_chunked = ArrayVectorPack_(builder, rhs, vector_type);
   }
-
-  return nullptr;
 }
 
 llvm::Value *
