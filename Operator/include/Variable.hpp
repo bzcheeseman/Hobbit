@@ -50,7 +50,7 @@ namespace Hobbit {
   public:
 
     // Takes in the shape of the buffer to allocate, allows us to do things like Pack and Split
-    Variable(llvm::Type *scalar_type, const Shape &shape);
+    Variable(llvm::IRBuilder<> &builder, llvm::Type *scalar_type, const Shape &shape);
 
     Variable(llvm::Value *value, llvm::Type *type, const Shape &shape, Variable *parent);
     // maybe this just takes a scalar type and a shape, then it can be used as a buffer later on...

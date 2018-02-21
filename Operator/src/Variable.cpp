@@ -67,9 +67,9 @@ const uint32_t &Hobbit::Shape::GetAxisSize(Hobbit::Axis &axis) {
   return 0;
 }
 
-Hobbit::Variable::Variable(llvm::Type *scalar_type, const Hobbit::Shape &shape) : m_shape_(shape) {
-  m_type_ = llvm::ArrayType::get(scalar_type, m_shape_.GetSize());
-  m_value_ = new llvm::AllocaInst(m_type_);
+Hobbit::Variable::Variable(llvm::IRBuilder<> &builder, llvm::Type *scalar_type, const Hobbit::Shape &shape) : m_shape_(shape) {
+  m_type_ = scalar_type;
+  m_value_ = builder.CreateAlloca(m_type_, builder.getInt64(m_shape_.GetSize()));
 }
 
 Hobbit::Variable::Variable(llvm::Value *value, llvm::Type *type, const Hobbit::Shape &shape, Variable *parent) :
@@ -80,15 +80,11 @@ Hobbit::Variable::Variable(llvm::Value *value, llvm::Type *type, const Hobbit::S
 Hobbit::Variable::~Variable() {
   // If I have a parent, remove myself from their list
   if (m_parent_ != nullptr) {
-    m_parent_->m_children_.remove(this); // remove myself from their list
+    m_parent_->ClearChild(this); // remove myself from their list
   }
 
   // If I have children, delete them
-  if (!m_children_.empty()) {
-    for (auto &child : m_children_) {
-      delete child;
-    }
-  }
+  ClearChildren();
 }
 
 Hobbit::Variable *
@@ -146,70 +142,3 @@ llvm::ArrayRef<llvm::Value *> Hobbit::Variable::Pack(llvm::IRBuilder<> &builder,
 
   return output;
 }
-
-//llvm::ArrayRef<Variable *>
-//Hobbit::Variable::Split(llvm::IRBuilder<> &builder, uint32_t &chunk_size, uint32_t &stride, Axis &axis) {
-//  uint32_t axis_size = m_shape_.GetAxisSize(axis);
-//
-//  Range k_range, h_range, w_range;
-//  switch (axis) {
-//    case K: break;
-//    case H: break;
-//    case W: break;
-//  }
-//}
-
-//Hobbit::Variable Hobbit::Variable::GetCube(llvm::IRBuilder<> &builder, const uint32_t &n) {
-//  uint32_t start_idx, end_idx;
-//  m_shape_.GetCubeIdx(n, &start_idx, &end_idx);
-//  const Shape cube_shape = m_shape_.GetCubeShape();
-//
-//  llvm::Type *subarray_type = llvm::ArrayType::get(m_type_->getArrayElementType(), cube_shape.GetSize());
-//
-//  llvm::Value *subarray = GetSubarray_(builder, subarray_type, start_idx, end_idx);
-//
-//  return Variable(subarray, subarray_type, cube_shape);
-//
-//}
-//
-//Hobbit::Variable Hobbit::Variable::GetPlane(llvm::IRBuilder<> &builder, const uint32_t &n, const uint32_t &k) {
-//  uint32_t start_idx, end_idx;
-//  m_shape_.GetPlaneIdx(n, k, &start_idx, &end_idx);
-//  const Shape plane_shape = m_shape_.GetPlaneShape();
-//
-//  llvm::Type *subarray_type = llvm::ArrayType::get(m_type_->getArrayElementType(), plane_shape.GetSize());
-//
-//  llvm::Value *subarray = GetSubarray_(builder, subarray_type, start_idx, end_idx);
-//
-//  return Variable(subarray, subarray_type, plane_shape);
-//}
-//
-//Hobbit::Variable
-//Hobbit::Variable::GetVector(llvm::IRBuilder<> &builder, const uint32_t &n, const uint32_t &k, const uint32_t &h) {
-//  uint32_t start_idx, end_idx;
-//  m_shape_.GetPlaneIdx(n, k, &start_idx, &end_idx);
-//  const Shape vector_shape = m_shape_.GetPlaneShape();
-//
-//  llvm::Type *subarray_type = llvm::ArrayType::get(m_type_->getArrayElementType(), vector_shape.GetSize());
-//
-//  llvm::Value *subarray = GetSubarray_(builder, subarray_type, start_idx, end_idx);
-//
-//  return Variable(subarray, subarray_type, vector_shape);
-//}
-//
-//llvm::Value *Hobbit::Variable::GetSubarray_(llvm::IRBuilder<> &builder, llvm::Type *subarray_type, uint32_t &start_idx, uint32_t &end_idx) {
-//
-//  llvm::Value *subarray = builder.CreateAlloca(subarray_type);
-//  for (uint32_t i = start_idx; i < end_idx; i++) {
-//    llvm::Value *elt = builder.CreateLoad(builder.CreateGEP(m_value_, builder.getInt32(i)));
-//    llvm::Value *subarray_elt = builder.CreateGEP(subarray, builder.getInt32(i - start_idx));
-//    builder.CreateStore(elt, subarray_elt);
-//  }
-//
-//  return subarray;
-//}
-//
-//Hobbit::Variable Hobbit::Variable::Flatten() {
-//  Shape flat = Shape(1, 1, 1, m_shape_.GetSize());
-//  return Variable(m_value_, m_type_, flat);
-//}
