@@ -22,7 +22,7 @@
 
 #include "ElementWiseOp.hpp"
 
-//llvm::ArrayRef<llvm::Value *> Hobbit::ElementWiseOp::ArrayVectorPack_(
+// llvm::ArrayRef<llvm::Value *> Hobbit::ElementWiseOp::ArrayVectorPack_(
 //    llvm::IRBuilder<> &builder, llvm::Value *array, llvm::Type *vector_type) {
 //
 //  uint64_t vector_elements = vector_type->getVectorNumElements();
@@ -47,7 +47,8 @@
 //              builder.CreateExtractValue(array, i * vector_elements + j),
 //              vector_element_type);
 //          output[i] = builder.CreateInsertElement(output[i], array_element, j,
-//                                                  array->getName() + ".pack." +
+//                                                  array->getName() + ".pack."
+//                                                  +
 //                                                      std::to_string(j));
 //        }
 //      }
@@ -75,8 +76,9 @@
 //  return output;
 //}
 //
-//llvm::ArrayRef<llvm::Value *> Hobbit::ElementWiseOp::PtrVectorPack_(
-//    llvm::IRBuilder<> &builder, llvm::Value *ptr, uint64_t &array_num_elements,
+// llvm::ArrayRef<llvm::Value *> Hobbit::ElementWiseOp::PtrVectorPack_(
+//    llvm::IRBuilder<> &builder, llvm::Value *ptr, uint64_t
+//    &array_num_elements,
 //    llvm::Type *vector_type) {
 //
 //  uint64_t vector_elements = vector_type->getVectorNumElements();
@@ -131,10 +133,12 @@
 //
 //// EWiseProduct /////////////////
 //
-//llvm::ArrayRef<llvm::Value *>
-//Hobbit::ElementWiseProduct::Emit(llvm::IRBuilder<> &builder, llvm::Value *lhs,
+// llvm::ArrayRef<llvm::Value *>
+// Hobbit::ElementWiseProduct::Emit(llvm::IRBuilder<> &builder, llvm::Value
+// *lhs,
 //                                 uint64_t &lhs_size, llvm::Value *rhs,
-//                                 uint64_t &rhs_size, llvm::Type *vector_type) {
+//                                 uint64_t &rhs_size, llvm::Type *vector_type)
+//                                 {
 //
 //  llvm::Type *lhs_type = lhs->getType();
 //  llvm::Type *rhs_type = rhs->getType();
@@ -153,9 +157,10 @@
 //  }
 //}
 //
-//llvm::Value *
-//Hobbit::ElementWiseProduct::SequenceFMul_(llvm::IRBuilder<> &builder,
-//                                          llvm::Value *lhs, llvm::Value *rhs) {
+// llvm::Value *
+// Hobbit::ElementWiseProduct::SequenceFMul_(llvm::IRBuilder<> &builder,
+//                                          llvm::Value *lhs, llvm::Value *rhs)
+//                                          {
 //
 //  uint64_t sequence_len = lhs->getType()->getArrayNumElements();
 //
@@ -171,8 +176,8 @@
 //  return output;
 //}
 //
-//llvm::Value *
-//Hobbit::ElementWiseProduct::SequenceMul_(llvm::IRBuilder<> &builder,
+// llvm::Value *
+// Hobbit::ElementWiseProduct::SequenceMul_(llvm::IRBuilder<> &builder,
 //                                         llvm::Value *lhs, llvm::Value *rhs) {
 //
 //  uint64_t sequence_len = lhs->getType()->getArrayNumElements();
@@ -189,27 +194,16 @@
 //  return output;
 //}
 //
-//llvm::Value *Hobbit::ElementWiseProduct::VectorFMul_(llvm::IRBuilder<> &builder,
+// llvm::Value *Hobbit::ElementWiseProduct::VectorFMul_(llvm::IRBuilder<>
+// &builder,
 //                                                     llvm::Value *lhs,
 //                                                     llvm::Value *rhs) {
 //  return builder.CreateFMul(lhs, rhs, "ewise_product.vector.fmul");
 //}
 //
-//llvm::Value *Hobbit::ElementWiseProduct::VectorMul_(llvm::IRBuilder<> &builder,
+// llvm::Value *Hobbit::ElementWiseProduct::VectorMul_(llvm::IRBuilder<>
+// &builder,
 //                                                    llvm::Value *lhs,
 //                                                    llvm::Value *rhs) {
 //  return builder.CreateMul(lhs, rhs, "ewise_product.vector.mul");
 //}
-
-void Hobbit::Operation::PushFunctor(Hobbit::Functor &f) {
-  op_table_.push_back(&f);
-}
-
-llvm::Value *Hobbit::Operation::Emit(llvm::IRBuilder<> &builder,
-                                         Variable &var) {
-  for (auto &op : op_table_) {
-    var = op->Emit(builder, var);
-  }
-
-  return var.GetValue();
-}

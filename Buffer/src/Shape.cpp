@@ -43,8 +43,35 @@ uint32_t Hobbit::Shape::At(const uint32_t &k, const uint32_t &h,
 Hobbit::Shape Hobbit::Shape::GetChunkShape(const Hobbit::Range &k_range,
                                            const Hobbit::Range &h_range,
                                            const Hobbit::Range &w_range) {
-  return {k_range.end - k_range.start, h_range.end - h_range.start,
-          w_range.end - w_range.start};
+  uint32_t k_start, k_end, h_start, h_end, w_start, w_end;
+
+  if (k_range.start == 0 && k_range.end == 0) {
+    k_start = 0;
+    k_end = k_ - 1;
+  } else {
+    k_start = k_range.start;
+    k_end = k_range.end -
+            1; // so if the range is {0, 1} we just have a single k index
+  }
+
+  if (h_range.start == 0 && h_range.end == 0) {
+    h_start = 0;
+    h_end = h_ - 1;
+  } else {
+    h_start = h_range.start;
+    h_end = h_range.end - 1;
+  }
+
+  if (w_range.start == 0 && w_range.end == 0) {
+    w_start = 0;
+    w_end = w_ - 1;
+  } else {
+    w_start = w_range.start;
+    w_end = w_range.end - 1;
+  }
+
+  return {k_end - k_start + 1, h_end - h_start + 1,
+          w_end - w_start + 1};
 }
 
 Hobbit::Range Hobbit::Shape::GetChunkIdx(const Hobbit::Range &k_range,

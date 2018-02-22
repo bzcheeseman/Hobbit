@@ -32,14 +32,14 @@ Hobbit::CompositeOp::CompositeOp(
 void Hobbit::CompositeOp::PushOperator(const std::string &name,
                                        Hobbit::ElementWiseOp *op) {
   if (elemwise_op_table_.find(name) != elemwise_op_table_.end())
-    throw std::runtime_error("Operator exists in the table");
+    throw std::runtime_error("Operation exists in the table");
   elemwise_op_table_[name] = std::move(op);
 }
 
 void Hobbit::CompositeOp::PushOperator(const std::string &name,
                                        Hobbit::ReductionOp *op) {
   if (reduction_op_table_.find(name) != reduction_op_table_.end())
-    throw std::runtime_error("Operator exists in the table");
+    throw std::runtime_error("Operation exists in the table");
   reduction_op_table_[name] = std::move(op);
 }
 

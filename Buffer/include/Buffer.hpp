@@ -68,7 +68,7 @@ namespace Hobbit {
     // therefore used on a very small
     // piece of a variable.
     llvm::ArrayRef<llvm::Value *> Pack(llvm::IRBuilder<> &builder,
-                                       uint32_t &vector_size);
+                                       const uint32_t &vector_size);
 
   protected:
     llvm::Value *m_value_;

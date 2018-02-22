@@ -27,7 +27,7 @@ if (BUILD_TESTS)
 endif (BUILD_TESTS)
 
 add_subdirectory(Buffer)
-add_subdirectory(Operator)
+add_subdirectory(Operation)
 add_subdirectory(Module)
 add_subdirectory(DAG)
 

@@ -33,7 +33,7 @@ namespace Hobbit {
   public:
     virtual const Shape &GetShape() = 0;
     virtual llvm::Value *GetValue(llvm::IRBuilder<> &builder,
-                                  llvm::Type *type) = 0;
+                                  llvm::Type *type, const llvm::Twine &name="") = 0;
   };
 
   class CompileTimeIntBuffer : public CompileTimeBuffer {
@@ -44,7 +44,7 @@ namespace Hobbit {
     const Shape &GetShape() override { return shape_; }
 
     llvm::Value *GetValue(llvm::IRBuilder<> &builder,
-                          llvm::Type *int_type) override {
+                          llvm::Type *int_type, const llvm::Twine &name="") override {
       llvm::Type *type = int_type;
 
       if (int_type == nullptr)
@@ -62,6 +62,8 @@ namespace Hobbit {
         builder.CreateStore(elt, builder.CreateGEP(out, builder.getInt32(i)));
       }
 
+      if (name.isTriviallyEmpty()) out->setName("compiletimeintbuffer");
+
       return out;
     }
 
@@ -78,7 +80,7 @@ namespace Hobbit {
     const Shape &GetShape() override { return shape_; }
 
     llvm::Value *GetValue(llvm::IRBuilder<> &builder,
-                          llvm::Type *fp_type) override {
+                          llvm::Type *fp_type, const llvm::Twine &name="") override {
       llvm::Type *type = fp_type;
 
       if (fp_type == nullptr)
@@ -94,6 +96,8 @@ namespace Hobbit {
         llvm::Value *elt = llvm::ConstantFP::get(type, ptr_[i]);
         builder.CreateStore(elt, builder.CreateGEP(out, builder.getInt32(i)));
       }
+
+      if (name.isTriviallyEmpty()) out->setName("compiletimefpbuffer");
 
       return out;
     }

@@ -24,6 +24,9 @@
 #define HOBBIT_SHAPE_HPP
 
 #include <cstdint>
+#include <stdexcept>
+#include <string>
+#include <iostream>
 
 namespace Hobbit {
   struct Range {
@@ -58,6 +61,12 @@ namespace Hobbit {
 
     friend inline bool operator!=(const Shape &lhs, const Shape &rhs) {
       return !(lhs == rhs);
+    }
+
+    friend inline std::ostream &operator<<(std::ostream &out, const Shape &s) {
+      out << "{" << "K: " << s.k_ << " H: " << s.h_ << " W: " << s.w_ << "}";
+
+      return out;
     }
 
   private:
