@@ -3,7 +3,7 @@
 //
 // c_science
 // Copyright (c) 2018 Aman LaChapelle
-// Full license at c_science/LICENSE.txt
+// Full license at Hobbit/LICENSE.txt
 //
 
 /*
