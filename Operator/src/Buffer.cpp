@@ -1,4 +1,4 @@
-#include "Variable.hpp"
+#include "Buffer.hpp"
 
 Hobbit::Shape::Shape(const uint32_t &k, const uint32_t &h, const uint32_t &w)
     : k_(k), h_(h), w_(w) {}
@@ -62,7 +62,7 @@ Hobbit::Range Hobbit::Shape::GetChunkIdx(const Hobbit::Range &k_range,
   return idx_range;
 }
 
-uint32_t Hobbit::Shape::GetSize() { return k_ * h_ * w_; }
+uint32_t Hobbit::Shape::GetSize() const { return k_ * h_ * w_; }
 
 const uint32_t &Hobbit::Shape::GetAxisSize(Hobbit::Axis &axis) {
   switch (axis) {
@@ -77,7 +77,7 @@ const uint32_t &Hobbit::Shape::GetAxisSize(Hobbit::Axis &axis) {
   return 0;
 }
 
-Hobbit::Variable::Variable(llvm::IRBuilder<> &builder, llvm::Type *scalar_type,
+Hobbit::Buffer::Buffer(llvm::IRBuilder<> &builder, llvm::Type *scalar_type,
                            const Hobbit::Shape &shape)
     : m_shape_(shape) {
   m_type_ = scalar_type;
@@ -85,13 +85,20 @@ Hobbit::Variable::Variable(llvm::IRBuilder<> &builder, llvm::Type *scalar_type,
       builder.CreateAlloca(m_type_, builder.getInt64(m_shape_.GetSize()));
 }
 
-Hobbit::Variable::Variable(llvm::Value *value, llvm::Type *type,
-                           const Hobbit::Shape &shape, Variable *parent)
+Hobbit::Buffer::Buffer(llvm::Value *value, llvm::Type *type,
+                           const Hobbit::Shape &shape, Buffer *parent)
     : m_shape_(shape), m_value_(value), m_type_(type), m_parent_(parent) {
   ;
 }
 
-Hobbit::Variable::~Variable() {
+Hobbit::Buffer::Buffer(llvm::Value *value, const Hobbit::Shape &shape)
+    : m_shape_(shape), m_value_(value) {
+  llvm::Type *value_type = m_value_->getType();
+
+  if (value_type->isPointerTy()) m_type_ = value_type->getPointerElementType();
+}
+
+Hobbit::Buffer::~Buffer() {
   // If I have a parent, remove myself from their list
   if (m_parent_ != nullptr) {
     m_parent_->ClearChild(this); // remove myself from their list
@@ -101,7 +108,9 @@ Hobbit::Variable::~Variable() {
   ClearChildren();
 }
 
-Hobbit::Variable *Hobbit::Variable::GetChunk(llvm::IRBuilder<> &builder,
+const Hobbit::Shape &Hobbit::Buffer::GetShape() { return m_shape_; }
+
+Hobbit::Buffer *Hobbit::Buffer::GetChunk(llvm::IRBuilder<> &builder,
                                              const Hobbit::Range &k_range,
                                              const Hobbit::Range &h_range,
                                              const Hobbit::Range &w_range) {
@@ -111,25 +120,25 @@ Hobbit::Variable *Hobbit::Variable::GetChunk(llvm::IRBuilder<> &builder,
   llvm::Value *chip_start_ptr =
       builder.CreateGEP(m_value_, builder.getInt32(idx_range.start));
 
-  Variable *output = new Variable(
-      chip_start_ptr, m_type_->getArrayElementType(), chip_shape, this);
+  Buffer *output = new Buffer(
+      chip_start_ptr, m_type_, chip_shape, this);
 
   this->m_children_.push_back(output);
 
   return output;
 }
 
-Hobbit::Variable *Hobbit::Variable::Flatten() {
+Hobbit::Buffer *Hobbit::Buffer::Flatten() {
   Shape flat_shape(1, 1, m_shape_.GetSize());
 
-  Variable *output = new Variable(m_value_, m_type_, flat_shape, this);
+  Buffer *output = new Buffer(m_value_, m_type_, flat_shape, this);
 
   this->m_children_.push_back(output);
 
   return output;
 }
 
-void Hobbit::Variable::ClearChild(Hobbit::Variable *child) {
+void Hobbit::Buffer::ClearChild(Hobbit::Buffer *child) {
 
   auto iter = std::find(m_children_.begin(), m_children_.end(), child);
   if (iter != m_children_.end()) {
@@ -137,9 +146,9 @@ void Hobbit::Variable::ClearChild(Hobbit::Variable *child) {
   }
 }
 
-void Hobbit::Variable::ClearChildren() { this->m_children_.clear(); }
+void Hobbit::Buffer::ClearChildren() { this->m_children_.clear(); }
 
-llvm::ArrayRef<llvm::Value *> Hobbit::Variable::Pack(llvm::IRBuilder<> &builder,
+llvm::ArrayRef<llvm::Value *> Hobbit::Buffer::Pack(llvm::IRBuilder<> &builder,
                                                      uint32_t &vector_size) {
   llvm::Type *vector_type =
       llvm::VectorType::get(m_type_->getArrayElementType(), vector_size);
@@ -151,7 +160,7 @@ llvm::ArrayRef<llvm::Value *> Hobbit::Variable::Pack(llvm::IRBuilder<> &builder,
     llvm::Value *tmp_vec = llvm::UndefValue::get(vector_type);
     for (uint32_t j = 0; j < vector_size; j++) {
       llvm::Value *elt =
-          builder.CreateExtractValue(m_value_, i * vector_size + j);
+          builder.CreateLoad(builder.CreateGEP(m_value_, builder.getInt32(i * vector_size + j)));
       builder.CreateInsertElement(tmp_vec, elt, j);
     }
     output.push_back(tmp_vec);
@@ -159,3 +168,10 @@ llvm::ArrayRef<llvm::Value *> Hobbit::Variable::Pack(llvm::IRBuilder<> &builder,
 
   return output;
 }
+
+Hobbit::Constant::Constant(llvm::IRBuilder<> &builder, llvm::Type *type,
+                           Hobbit::CompileTimeBuffer &buffer
+) : Buffer(buffer.GetValue(builder, type), buffer.GetShape()) {}
+
+Hobbit::Variable::Variable(llvm::IRBuilder<> &builder, llvm::Type *scalar_type, const Hobbit::Shape &shape) : Buffer(
+        builder, scalar_type, shape) {}
