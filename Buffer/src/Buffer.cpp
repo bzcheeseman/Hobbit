@@ -28,6 +28,7 @@ Hobbit::Buffer::Buffer(llvm::IRBuilder<> &builder, llvm::Type *scalar_type,
   m_type_ = scalar_type;
   m_value_ =
       builder.CreateAlloca(m_type_, builder.getInt64(m_shape_.GetSize()));
+  m_value_->setName("hobbit.buffer");
 }
 
 Hobbit::Buffer::Buffer(llvm::Value *value, llvm::Type *type,

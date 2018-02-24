@@ -50,8 +50,8 @@ Hobbit::Shape Hobbit::Shape::GetChunkShape(const Hobbit::Range &k_range,
     k_end = k_ - 1;
   } else {
     k_start = k_range.start;
-    k_end = k_range.end -
-            1; // so if the range is {0, 1} we just have a single k index
+    k_end = k_range.end - 1;
+    // so if the range is {0, 1} we just have a single k index
   }
 
   if (h_range.start == 0 && h_range.end == 0) {
@@ -85,8 +85,8 @@ Hobbit::Range Hobbit::Shape::GetChunkIdx(const Hobbit::Range &k_range,
     k_end = k_ - 1;
   } else {
     k_start = k_range.start;
-    k_end = k_range.end -
-            1; // so if the range is {0, 1} we just have a single k index
+    k_end = k_range.end - 1;
+    // so if the range is {0, 1} we just have a single k index
   }
 
   if (h_range.start == 0 && h_range.end == 0) {
@@ -123,5 +123,5 @@ const uint32_t &Hobbit::Shape::GetAxisSize(Hobbit::Axis &axis) const {
     return w_;
   }
 
-  return 0;
+  return w_;
 }

@@ -62,7 +62,7 @@ namespace Hobbit {
         builder.CreateStore(elt, builder.CreateGEP(out, builder.getInt32(i)));
       }
 
-      if (name.isTriviallyEmpty()) out->setName("compiletimeintbuffer");
+      if (name.isTriviallyEmpty()) out->setName("hobbit.compiletimebuffer.INT");
 
       return out;
     }
@@ -97,7 +97,7 @@ namespace Hobbit {
         builder.CreateStore(elt, builder.CreateGEP(out, builder.getInt32(i)));
       }
 
-      if (name.isTriviallyEmpty()) out->setName("compiletimefpbuffer");
+      if (name.isTriviallyEmpty()) out->setName("hobbit.compiletimebuffer.FP");
 
       return out;
     }

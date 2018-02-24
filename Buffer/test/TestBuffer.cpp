@@ -198,25 +198,23 @@ TEST(TestConstant, Subindex) {  // this isn't working for some reason...
 
   Hobbit::Constant constant (builder, float_type, cp_buffer);
 
-  Hobbit::Buffer *h_is_1 = constant.GetChunk(builder, Hobbit::Range(), Hobbit::Range(1, 2), Hobbit::Range());
-  Hobbit::Buffer *h_is_0 = constant.GetChunk(builder, Hobbit::Range(), Hobbit::Range(0, 1), Hobbit::Range());
-
-//  std::cout << h_is_0->GetShape() << std::endl;
-//  std::cout << h_is_1->GetShape() << std::endl;
+  Hobbit::Buffer *h_is_0 = constant.GetChunk(builder, Hobbit::Range(0, 1), Hobbit::Range(0, 1), Hobbit::Range(0, 4));
+  Hobbit::Buffer *h_is_1 = constant.GetChunk(builder, Hobbit::Range(0, 1), Hobbit::Range(1, 2), Hobbit::Range(0, 4));
 
   EXPECT_TRUE(h_is_0->GetShape() == Hobbit::Shape(1, 1, 4));
   EXPECT_TRUE(h_is_1->GetShape() == Hobbit::Shape(1, 1, 4));
 
+  // is there a race condition here? Whenever I have a breakpoint in Pack it works, whenever I don't it doesn't
   llvm::ArrayRef<llvm::Value *> h0 = h_is_0->Pack(builder, 4);
   EXPECT_EQ(h0.size(), 1);
   llvm::ArrayRef<llvm::Value *> h1 = h_is_1->Pack(builder, 4);
   EXPECT_EQ(h1.size(), 1);
 
-  h0[0]->print(llvm::errs(), true);
-  h1[0]->print(llvm::errs(), true);
+//  h0[0]->print(llvm::outs(), true);
+//  h1[0]->print(llvm::outs(), true);
 
   llvm::Value *mult = builder.CreateFMul(h0[0], h1[0]);
 
-  Mod->print(llvm::errs(), nullptr);
+  Mod->print(llvm::outs(), nullptr);
   llvm::verifyFunction(*f);
 }

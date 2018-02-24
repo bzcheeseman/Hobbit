@@ -14,4 +14,5 @@ target_include_directories(HobbitBuffer PUBLIC ${LLVM_INCLUDE_DIRS} ${CMAKE_CURR
 
 if (BUILD_TESTS)
     add_gtest(Buffer HobbitBuffer)
+    add_gtest(Shape HobbitBuffer)
 endif (BUILD_TESTS)
