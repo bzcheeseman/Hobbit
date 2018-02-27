@@ -35,6 +35,13 @@
 
 namespace Hobbit {
 
+  // Maybe we just get rid of this and think about how the user will use the functions...
+  // If you give me a float* and a shape for everything, then I can use/re-use that memory as I
+  // see fit...maybe the function definition is more important than I thought, and each
+  // operation should define its own IR function and push it into a vector, which then
+  // lives in a Module that can get compiled to llvm IR, that way we have composable chunks in IR
+  // too?
+
   class Buffer {
   public:
     // Takes in the shape of the buffer to allocate, allows us to do things like

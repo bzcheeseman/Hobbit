@@ -117,6 +117,8 @@ llvm::ArrayRef<llvm::Value *> Hobbit::Buffer::Pack(llvm::IRBuilder<> &builder,
     output[i]->setName(m_value_->getName() + ".pack" + std::to_string(i));
   }
 
+  // is m_value_ getting fudged when I subindex?
+
   if (leftovers != 0) {
     llvm::Value *val = llvm::UndefValue::get(vector_type);
     for (uint32_t j = 0; j < leftovers; j++) {

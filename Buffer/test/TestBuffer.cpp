@@ -210,10 +210,15 @@ TEST(TestConstant, Subindex) {  // this isn't working for some reason...
   llvm::ArrayRef<llvm::Value *> h1 = h_is_1->Pack(builder, 4);
   EXPECT_EQ(h1.size(), 1);
 
-//  h0[0]->print(llvm::outs(), true);
-//  h1[0]->print(llvm::outs(), true);
+  h0[0]->print(llvm::errs(), true);
+  h1[0]->print(llvm::errs(), true);
 
-  llvm::Value *mult = builder.CreateFMul(h0[0], h1[0]);
+  llvm::ArrayRef<llvm::Value *> h = {h0[0], h1[0]};
+
+  llvm::Value *mult = builder.CreateFMul(h[0], h[1]);
+
+  h_is_0->GetValue()->print(llvm::errs(), true);
+  h_is_1->GetValue()->print(llvm::errs(), true);
 
   Mod->print(llvm::outs(), nullptr);
   llvm::verifyFunction(*f);
