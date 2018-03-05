@@ -1,5 +1,5 @@
 //
-// Created by Aman LaChapelle on 2/18/18.
+// Created by Aman LaChapelle on 2/22/18.
 //
 // Hobbit
 // Copyright (c) 2018 Aman LaChapelle
@@ -20,24 +20,19 @@
     limitations under the License.
  */
 
-#include "DAGNodeVisitor.hpp"
+#ifndef HOBBIT_FUNCTOR_HPP
+#define HOBBIT_FUNCTOR_HPP
 
-void Hobbit::FusionVisitor::Visit(Hobbit::DAGNode *node) {
+#include <llvm/IR/IRBuilder.h>
 
-  // Move the operators into this node
-  node->op->PushOperator(node->sink->op);
+#include "Buffer.hpp"
 
-  // Link the child's sinks to this node
-  node->sink = std::move(node->sink->sink);
-
-  // And finally delete the child
-  delete node->sink;
+namespace Hobbit {
+  class Functor {
+  public:
+    virtual Buffer AllocOutput(llvm::BasicBlock *BB) = 0;
+    virtual void Emit(llvm::BasicBlock *BB, Buffer *input, Buffer *output) = 0;
+  };
 }
 
-Hobbit::ReplacementVisitor::ReplacementVisitor(Hobbit::CompositeOp *op) {
-  this->op = std::move(op);
-}
-
-void Hobbit::ReplacementVisitor::Visit(Hobbit::DAGNode *node) {
-  node->op = this->op; // replace the operation with a new one do nothing else
-}
+#endif // HOBBIT_FUNCTOR_HPP

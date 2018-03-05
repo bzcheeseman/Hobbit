@@ -22,20 +22,25 @@
 
 #include "Operation.hpp"
 
-Hobbit::Operation::Operation(const std::initializer_list<Functor *> &f)
-    : op_table_(f) {}
+Hobbit::Operation::Operation(const std::string name) : name_(name) {}
 
-Hobbit::Operation::Operation(const std::list<Functor *> &f) : op_table_(f) {}
+Hobbit::Operation::Operation(const std::initializer_list<Functor *> &f, const std::string name)
+    : op_table_(f), name_(name) {}
+
+Hobbit::Operation::Operation(const std::list<Functor *> &f, const std::string name) : op_table_(f), name_(name) {}
 
 void Hobbit::Operation::PushFunctor(Hobbit::Functor &f) {
   op_table_.push_back(&f);
 }
 
-Hobbit::Variable &Hobbit::Operation::Emit(llvm::IRBuilder<> &builder,
-                                          Variable &var) {
+void Hobbit::Operation::Emit(llvm::BasicBlock *entry_BB, llvm::BasicBlock *BB, Hobbit::Buffer *input) {
   for (auto &op : op_table_) {
-    var = op->Emit(builder, var);
+    Hobbit::Buffer buffer = op_table_.front()->AllocOutput(entry_BB);
+    op->Emit(BB, input, &buffer);
+    *input = buffer;
   }
+}
 
-  return var;
+const std::string &Hobbit::Operation::GetName() {
+  return name_;
 }

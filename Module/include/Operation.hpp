@@ -1,7 +1,7 @@
 //
-// Created by Aman LaChapelle on 2/17/18.
+// Created by Aman LaChapelle on 2/22/18.
 //
-// c_science
+// Hobbit
 // Copyright (c) 2018 Aman LaChapelle
 // Full license at Hobbit/LICENSE.txt
 //
@@ -20,16 +20,33 @@
     limitations under the License.
  */
 
-#ifndef HOBBIT_ELEMENTWISEOP_HPP
-#define HOBBIT_ELEMENTWISEOP_HPP
+#ifndef HOBBIT_OPERATION_HPP
+#define HOBBIT_OPERATION_HPP
 
 #include <list>
+
 #include <llvm/IR/IRBuilder.h>
-#include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Value.h>
 
 #include "Buffer.hpp"
+#include "Functor.hpp"
 
-namespace Hobbit {}
+namespace Hobbit {
+  class Operation {
+  public:
+    Operation(const std::string name="");
+    explicit Operation(const std::initializer_list<Functor *> &f, const std::string name="");
+    explicit Operation(const std::list<Functor *> &f, const std::string name="");
 
-#endif // HOBBIT_ELEMENTWISEOP_HPP
+    void PushFunctor(Functor &f);
+    void Emit(llvm::BasicBlock *entry_BB, llvm::BasicBlock *BB, Buffer *input);
+
+    const std::string &GetName();
+
+  private:
+    std::list<Functor *> op_table_;
+    const std::string name_;
+  };
+}
+
+#endif // HOBBIT_OPERATION_HPP

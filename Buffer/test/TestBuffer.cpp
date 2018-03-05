@@ -10,9 +10,9 @@
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
     You may obtain a copy of the License at
-    
+
         http://www.apache.org/licenses/LICENSE-2.0
-    
+
     Unless required by applicable law or agreed to in writing, software
     distributed under the License is distributed on an "AS IS" BASIS,
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -46,18 +46,18 @@ TEST(TestBuffer, CreateEmpty) {
   llvm::LLVMContext ctx;
 
   std::unique_ptr<llvm::Module> Mod =
-          llvm::make_unique<llvm::Module>("test", ctx);
-  llvm::Function *f = llvm::cast<llvm::Function>(Mod->getOrInsertFunction(
-          "create", llvm::Type::getInt32Ty(ctx), nullptr));
+      llvm::make_unique<llvm::Module>("test", ctx);
+  llvm::Function *f = llvm::cast<llvm::Function>(
+      Mod->getOrInsertFunction("create", llvm::Type::getInt32Ty(ctx), nullptr));
 
   llvm::BasicBlock *entry = llvm::BasicBlock::Create(ctx, "entry", f);
   llvm::IRBuilder<> builder(entry);
 
   llvm::Type *float_type = llvm::Type::getFloatTy(ctx);
 
-  Hobbit::Shape shape (1, 2, 4);
+  Hobbit::Shape shape(1, 2, 4);
 
-  Hobbit::Buffer buffer (builder, float_type, shape);
+  Hobbit::Buffer buffer(builder, float_type, shape);
 
   Mod->print(llvm::errs(), nullptr);
   llvm::verifyFunction(*f);
@@ -72,23 +72,25 @@ TEST(TestBuffer, Subindex) {
   llvm::LLVMContext ctx;
 
   std::unique_ptr<llvm::Module> Mod =
-          llvm::make_unique<llvm::Module>("test", ctx);
-  llvm::Function *f = llvm::cast<llvm::Function>(Mod->getOrInsertFunction(
-          "create", llvm::Type::getInt32Ty(ctx), nullptr));
+      llvm::make_unique<llvm::Module>("test", ctx);
+  llvm::Function *f = llvm::cast<llvm::Function>(
+      Mod->getOrInsertFunction("create", llvm::Type::getInt32Ty(ctx), nullptr));
 
   llvm::BasicBlock *entry = llvm::BasicBlock::Create(ctx, "entry", f);
   llvm::IRBuilder<> builder(entry);
 
   llvm::Type *float_type = llvm::Type::getFloatTy(ctx);
 
-  Hobbit::Shape shape (1, 2, 4);
+  Hobbit::Shape shape(1, 2, 4);
 
-  Hobbit::Buffer buffer (builder, float_type, shape);
+  Hobbit::Buffer buffer(builder, float_type, shape);
 
-  Hobbit::Buffer *subbuffer = buffer.GetChunk(builder, Hobbit::Range(0, 1), Hobbit::Range(0, 1), Hobbit::Range(0, 4));
+  Hobbit::Buffer *subbuffer = buffer.GetChunk(
+      entry, Hobbit::Range(0, 1), Hobbit::Range(0, 1), Hobbit::Range(0, 4));
   EXPECT_TRUE(subbuffer->GetShape() == Hobbit::Shape(1, 1, 4));
 
-  Hobbit::Buffer *sub_subbuffer = subbuffer->GetChunk(builder, Hobbit::Range(0, 1), Hobbit::Range(0, 1), Hobbit::Range(2, 3));
+  Hobbit::Buffer *sub_subbuffer = subbuffer->GetChunk(
+      entry, Hobbit::Range(0, 1), Hobbit::Range(0, 1), Hobbit::Range(2, 3));
   EXPECT_TRUE(sub_subbuffer->GetShape() == Hobbit::Shape(1, 1, 1));
 
   Mod->print(llvm::errs(), nullptr);
@@ -104,23 +106,24 @@ TEST(TestBuffer, SubindexPack) {
   llvm::LLVMContext ctx;
 
   std::unique_ptr<llvm::Module> Mod =
-          llvm::make_unique<llvm::Module>("test", ctx);
-  llvm::Function *f = llvm::cast<llvm::Function>(Mod->getOrInsertFunction(
-          "create", llvm::Type::getInt32Ty(ctx), nullptr));
+      llvm::make_unique<llvm::Module>("test", ctx);
+  llvm::Function *f = llvm::cast<llvm::Function>(
+      Mod->getOrInsertFunction("create", llvm::Type::getInt32Ty(ctx), nullptr));
 
   llvm::BasicBlock *entry = llvm::BasicBlock::Create(ctx, "entry", f);
   llvm::IRBuilder<> builder(entry);
 
   llvm::Type *float_type = llvm::Type::getFloatTy(ctx);
 
-  Hobbit::Shape shape (1, 2, 8);
+  Hobbit::Shape shape(1, 2, 8);
 
-  Hobbit::Buffer buffer (builder, float_type, shape);
+  Hobbit::Buffer buffer(builder, float_type, shape);
 
-  Hobbit::Buffer *subbuffer = buffer.GetChunk(builder, Hobbit::Range(0, 1), Hobbit::Range(0, 1), Hobbit::Range(0, 8));
+  Hobbit::Buffer *subbuffer = buffer.GetChunk(
+      entry, Hobbit::Range(0, 1), Hobbit::Range(0, 1), Hobbit::Range(0, 8));
   EXPECT_TRUE(subbuffer->GetShape() == Hobbit::Shape(1, 1, 8));
 
-  llvm::ArrayRef<llvm::Value *> vals = subbuffer->Pack(builder, 4);
+  llvm::ArrayRef<llvm::Value *> vals = subbuffer->Pack(entry, 4);
 
   Mod->print(llvm::errs(), nullptr);
   llvm::verifyFunction(*f);
@@ -135,19 +138,20 @@ TEST(TestConstant, Create) {
   llvm::LLVMContext ctx;
 
   std::unique_ptr<llvm::Module> Mod =
-          llvm::make_unique<llvm::Module>("test", ctx);
-  llvm::Function *f = llvm::cast<llvm::Function>(Mod->getOrInsertFunction(
-          "create", llvm::Type::getInt32Ty(ctx), nullptr));
+      llvm::make_unique<llvm::Module>("test", ctx);
+  llvm::Function *f = llvm::cast<llvm::Function>(
+      Mod->getOrInsertFunction("create", llvm::Type::getInt32Ty(ctx), nullptr));
 
   llvm::BasicBlock *entry = llvm::BasicBlock::Create(ctx, "entry", f);
   llvm::IRBuilder<> builder(entry);
 
   llvm::Type *float_type = llvm::Type::getDoubleTy(ctx);
 
-  Hobbit::Shape shape (1, 2, 4);
+  Hobbit::Shape shape(1, 2, 4);
 
-  std::random_device rd;  //Will be used to obtain a seed for the random number engine
-  std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
+  std::random_device
+      rd; // Will be used to obtain a seed for the random number engine
+  std::mt19937 gen(rd()); // Standard mersenne_twister_engine seeded with rd()
   std::uniform_real_distribution<> dis(1, 6);
 
   double random[shape.GetSize()];
@@ -156,15 +160,15 @@ TEST(TestConstant, Create) {
     random[i] = dis(gen);
   }
 
-  Hobbit::CompileTimeFPBuffer cp_buffer (random, shape);
+  Hobbit::CompileTimeFPBuffer cp_buffer(random, shape);
 
-  Hobbit::Constant constant (builder, float_type, cp_buffer);
+  Hobbit::Constant constant(builder, float_type, cp_buffer);
 
   Mod->print(llvm::errs(), nullptr);
   llvm::verifyFunction(*f);
 }
 
-TEST(TestConstant, Subindex) {  // this isn't working for some reason...
+TEST(TestConstant, Subindex) { // this isn't working for some reason...
   llvm::InitializeAllTargets();
   llvm::InitializeAllTargetMCs();
   llvm::InitializeAllAsmPrinters();
@@ -173,19 +177,23 @@ TEST(TestConstant, Subindex) {  // this isn't working for some reason...
   llvm::LLVMContext ctx;
 
   std::unique_ptr<llvm::Module> Mod =
-          llvm::make_unique<llvm::Module>("test", ctx);
+      llvm::make_unique<llvm::Module>("test", ctx);
   llvm::Function *f = llvm::cast<llvm::Function>(Mod->getOrInsertFunction(
-          "create", llvm::Type::getInt32Ty(ctx), nullptr));
+      "create", llvm::Type::getDoubleTy(ctx), nullptr));
 
   llvm::BasicBlock *entry = llvm::BasicBlock::Create(ctx, "entry", f);
+  llvm::BasicBlock *chunk0 = llvm::BasicBlock::Create(ctx, "chunk0", f);
+  llvm::BasicBlock *chunk1 = llvm::BasicBlock::Create(ctx, "chunk1", f);
+  llvm::BasicBlock *end = llvm::BasicBlock::Create(ctx, "end", f);
   llvm::IRBuilder<> builder(entry);
 
   llvm::Type *float_type = llvm::Type::getDoubleTy(ctx);
 
-  Hobbit::Shape shape (1, 2, 4);
+  Hobbit::Shape shape(1, 2, 4);
 
-  std::random_device rd;  //Will be used to obtain a seed for the random number engine
-  std::mt19937 gen(rd()); //Standard mersenne_twister_engine seeded with rd()
+  std::random_device
+      rd; // Will be used to obtain a seed for the random number engine
+  std::mt19937 gen(rd()); // Standard mersenne_twister_engine seeded with rd()
   std::uniform_real_distribution<> dis(1, 6);
 
   double random[shape.GetSize()];
@@ -194,28 +202,36 @@ TEST(TestConstant, Subindex) {  // this isn't working for some reason...
     random[i] = dis(gen);
   }
 
-  Hobbit::CompileTimeFPBuffer cp_buffer (random, shape);
+  Hobbit::CompileTimeFPBuffer cp_buffer(random, shape);
 
-  Hobbit::Constant constant (builder, float_type, cp_buffer);
+  Hobbit::Constant constant(builder, float_type, cp_buffer);
 
-  Hobbit::Buffer *h_is_0 = constant.GetChunk(builder, Hobbit::Range(0, 1), Hobbit::Range(0, 1), Hobbit::Range(0, 4));
-  Hobbit::Buffer *h_is_1 = constant.GetChunk(builder, Hobbit::Range(0, 1), Hobbit::Range(1, 2), Hobbit::Range(0, 4));
-
+  builder.CreateBr(chunk0);
+  Hobbit::Buffer *h_is_0 = constant.GetChunk(
+      chunk0, Hobbit::Range(0, 1), Hobbit::Range(0, 1), Hobbit::Range(0, 4));
   EXPECT_TRUE(h_is_0->GetShape() == Hobbit::Shape(1, 1, 4));
+
+  builder.SetInsertPoint(chunk0);
+  builder.CreateBr(chunk1);
+  Hobbit::Buffer *h_is_1 = constant.GetChunk(
+      chunk1, Hobbit::Range(0, 1), Hobbit::Range(1, 2), Hobbit::Range(0, 4));
   EXPECT_TRUE(h_is_1->GetShape() == Hobbit::Shape(1, 1, 4));
 
-  // is there a race condition here? Whenever I have a breakpoint in Pack it works, whenever I don't it doesn't
-  llvm::ArrayRef<llvm::Value *> h0 = h_is_0->Pack(builder, 4);
-  EXPECT_EQ(h0.size(), 1);
-  llvm::ArrayRef<llvm::Value *> h1 = h_is_1->Pack(builder, 4);
-  EXPECT_EQ(h1.size(), 1);
+  builder.SetInsertPoint(chunk1);
+  builder.CreateBr(end);
 
-  h0[0]->print(llvm::errs(), true);
-  h1[0]->print(llvm::errs(), true);
+  builder.SetInsertPoint(end);
+  llvm::Value *ret = builder.getInt64(0);
+  for (uint64_t i = 0; i < 4; i++) {
+    llvm::Value *lhs_elt = builder.CreateLoad(
+        builder.CreateGEP(h_is_0->GetValue(), builder.getInt64(i)));
+    llvm::Value *rhs_elt = builder.CreateLoad(
+        builder.CreateGEP(h_is_1->GetValue(), builder.getInt64(i)));
+    ret = builder.CreateFAdd(builder.CreateBitCast(ret, builder.getDoubleTy()),
+                             builder.CreateFMul(lhs_elt, rhs_elt));
+  }
 
-  llvm::ArrayRef<llvm::Value *> h = {h0[0], h1[0]};
-
-  llvm::Value *mult = builder.CreateFMul(h[0], h[1]);
+  builder.CreateRet(ret);
 
   h_is_0->GetValue()->print(llvm::errs(), true);
   h_is_1->GetValue()->print(llvm::errs(), true);

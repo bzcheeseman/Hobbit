@@ -22,11 +22,11 @@
 
 #include "Shape.hpp"
 
-Hobbit::Shape::Shape(const uint32_t &k, const uint32_t &h, const uint32_t &w)
+Hobbit::Shape::Shape(const uint64_t &k, const uint64_t &h, const uint64_t &w)
     : k_(k), h_(h), w_(w) {}
 
-uint32_t Hobbit::Shape::At(const uint32_t &k, const uint32_t &h,
-                           const uint32_t &w) {
+uint64_t Hobbit::Shape::At(const uint64_t &k, const uint64_t &h,
+                           const uint64_t &w) {
   if (k >= k_)
     throw std::runtime_error("Invalid index, k = " + std::to_string(k) +
                              "geq k_ = " + std::to_string(k_));
@@ -43,7 +43,7 @@ uint32_t Hobbit::Shape::At(const uint32_t &k, const uint32_t &h,
 Hobbit::Shape Hobbit::Shape::GetChunkShape(const Hobbit::Range &k_range,
                                            const Hobbit::Range &h_range,
                                            const Hobbit::Range &w_range) {
-  uint32_t k_start, k_end, h_start, h_end, w_start, w_end;
+  uint64_t k_start, k_end, h_start, h_end, w_start, w_end;
 
   if (k_range.start == 0 && k_range.end == 0) {
     k_start = 0;
@@ -70,15 +70,14 @@ Hobbit::Shape Hobbit::Shape::GetChunkShape(const Hobbit::Range &k_range,
     w_end = w_range.end - 1;
   }
 
-  return {k_end - k_start + 1, h_end - h_start + 1,
-          w_end - w_start + 1};
+  return {k_end - k_start + 1, h_end - h_start + 1, w_end - w_start + 1};
 }
 
 Hobbit::Range Hobbit::Shape::GetChunkIdx(const Hobbit::Range &k_range,
                                          const Hobbit::Range &h_range,
                                          const Hobbit::Range &w_range) {
   Range idx_range(0, k_ * h_ * w_);
-  uint32_t k_start, k_end, h_start, h_end, w_start, w_end;
+  uint64_t k_start, k_end, h_start, h_end, w_start, w_end;
 
   if (k_range.start == 0 && k_range.end == 0) {
     k_start = 0;
@@ -111,17 +110,4 @@ Hobbit::Range Hobbit::Shape::GetChunkIdx(const Hobbit::Range &k_range,
   return idx_range;
 }
 
-uint32_t Hobbit::Shape::GetSize() const { return k_ * h_ * w_; }
-
-const uint32_t &Hobbit::Shape::GetAxisSize(Hobbit::Axis &axis) const {
-  switch (axis) {
-  case K:
-    return k_;
-  case H:
-    return h_;
-  case W:
-    return w_;
-  }
-
-  return w_;
-}
+uint64_t Hobbit::Shape::GetSize() const { return k_ * h_ * w_; }

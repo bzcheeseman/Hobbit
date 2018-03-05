@@ -32,8 +32,8 @@ namespace Hobbit {
   class CompileTimeBuffer {
   public:
     virtual const Shape &GetShape() = 0;
-    virtual llvm::Value *GetValue(llvm::IRBuilder<> &builder,
-                                  llvm::Type *type, const llvm::Twine &name="") = 0;
+    virtual llvm::Value *GetValue(llvm::IRBuilder<> &builder, llvm::Type *type,
+                                  const llvm::Twine &name = "") = 0;
   };
 
   class CompileTimeIntBuffer : public CompileTimeBuffer {
@@ -43,8 +43,8 @@ namespace Hobbit {
 
     const Shape &GetShape() override { return shape_; }
 
-    llvm::Value *GetValue(llvm::IRBuilder<> &builder,
-                          llvm::Type *int_type, const llvm::Twine &name="") override {
+    llvm::Value *GetValue(llvm::IRBuilder<> &builder, llvm::Type *int_type,
+                          const llvm::Twine &name = "") override {
       llvm::Type *type = int_type;
 
       if (int_type == nullptr)
@@ -62,7 +62,8 @@ namespace Hobbit {
         builder.CreateStore(elt, builder.CreateGEP(out, builder.getInt32(i)));
       }
 
-      if (name.isTriviallyEmpty()) out->setName("hobbit.compiletimebuffer.INT");
+      if (name.isTriviallyEmpty())
+        out->setName("hobbit.compiletimebuffer.INT");
 
       return out;
     }
@@ -79,8 +80,8 @@ namespace Hobbit {
 
     const Shape &GetShape() override { return shape_; }
 
-    llvm::Value *GetValue(llvm::IRBuilder<> &builder,
-                          llvm::Type *fp_type, const llvm::Twine &name="") override {
+    llvm::Value *GetValue(llvm::IRBuilder<> &builder, llvm::Type *fp_type,
+                          const llvm::Twine &name = "") override {
       llvm::Type *type = fp_type;
 
       if (fp_type == nullptr)
@@ -94,10 +95,11 @@ namespace Hobbit {
 
       for (uint32_t i = 0; i < size; i++) {
         llvm::Value *elt = llvm::ConstantFP::get(type, ptr_[i]);
-        builder.CreateStore(elt, builder.CreateGEP(out, builder.getInt32(i)));
+        builder.CreateStore(elt, builder.CreateGEP(out, builder.getInt64(i)));
       }
 
-      if (name.isTriviallyEmpty()) out->setName("hobbit.compiletimebuffer.FP");
+      if (name.isTriviallyEmpty())
+        out->setName("hobbit.compiletimebuffer.FP");
 
       return out;
     }

@@ -22,9 +22,12 @@
 
 #include "Buffer.hpp"
 
-Hobbit::Buffer::Buffer(llvm::IRBuilder<> &builder, llvm::Type *scalar_type,
+Hobbit::Buffer::Buffer(llvm::BasicBlock *BB, llvm::Type *scalar_type,
                        const Hobbit::Shape &shape)
     : m_shape_(shape) {
+
+  llvm::IRBuilder<> builder(BB);
+
   m_type_ = scalar_type;
   m_value_ =
       builder.CreateAlloca(m_type_, builder.getInt64(m_shape_.GetSize()));
@@ -61,10 +64,12 @@ llvm::Value *Hobbit::Buffer::GetValue() { return m_value_; }
 
 llvm::Type *Hobbit::Buffer::GetType() { return m_type_; }
 
-Hobbit::Buffer *Hobbit::Buffer::GetChunk(llvm::IRBuilder<> &builder,
+Hobbit::Buffer *Hobbit::Buffer::GetChunk(llvm::BasicBlock *BB,
                                          const Hobbit::Range &k_range,
                                          const Hobbit::Range &h_range,
                                          const Hobbit::Range &w_range) {
+  llvm::IRBuilder<> builder(BB);
+
   Range idx_range = m_shape_.GetChunkIdx(k_range, h_range, w_range);
   Shape chunk_shape = m_shape_.GetChunkShape(k_range, h_range, w_range);
 
@@ -90,7 +95,6 @@ Hobbit::Buffer *Hobbit::Buffer::Flatten() {
 }
 
 void Hobbit::Buffer::ClearChild(Hobbit::Buffer *child) {
-
   auto iter = std::find(m_children_.begin(), m_children_.end(), child);
   if (iter != m_children_.end()) {
     m_children_.erase(iter);
@@ -99,44 +103,18 @@ void Hobbit::Buffer::ClearChild(Hobbit::Buffer *child) {
 
 void Hobbit::Buffer::ClearChildren() { this->m_children_.clear(); }
 
-llvm::ArrayRef<llvm::Value *> Hobbit::Buffer::Pack(llvm::IRBuilder<> &builder,
-                                                   const uint32_t &vector_size) {
-  llvm::Type *vector_type =
-      llvm::VectorType::get(m_type_, vector_size); // m_type_ is a scalar type
-  uint32_t leftovers = m_shape_.GetSize() % vector_size;
-  uint32_t num_vectors = (m_shape_.GetSize() - leftovers) / vector_size;
+llvm::Value *Hobbit::Buffer::GetElement(llvm::BasicBlock *BB,
+                                        const uint64_t &idx) {
+  llvm::IRBuilder<> builder(BB);
 
-  std::vector<llvm::Value *> output (num_vectors);
-  for (uint32_t i = 0; i < num_vectors; i++) {
-    output[i] = llvm::UndefValue::get(vector_type);
-    for (uint32_t j = 0; j < vector_size; j++) {
-      llvm::Value *elt = builder.CreateLoad(
-          builder.CreateGEP(m_value_, builder.getInt32(i * vector_size + j)));
-      output[i] = builder.CreateInsertElement(output[i], elt, j);
-    }
-    output[i]->setName(m_value_->getName() + ".pack" + std::to_string(i));
-  }
-
-  // is m_value_ getting fudged when I subindex?
-
-  if (leftovers != 0) {
-    llvm::Value *val = llvm::UndefValue::get(vector_type);
-    for (uint32_t j = 0; j < leftovers; j++) {
-      llvm::Value *elt = builder.CreateLoad(
-              builder.CreateGEP(m_value_, builder.getInt32(num_vectors * vector_size + j)));
-      val = builder.CreateInsertElement(val, elt, j);
-    }
-    val->setName(m_value_->getName() + ".pack" + std::to_string(num_vectors));
-    output.push_back(val);
-  }
-
-  return output;
+  return builder.CreateLoad(builder.CreateGEP(m_value_, builder.getInt64(idx)),
+                            m_value_->getName() + ".element." +
+                                std::to_string(idx));
 }
 
-Hobbit::Constant::Constant(llvm::IRBuilder<> &builder, llvm::Type *type,
-                           Hobbit::CompileTimeBuffer &buffer)
-    : Buffer(buffer.GetValue(builder, type), buffer.GetShape()) {}
+llvm::Value *Hobbit::Buffer::GetElement(llvm::BasicBlock *BB, const uint64_t &k,
+                                        const uint64_t &h, const uint64_t &w) {
+  uint64_t idx = m_shape_.At(k, h, w);
 
-Hobbit::Variable::Variable(llvm::Value *value, llvm::Type *scalar_type,
-                           const Hobbit::Shape &shape)
-    : Buffer(value, scalar_type, shape, nullptr) {}
+  return this->GetElement(BB, idx);
+}

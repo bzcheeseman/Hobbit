@@ -35,19 +35,23 @@
 
 namespace Hobbit {
 
-  // Maybe we just get rid of this and think about how the user will use the functions...
-  // If you give me a float* and a shape for everything, then I can use/re-use that memory as I
-  // see fit...maybe the function definition is more important than I thought, and each
-  // operation should define its own IR function and push it into a vector, which then
-  // lives in a Module that can get compiled to llvm IR, that way we have composable chunks in IR
+  // Maybe we just get rid of this and think about how the user will use the
+  // functions...
+  // If you give me a float* and a shape for everything, then I can use/re-use
+  // that memory as I
+  // see fit...maybe the function definition is more important than I thought,
+  // and each
+  // operation should define its own IR function and push it into a vector,
+  // which then
+  // lives in a Module that can get compiled to llvm IR, that way we have
+  // composable chunks in IR
   // too?
 
   class Buffer {
   public:
     // Takes in the shape of the buffer to allocate, allows us to do things like
     // Pack and Split
-    Buffer(llvm::IRBuilder<> &builder, llvm::Type *scalar_type,
-           const Shape &shape);
+    Buffer(llvm::BasicBlock *BB, llvm::Type *scalar_type, const Shape &shape);
 
     Buffer(llvm::Value *value, llvm::Type *scalar_type, const Shape &shape,
            Buffer *parent);
@@ -62,20 +66,16 @@ namespace Hobbit {
 
     // Should be used to split into arbitrary chunks - will allow you to further
     // split if desired.
-    Buffer *GetChunk(llvm::IRBuilder<> &builder, const Range &k_range,
+    Buffer *GetChunk(llvm::BasicBlock *BB, const Range &k_range,
                      const Range &h_range, const Range &w_range);
     Buffer *Flatten();
 
+    llvm::Value *GetElement(llvm::BasicBlock *BB, const uint64_t &idx);
+    llvm::Value *GetElement(llvm::BasicBlock *BB, const uint64_t &k,
+                            const uint64_t &h, const uint64_t &w);
+
     void ClearChild(Buffer *child);
     void ClearChildren();
-
-    // This function treats the whole array as a flat buffer, and is therefore
-    // recommended to only be used
-    // when trying to schedule a computation using SIMD instructions, and
-    // therefore used on a very small
-    // piece of a variable.
-    llvm::ArrayRef<llvm::Value *> Pack(llvm::IRBuilder<> &builder,
-                                       const uint32_t &vector_size);
 
   protected:
     llvm::Value *m_value_;
@@ -84,17 +84,6 @@ namespace Hobbit {
 
     Buffer *m_parent_ = nullptr;
     std::list<Buffer *> m_children_;
-  };
-
-  class Constant : public Buffer {
-  public:
-    Constant(llvm::IRBuilder<> &builder, llvm::Type *scalar_type,
-             CompileTimeBuffer &buffer);
-  };
-
-  class Variable : public Buffer {
-  public:
-    Variable(llvm::Value *value, llvm::Type *scalar_type, const Shape &shape);
   };
 }
 

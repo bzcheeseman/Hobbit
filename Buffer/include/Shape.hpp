@@ -24,36 +24,32 @@
 #define HOBBIT_SHAPE_HPP
 
 #include <cstdint>
+#include <iostream>
 #include <stdexcept>
 #include <string>
-#include <iostream>
 
 namespace Hobbit {
   struct Range {
-    explicit Range(const uint32_t &start = 0, const uint32_t &end = 0)
+    explicit Range(const uint64_t &start = 0, const uint64_t &end = 0)
         : start(start), end(end) {}
 
-    uint32_t start;
-    uint32_t end; // exclusive
+    uint64_t start;
+    uint64_t end; // exclusive
   };
-
-  enum Axis { K, H, W };
 
   class Shape {
   public:
     Shape() = default;
-    Shape(const uint32_t &k, const uint32_t &h, const uint32_t &w);
+    Shape(const uint64_t &k, const uint64_t &h, const uint64_t &w);
 
-    uint32_t At(const uint32_t &k, const uint32_t &h, const uint32_t &w);
+    uint64_t At(const uint64_t &k, const uint64_t &h, const uint64_t &w);
 
     Shape GetChunkShape(const Range &k_range, const Range &h_range,
                         const Range &w_range);
     Range GetChunkIdx(const Range &k_range, const Range &h_range,
                       const Range &w_range);
 
-    uint32_t GetSize() const;
-
-    const uint32_t &GetAxisSize(Axis &axis) const;
+    uint64_t GetSize() const;
 
     friend inline bool operator==(const Shape &lhs, const Shape &rhs) {
       return (lhs.k_ == rhs.k_ && lhs.h_ == rhs.h_ && lhs.w_ == rhs.w_);
@@ -64,13 +60,14 @@ namespace Hobbit {
     }
 
     friend inline std::ostream &operator<<(std::ostream &out, const Shape &s) {
-      out << "{" << "K: " << s.k_ << " H: " << s.h_ << " W: " << s.w_ << "}";
+      out << "{"
+          << "K: " << s.k_ << " H: " << s.h_ << " W: " << s.w_ << "}";
 
       return out;
     }
 
   private:
-    uint32_t k_, h_, w_;
+    uint64_t k_, h_, w_;
   };
 }
 

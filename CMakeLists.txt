@@ -26,10 +26,8 @@ if (BUILD_TESTS)
 
 endif (BUILD_TESTS)
 
-add_subdirectory(Buffer)
-add_subdirectory(Operation)
 add_subdirectory(Module)
-add_subdirectory(DAG)
+add_subdirectory(Buffer)
 
 file(GLOB_RECURSE
         ALL_CXX_SOURCE_FILES
