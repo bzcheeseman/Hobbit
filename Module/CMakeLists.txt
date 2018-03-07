@@ -7,7 +7,6 @@ file(GLOB SOURCES src/*.cpp)
 file(GLOB HEADERS include/*.hpp)
 
 llvm_map_components_to_libnames(llvm_libs all)
-message(STATUS ${llvm_libs})
 
 add_library(HobbitModule SHARED ${SOURCES} ${HEADERS})
 target_link_libraries(HobbitModule c++ ${llvm_libs} HobbitBuffer)

@@ -182,6 +182,11 @@ void Hobbit::Module::FinalizeFunction(const std::string &function_name,
   llvm::BasicBlock *exit_bb = f.AddBB(*ctx_, "exit");
   llvm::IRBuilder<> builder(exit_bb);
 
+  if (!return_value->GetType()->isPointerTy()) {
+    builder.CreateRet(builder.CreateLoad(return_value->GetValue()));
+    return;
+  }
+
   llvm::Type *ptr_type = llvm::PointerType::get(return_value->GetType(), 0);
   llvm::Value *ptr, *size;
   ptr = llvm::Constant::getNullValue(ptr_type);
@@ -200,8 +205,7 @@ void Hobbit::Module::FinalizeFunction(const std::string &function_name,
         builder.CreateGEP(mallocd_array, builder.getInt64(i));
     llvm::Value *buffer_elt = builder.CreateLoad(
         builder.CreateGEP(return_value->GetValue(), builder.getInt64(i)));
-    builder.CreateStore(buffer_elt,
-                        mallocd_elt); // is this right? Store into the gep?
+    builder.CreateStore(buffer_elt, mallocd_elt);
   }
 
   builder.CreateRet(mallocd_array);

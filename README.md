@@ -10,7 +10,6 @@ seeing what produces (in my mind) correct IR through trial and error, I welcome 
 
 TODO
 ----
+- Use dot basis to build up gemm/conv
 - Finalize buffer sub-indexing and explore other options
-- Add tests for new style of operations, as well as axis-wise operations
-- Add more complex BLAS operations, starting with sdot
  

@@ -24,8 +24,7 @@
 
 #include <ElementWiseFunctors.hpp>
 #include <Module.hpp>
-#include <llvm/ExecutionEngine/ExecutionEngine.h>
-#include <llvm/Support/TargetSelect.h>
+#include <ReductionFunctors.hpp>
 
 TEST(TestModule, Init) {
   llvm::LLVMContext ctx;
@@ -115,4 +114,54 @@ TEST(TestModule, PerformProd) {
   for (int i = 0; i < 10; i++) {
     EXPECT_FLOAT_EQ(float_result[i], (float)i * i);
   }
+}
+
+TEST(TestModule, PerformSDOT) {
+
+  llvm::LLVMContext ctx;
+  Hobbit::Module module("test_module", ctx);
+
+  int n_elts = 100;
+
+  std::vector<llvm::Type *> args = {
+      llvm::Type::getFloatPtrTy(ctx) // input
+  };
+  module.CreateFunction("sdot", llvm::Type::getFloatTy(ctx), args);
+  Hobbit::Buffer *input_buffer =
+      module.GetBufferFromInputs("sdot", 0, Hobbit::Shape(1, 1, n_elts));
+
+  std::vector<float> f;
+  for (int i = 0; i < n_elts; i++) {
+    f.push_back(i);
+  }
+
+  Hobbit::Buffer *fconst =
+      module.GetFloatConstant("sdot", f.data(), Hobbit::Shape(1, 1, n_elts));
+
+  Hobbit::ElementWiseProduct prod(fconst);
+  Hobbit::SumReduction hsum(llvm::Type::getFloatTy(ctx));
+  Hobbit::Operation sdot_op("sdot_op");
+  sdot_op.PushFunctor(prod);
+  sdot_op.PushFunctor(hsum);
+
+  Hobbit::Buffer *result =
+      module.InsertOperation("sdot", &sdot_op, input_buffer);
+
+  module.FinalizeFunction("sdot", result);
+
+  module.FinalizeModule(3);
+
+//  module.PrintModule();
+  module.PrepareJIT();
+
+  float (*prod_fn)(float *) = (float (*)(float *))module.GetFunctionPtr("sdot");
+
+  auto start = std::chrono::high_resolution_clock::now();
+  float float_result = prod_fn(f.data());
+  auto finish = std::chrono::high_resolution_clock::now();
+
+  std::chrono::duration<double> elapsed = finish - start;
+  std::cout << "Elapsed time: " << elapsed.count() << " s for " << n_elts << " elements" << std::endl;
+
+  EXPECT_FLOAT_EQ(float_result, (float)(n_elts-1)/3.f * ((float)(n_elts-1) + 1.f) * ((float)(n_elts-1) + 0.5f));
 }

@@ -61,6 +61,8 @@ namespace Hobbit {
   public:
     explicit Module(const std::string &name, llvm::LLVMContext &ctx);
 
+    // TODO: Do I want to make the functions return void? that way only the host
+    // calls malloc...
     void CreateFunction(const std::string &name, llvm::Type *return_type,
                         llvm::ArrayRef<llvm::Type *> args_types);
 
