@@ -29,9 +29,9 @@
 
 #include <llvm/IR/Verifier.h>
 
-#include <llvm/ExecutionEngine/SectionMemoryManager.h>
 #include <llvm/ExecutionEngine/ExecutionEngine.h>
 #include <llvm/ExecutionEngine/MCJIT.h>
+#include <llvm/ExecutionEngine/SectionMemoryManager.h>
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Target/TargetMachine.h>
 
@@ -49,9 +49,10 @@ namespace Hobbit {
       llvm::BasicBlock *entry_block;
       std::vector<llvm::BasicBlock *> bb;
 
-      llvm::BasicBlock *AddBB(llvm::LLVMContext &ctx, const std::string &name="") {
+      llvm::BasicBlock *AddBB(llvm::LLVMContext &ctx,
+                              const std::string &name = "") {
         bb.push_back(llvm::BasicBlock::Create(ctx, name, llvm_function));
-        return *(bb.end()-1); // return BB just created
+        return *(bb.end() - 1); // return BB just created
       }
     };
   }
@@ -60,29 +61,31 @@ namespace Hobbit {
   public:
     explicit Module(const std::string &name, llvm::LLVMContext &ctx);
 
-    void CreateFunction(const std::string &name,
-                        llvm::Type *return_type,
+    void CreateFunction(const std::string &name, llvm::Type *return_type,
                         llvm::ArrayRef<llvm::Type *> args_types);
 
-    Buffer *GetBufferFromInputs(const std::string &function_name, const uint32_t &ptr_idx, const Shape &shape);
+    Buffer *GetBufferFromInputs(const std::string &function_name,
+                                const uint32_t &ptr_idx, const Shape &shape);
 
     // Getters
     Buffer *GetVariable(const std::string &function_name,
-                                llvm::Type *scalar_type,
-                                const Hobbit::Shape &shape);
-    Buffer *GetIntConstant(const std::string &function_name,
-                                   uint64_t *ptr,
-                                   const uint8_t &int_width,
-                                   const Shape &shape);
-    Buffer *GetHalfConstant(const std::string &function_name, float *ptr, const Shape &shape);
-    Buffer *GetFloatConstant(const std::string &function_name, float *ptr, const Shape &shape);
-    Buffer *GetDoubleConstant(const std::string &function_name, double *ptr, const Shape &shape);
+                        llvm::Type *scalar_type, const Hobbit::Shape &shape);
+    Buffer *GetIntConstant(const std::string &function_name, uint64_t *ptr,
+                           const uint8_t &int_width, const Shape &shape);
+    Buffer *GetHalfConstant(const std::string &function_name, float *ptr,
+                            const Shape &shape);
+    Buffer *GetFloatConstant(const std::string &function_name, float *ptr,
+                             const Shape &shape);
+    Buffer *GetDoubleConstant(const std::string &function_name, double *ptr,
+                              const Shape &shape);
 
-    Buffer *InsertOperation(const std::string &function_name, Operation *op, Buffer *input);
+    Buffer *InsertOperation(const std::string &function_name, Operation *op,
+                            Buffer *input);
 
     void PrintModule();
 
-    void FinalizeFunction(const std::string &function_name, Buffer *return_value);
+    void FinalizeFunction(const std::string &function_name,
+                          Buffer *return_value);
 
     void FinalizeModule(unsigned opt_level);
 
@@ -98,7 +101,6 @@ namespace Hobbit {
 
     bool prepare_called_;
     llvm::ExecutionEngine *engine_;
-
   };
 }
 

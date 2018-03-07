@@ -37,6 +37,8 @@ namespace Hobbit {
     uint64_t end; // exclusive
   };
 
+  enum Axis { K, H, W };
+
   class Shape {
   public:
     Shape() = default;
@@ -50,6 +52,8 @@ namespace Hobbit {
                       const Range &w_range);
 
     uint64_t GetSize() const;
+
+    uint64_t GetAxisSize(Axis &axis) const;
 
     friend inline bool operator==(const Shape &lhs, const Shape &rhs) {
       return (lhs.k_ == rhs.k_ && lhs.h_ == rhs.h_ && lhs.w_ == rhs.w_);

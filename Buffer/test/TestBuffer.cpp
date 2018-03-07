@@ -37,6 +37,8 @@
 
 #include "Buffer.hpp"
 
+// TODO: test the chunk methods
+
 TEST(TestBuffer, CreateEmpty) {
   llvm::InitializeAllTargets();
   llvm::InitializeAllTargetMCs();
@@ -57,7 +59,7 @@ TEST(TestBuffer, CreateEmpty) {
 
   Hobbit::Shape shape(1, 2, 4);
 
-  Hobbit::Buffer buffer(builder, float_type, shape);
+  Hobbit::Buffer buffer(entry, float_type, shape);
 
   Mod->print(llvm::errs(), nullptr);
   llvm::verifyFunction(*f);
@@ -83,7 +85,7 @@ TEST(TestBuffer, Subindex) {
 
   Hobbit::Shape shape(1, 2, 4);
 
-  Hobbit::Buffer buffer(builder, float_type, shape);
+  Hobbit::Buffer buffer(entry, float_type, shape);
 
   Hobbit::Buffer *subbuffer = buffer.GetChunk(
       entry, Hobbit::Range(0, 1), Hobbit::Range(0, 1), Hobbit::Range(0, 4));
@@ -94,148 +96,5 @@ TEST(TestBuffer, Subindex) {
   EXPECT_TRUE(sub_subbuffer->GetShape() == Hobbit::Shape(1, 1, 1));
 
   Mod->print(llvm::errs(), nullptr);
-  llvm::verifyFunction(*f);
-}
-
-TEST(TestBuffer, SubindexPack) {
-  llvm::InitializeAllTargets();
-  llvm::InitializeAllTargetMCs();
-  llvm::InitializeAllAsmPrinters();
-  llvm::InitializeAllAsmParsers();
-
-  llvm::LLVMContext ctx;
-
-  std::unique_ptr<llvm::Module> Mod =
-      llvm::make_unique<llvm::Module>("test", ctx);
-  llvm::Function *f = llvm::cast<llvm::Function>(
-      Mod->getOrInsertFunction("create", llvm::Type::getInt32Ty(ctx), nullptr));
-
-  llvm::BasicBlock *entry = llvm::BasicBlock::Create(ctx, "entry", f);
-  llvm::IRBuilder<> builder(entry);
-
-  llvm::Type *float_type = llvm::Type::getFloatTy(ctx);
-
-  Hobbit::Shape shape(1, 2, 8);
-
-  Hobbit::Buffer buffer(builder, float_type, shape);
-
-  Hobbit::Buffer *subbuffer = buffer.GetChunk(
-      entry, Hobbit::Range(0, 1), Hobbit::Range(0, 1), Hobbit::Range(0, 8));
-  EXPECT_TRUE(subbuffer->GetShape() == Hobbit::Shape(1, 1, 8));
-
-  llvm::ArrayRef<llvm::Value *> vals = subbuffer->Pack(entry, 4);
-
-  Mod->print(llvm::errs(), nullptr);
-  llvm::verifyFunction(*f);
-}
-
-TEST(TestConstant, Create) {
-  llvm::InitializeAllTargets();
-  llvm::InitializeAllTargetMCs();
-  llvm::InitializeAllAsmPrinters();
-  llvm::InitializeAllAsmParsers();
-
-  llvm::LLVMContext ctx;
-
-  std::unique_ptr<llvm::Module> Mod =
-      llvm::make_unique<llvm::Module>("test", ctx);
-  llvm::Function *f = llvm::cast<llvm::Function>(
-      Mod->getOrInsertFunction("create", llvm::Type::getInt32Ty(ctx), nullptr));
-
-  llvm::BasicBlock *entry = llvm::BasicBlock::Create(ctx, "entry", f);
-  llvm::IRBuilder<> builder(entry);
-
-  llvm::Type *float_type = llvm::Type::getDoubleTy(ctx);
-
-  Hobbit::Shape shape(1, 2, 4);
-
-  std::random_device
-      rd; // Will be used to obtain a seed for the random number engine
-  std::mt19937 gen(rd()); // Standard mersenne_twister_engine seeded with rd()
-  std::uniform_real_distribution<> dis(1, 6);
-
-  double random[shape.GetSize()];
-
-  for (int i = 0; i < shape.GetSize(); i++) {
-    random[i] = dis(gen);
-  }
-
-  Hobbit::CompileTimeFPBuffer cp_buffer(random, shape);
-
-  Hobbit::Constant constant(builder, float_type, cp_buffer);
-
-  Mod->print(llvm::errs(), nullptr);
-  llvm::verifyFunction(*f);
-}
-
-TEST(TestConstant, Subindex) { // this isn't working for some reason...
-  llvm::InitializeAllTargets();
-  llvm::InitializeAllTargetMCs();
-  llvm::InitializeAllAsmPrinters();
-  llvm::InitializeAllAsmParsers();
-
-  llvm::LLVMContext ctx;
-
-  std::unique_ptr<llvm::Module> Mod =
-      llvm::make_unique<llvm::Module>("test", ctx);
-  llvm::Function *f = llvm::cast<llvm::Function>(Mod->getOrInsertFunction(
-      "create", llvm::Type::getDoubleTy(ctx), nullptr));
-
-  llvm::BasicBlock *entry = llvm::BasicBlock::Create(ctx, "entry", f);
-  llvm::BasicBlock *chunk0 = llvm::BasicBlock::Create(ctx, "chunk0", f);
-  llvm::BasicBlock *chunk1 = llvm::BasicBlock::Create(ctx, "chunk1", f);
-  llvm::BasicBlock *end = llvm::BasicBlock::Create(ctx, "end", f);
-  llvm::IRBuilder<> builder(entry);
-
-  llvm::Type *float_type = llvm::Type::getDoubleTy(ctx);
-
-  Hobbit::Shape shape(1, 2, 4);
-
-  std::random_device
-      rd; // Will be used to obtain a seed for the random number engine
-  std::mt19937 gen(rd()); // Standard mersenne_twister_engine seeded with rd()
-  std::uniform_real_distribution<> dis(1, 6);
-
-  double random[shape.GetSize()];
-
-  for (int i = 0; i < shape.GetSize(); i++) {
-    random[i] = dis(gen);
-  }
-
-  Hobbit::CompileTimeFPBuffer cp_buffer(random, shape);
-
-  Hobbit::Constant constant(builder, float_type, cp_buffer);
-
-  builder.CreateBr(chunk0);
-  Hobbit::Buffer *h_is_0 = constant.GetChunk(
-      chunk0, Hobbit::Range(0, 1), Hobbit::Range(0, 1), Hobbit::Range(0, 4));
-  EXPECT_TRUE(h_is_0->GetShape() == Hobbit::Shape(1, 1, 4));
-
-  builder.SetInsertPoint(chunk0);
-  builder.CreateBr(chunk1);
-  Hobbit::Buffer *h_is_1 = constant.GetChunk(
-      chunk1, Hobbit::Range(0, 1), Hobbit::Range(1, 2), Hobbit::Range(0, 4));
-  EXPECT_TRUE(h_is_1->GetShape() == Hobbit::Shape(1, 1, 4));
-
-  builder.SetInsertPoint(chunk1);
-  builder.CreateBr(end);
-
-  builder.SetInsertPoint(end);
-  llvm::Value *ret = builder.getInt64(0);
-  for (uint64_t i = 0; i < 4; i++) {
-    llvm::Value *lhs_elt = builder.CreateLoad(
-        builder.CreateGEP(h_is_0->GetValue(), builder.getInt64(i)));
-    llvm::Value *rhs_elt = builder.CreateLoad(
-        builder.CreateGEP(h_is_1->GetValue(), builder.getInt64(i)));
-    ret = builder.CreateFAdd(builder.CreateBitCast(ret, builder.getDoubleTy()),
-                             builder.CreateFMul(lhs_elt, rhs_elt));
-  }
-
-  builder.CreateRet(ret);
-
-  h_is_0->GetValue()->print(llvm::errs(), true);
-  h_is_1->GetValue()->print(llvm::errs(), true);
-
-  Mod->print(llvm::outs(), nullptr);
   llvm::verifyFunction(*f);
 }

@@ -41,7 +41,8 @@ namespace Hobbit {
       return Buffer(BB, c_->GetType(), c_->GetShape());
     }
 
-    inline void Emit(llvm::BasicBlock *BB, Buffer *input, Buffer *output) override {
+    inline void Emit(llvm::BasicBlock *BB, Buffer *input,
+                     Buffer *output) override {
       if (c_->GetType() != input->GetType())
         throw std::runtime_error(
             "Both Variable and Constant must be the same type!");
@@ -50,10 +51,10 @@ namespace Hobbit {
             "Both Variable and Constant must be the same shape!");
       if (output->GetType() != input->GetType())
         throw std::runtime_error(
-                "Both input and output must be the same type!");
+            "Both input and output must be the same type!");
       if (output->GetShape() != input->GetShape())
         throw std::runtime_error(
-                "Both input and output must be the same shape!");
+            "Both input and output must be the same shape!");
 
       llvm::IRBuilder<> builder(BB);
 
@@ -69,24 +70,28 @@ namespace Hobbit {
           llvm::Value *c_gep = builder.CreateGEP(c_value, builder.getInt64(i));
           llvm::Value *c_elt = builder.CreateAlignedLoad(c_gep, 4);
 
-          llvm::Value *i_gep = builder.CreateGEP(input_value, builder.getInt64(i));
+          llvm::Value *i_gep =
+              builder.CreateGEP(input_value, builder.getInt64(i));
           llvm::Value *i_elt = builder.CreateAlignedLoad(i_gep, 4);
 
           llvm::Value *ret_elt = builder.CreateGEP(ret, builder.getInt64(i));
 
-          builder.CreateAlignedStore(builder.CreateMul(c_elt, i_elt), ret_elt, 4);
+          builder.CreateAlignedStore(builder.CreateMul(c_elt, i_elt), ret_elt,
+                                     4);
         }
       } else if (type->isFloatingPointTy()) {
         for (uint64_t i = 0; i < c_->GetShape().GetSize(); i++) {
           llvm::Value *c_gep = builder.CreateGEP(c_value, builder.getInt64(i));
           llvm::Value *c_elt = builder.CreateAlignedLoad(c_gep, 4);
 
-          llvm::Value *i_gep = builder.CreateGEP(input_value, builder.getInt64(i));
+          llvm::Value *i_gep =
+              builder.CreateGEP(input_value, builder.getInt64(i));
           llvm::Value *i_elt = builder.CreateAlignedLoad(i_gep, 4);
 
           llvm::Value *ret_elt = builder.CreateGEP(ret, builder.getInt64(i));
 
-          builder.CreateAlignedStore(builder.CreateFMul(c_elt, i_elt), ret_elt, 4);
+          builder.CreateAlignedStore(builder.CreateFMul(c_elt, i_elt), ret_elt,
+                                     4);
         }
       }
     }

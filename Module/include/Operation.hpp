@@ -34,9 +34,11 @@
 namespace Hobbit {
   class Operation {
   public:
-    Operation(const std::string name="");
-    explicit Operation(const std::initializer_list<Functor *> &f, const std::string name="");
-    explicit Operation(const std::list<Functor *> &f, const std::string name="");
+    Operation(const std::string name = "");
+    explicit Operation(const std::initializer_list<Functor *> &f,
+                       const std::string name = "");
+    explicit Operation(const std::list<Functor *> &f,
+                       const std::string name = "");
 
     void PushFunctor(Functor &f);
     void Emit(llvm::BasicBlock *entry_BB, llvm::BasicBlock *BB, Buffer *input);

@@ -111,3 +111,16 @@ Hobbit::Range Hobbit::Shape::GetChunkIdx(const Hobbit::Range &k_range,
 }
 
 uint64_t Hobbit::Shape::GetSize() const { return k_ * h_ * w_; }
+
+uint64_t Hobbit::Shape::GetAxisSize(Axis &axis) const {
+  switch (axis) {
+  case K:
+    return k_;
+  case H:
+    return h_;
+  case W:
+    return w_;
+  }
+
+  return 0;
+}

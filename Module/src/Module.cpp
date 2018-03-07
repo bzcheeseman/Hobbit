@@ -25,12 +25,16 @@
 Hobbit::Module::Module(const std::string &name, llvm::LLVMContext &ctx)
     : ctx_(&ctx), module_(llvm::make_unique<llvm::Module>(name, ctx)) {
   module_->setTargetTriple(llvm::sys::getDefaultTargetTriple());
-  llvm::ArrayRef<llvm::Type *> malloc_arg_type = {llvm::Type::getInt64Ty(*ctx_)};
-  llvm::FunctionType *malloc_ft = llvm::FunctionType::get(llvm::Type::getInt8PtrTy(*ctx_), malloc_arg_type, false);
-  malloc_ = llvm::Function::Create(malloc_ft, llvm::Function::ExternalLinkage, "malloc", module_.get());
+  llvm::ArrayRef<llvm::Type *> malloc_arg_type = {
+      llvm::Type::getInt64Ty(*ctx_)};
+  llvm::FunctionType *malloc_ft = llvm::FunctionType::get(
+      llvm::Type::getInt8PtrTy(*ctx_), malloc_arg_type, false);
+  malloc_ = llvm::Function::Create(malloc_ft, llvm::Function::ExternalLinkage,
+                                   "malloc", module_.get());
 }
 
-Hobbit::Buffer *Hobbit::Module::GetIntConstant(const std::string &function_name, uint64_t *ptr,
+Hobbit::Buffer *Hobbit::Module::GetIntConstant(const std::string &function_name,
+                                               uint64_t *ptr,
                                                const uint8_t &int_width,
                                                const Hobbit::Shape &shape) {
   llvm::BasicBlock *entry_ = function_table_.at(function_name).entry_block;
@@ -45,7 +49,8 @@ Hobbit::Buffer *Hobbit::Module::GetIntConstant(const std::string &function_name,
   llvm::Value *out = builder.CreateAlloca(type, alloca_size);
   for (uint32_t i = 0; i < size; i++) {
     llvm::Value *elt = builder.getInt(llvm::APInt(int_width, ptr[i]));
-    builder.CreateAlignedStore(elt, builder.CreateGEP(out, builder.getInt32(i)), 4);
+    builder.CreateAlignedStore(elt, builder.CreateGEP(out, builder.getInt32(i)),
+                               4);
   }
 
   out->setName("hobbit.compiletimebuffer.INT" + std::to_string(int_width));
@@ -53,8 +58,9 @@ Hobbit::Buffer *Hobbit::Module::GetIntConstant(const std::string &function_name,
   return new Buffer(out, type, shape, nullptr);
 }
 
-Hobbit::Buffer *Hobbit::Module::GetHalfConstant(const std::string &function_name, float *ptr,
-                                                const Hobbit::Shape &shape) {
+Hobbit::Buffer *
+Hobbit::Module::GetHalfConstant(const std::string &function_name, float *ptr,
+                                const Hobbit::Shape &shape) {
   llvm::BasicBlock *entry_ = function_table_.at(function_name).entry_block;
 
   llvm::IRBuilder<> builder(entry_);
@@ -68,7 +74,8 @@ Hobbit::Buffer *Hobbit::Module::GetHalfConstant(const std::string &function_name
   llvm::Value *out = builder.CreateAlloca(type, alloca_size);
   for (uint64_t i = 0; i < size; i++) {
     llvm::Value *elt = llvm::ConstantFP::get(type, (double)ptr[i]);
-    builder.CreateAlignedStore(elt, builder.CreateGEP(out, builder.getInt64(i)), 4);
+    builder.CreateAlignedStore(elt, builder.CreateGEP(out, builder.getInt64(i)),
+                               4);
   }
 
   out->setName("hobbit.compiletimebuffer.HALF");
@@ -76,8 +83,9 @@ Hobbit::Buffer *Hobbit::Module::GetHalfConstant(const std::string &function_name
   return new Buffer(out, type, shape, nullptr);
 }
 
-Hobbit::Buffer *Hobbit::Module::GetFloatConstant(const std::string &function_name, float *ptr,
-                                                 const Hobbit::Shape &shape) {
+Hobbit::Buffer *
+Hobbit::Module::GetFloatConstant(const std::string &function_name, float *ptr,
+                                 const Hobbit::Shape &shape) {
   llvm::BasicBlock *entry_ = function_table_.at(function_name).entry_block;
 
   llvm::IRBuilder<> builder(entry_);
@@ -91,7 +99,8 @@ Hobbit::Buffer *Hobbit::Module::GetFloatConstant(const std::string &function_nam
   llvm::Value *out = builder.CreateAlloca(type, alloca_size);
   for (uint64_t i = 0; i < size; i++) {
     llvm::Value *elt = llvm::ConstantFP::get(type, (double)ptr[i]);
-    builder.CreateAlignedStore(elt, builder.CreateGEP(out, builder.getInt64(i)), 4);
+    builder.CreateAlignedStore(elt, builder.CreateGEP(out, builder.getInt64(i)),
+                               4);
   }
 
   out->setName("hobbit.compiletimebuffer.FLOAT");
@@ -99,8 +108,9 @@ Hobbit::Buffer *Hobbit::Module::GetFloatConstant(const std::string &function_nam
   return new Buffer(out, type, shape, nullptr);
 }
 
-Hobbit::Buffer *Hobbit::Module::GetDoubleConstant(const std::string &function_name, double *ptr,
-                                                  const Hobbit::Shape &shape) {
+Hobbit::Buffer *
+Hobbit::Module::GetDoubleConstant(const std::string &function_name, double *ptr,
+                                  const Hobbit::Shape &shape) {
   llvm::BasicBlock *entry_ = function_table_.at(function_name).entry_block;
 
   llvm::IRBuilder<> builder(entry_);
@@ -114,7 +124,8 @@ Hobbit::Buffer *Hobbit::Module::GetDoubleConstant(const std::string &function_na
   llvm::Value *out = builder.CreateAlloca(type, alloca_size);
   for (uint64_t i = 0; i < size; i++) {
     llvm::Value *elt = llvm::ConstantFP::get(type, ptr[i]);
-    builder.CreateAlignedStore(elt, builder.CreateGEP(out, builder.getInt64(i)), 4);
+    builder.CreateAlignedStore(elt, builder.CreateGEP(out, builder.getInt64(i)),
+                               4);
   }
 
   out->setName("hobbit.compiletimebuffer.DOUBLE");
@@ -122,36 +133,38 @@ Hobbit::Buffer *Hobbit::Module::GetDoubleConstant(const std::string &function_na
   return new Buffer(out, type, shape, nullptr);
 }
 
-Hobbit::Buffer *Hobbit::Module::GetVariable(const std::string &function_name, llvm::Type *scalar_type,
+Hobbit::Buffer *Hobbit::Module::GetVariable(const std::string &function_name,
+                                            llvm::Type *scalar_type,
                                             const Hobbit::Shape &shape) {
   llvm::BasicBlock *entry_ = function_table_.at(function_name).entry_block;
 
   return new Buffer(entry_, scalar_type, shape);
 }
 
-void Hobbit::Module::CreateFunction(const std::string &name, llvm::Type *return_type,
+void Hobbit::Module::CreateFunction(const std::string &name,
+                                    llvm::Type *return_type,
                                     llvm::ArrayRef<llvm::Type *> args_types) {
 
-  if (function_table_.find(name) != function_table_.end()) throw std::runtime_error("Function already exists in table!");
+  if (function_table_.find(name) != function_table_.end())
+    throw std::runtime_error("Function already exists in table!");
 
   internal::Function func;
 
   llvm::FunctionType *function_type =
-          llvm::FunctionType::get(return_type, args_types, false);
+      llvm::FunctionType::get(return_type, args_types, false);
   func.llvm_function = llvm::cast<llvm::Function>(
-          module_->getOrInsertFunction(name, function_type));
-  func.entry_block = llvm::BasicBlock::Create(*ctx_, name+".entry", func.llvm_function);
+      module_->getOrInsertFunction(name, function_type));
+  func.entry_block =
+      llvm::BasicBlock::Create(*ctx_, name + ".entry", func.llvm_function);
 
   function_table_[name] = std::move(func);
-
 }
 
-void Hobbit::Module::PrintModule() {
-  module_->print(llvm::outs(), nullptr);
-}
+void Hobbit::Module::PrintModule() { module_->print(llvm::outs(), nullptr); }
 
 Hobbit::Buffer *
-Hobbit::Module::InsertOperation(const std::string &function_name, Hobbit::Operation *op, Hobbit::Buffer *input) {
+Hobbit::Module::InsertOperation(const std::string &function_name,
+                                Hobbit::Operation *op, Hobbit::Buffer *input) {
 
   internal::Function &f = function_table_.at(function_name);
 
@@ -162,7 +175,8 @@ Hobbit::Module::InsertOperation(const std::string &function_name, Hobbit::Operat
   return input;
 }
 
-void Hobbit::Module::FinalizeFunction(const std::string &function_name, Hobbit::Buffer *return_value) {
+void Hobbit::Module::FinalizeFunction(const std::string &function_name,
+                                      Hobbit::Buffer *return_value) {
   internal::Function &f = function_table_.at(function_name);
 
   llvm::BasicBlock *exit_bb = f.AddBB(*ctx_, "exit");
@@ -173,16 +187,21 @@ void Hobbit::Module::FinalizeFunction(const std::string &function_name, Hobbit::
   ptr = llvm::Constant::getNullValue(ptr_type);
   size = builder.CreateGEP(ptr, builder.getInt64(1));
   size = builder.CreatePtrToInt(size, llvm::Type::getInt64Ty(*ctx_));
-  llvm::Value *array_size = builder.CreateMul(size, builder.getInt64(return_value->GetShape().GetSize()));
+  llvm::Value *array_size = builder.CreateMul(
+      size, builder.getInt64(return_value->GetShape().GetSize()));
 
   llvm::Value *mallocd_array = builder.CreateCall(malloc_, array_size);
-  mallocd_array = builder.CreateBitCast(mallocd_array, llvm::PointerType::get(return_value->GetType(), 0));
+  mallocd_array = builder.CreateBitCast(
+      mallocd_array, llvm::PointerType::get(return_value->GetType(), 0));
 
   uint64_t return_size = return_value->GetShape().GetSize();
   for (uint64_t i = 0; i < return_size; i++) {
-    llvm::Value *mallocd_elt = builder.CreateGEP(mallocd_array, builder.getInt64(i));
-    llvm::Value *buffer_elt = builder.CreateLoad(builder.CreateGEP(return_value->GetValue(), builder.getInt64(i)));
-    builder.CreateStore(buffer_elt, mallocd_elt); // is this right? Store into the gep?
+    llvm::Value *mallocd_elt =
+        builder.CreateGEP(mallocd_array, builder.getInt64(i));
+    llvm::Value *buffer_elt = builder.CreateLoad(
+        builder.CreateGEP(return_value->GetValue(), builder.getInt64(i)));
+    builder.CreateStore(buffer_elt,
+                        mallocd_elt); // is this right? Store into the gep?
   }
 
   builder.CreateRet(mallocd_array);
@@ -195,9 +214,9 @@ void Hobbit::Module::FinalizeModule(unsigned opt_level) {
   for (auto &f : function_table_) {
     builder.SetInsertPoint(f.second.entry_block);
     builder.CreateBr(*f.second.bb.begin());
-    for (auto bb = f.second.bb.begin(); bb != f.second.bb.end()-1; bb++) {
+    for (auto bb = f.second.bb.begin(); bb != f.second.bb.end() - 1; bb++) {
       builder.SetInsertPoint(*bb);
-      builder.CreateBr(*(bb+1));
+      builder.CreateBr(*(bb + 1));
     }
     llvm::verifyFunction(*f.second.llvm_function);
   }
@@ -214,8 +233,10 @@ void Hobbit::Module::FinalizeModule(unsigned opt_level) {
   PM.run(*module_);
 }
 
-Hobbit::Buffer *Hobbit::Module::GetBufferFromInputs(const std::string &function_name, const uint32_t &ptr_idx,
-                                                    const Hobbit::Shape &shape) {
+Hobbit::Buffer *
+Hobbit::Module::GetBufferFromInputs(const std::string &function_name,
+                                    const uint32_t &ptr_idx,
+                                    const Hobbit::Shape &shape) {
   internal::Function &f = function_table_.at(function_name);
   auto func_iter = f.llvm_function->arg_begin();
   uint32_t i = 0;
@@ -231,7 +252,6 @@ Hobbit::Buffer *Hobbit::Module::GetBufferFromInputs(const std::string &function_
   }
 
   return new Buffer(function_ptr_input, buffer_type, shape, nullptr);
-
 }
 
 void Hobbit::Module::PrepareJIT() {
@@ -246,8 +266,8 @@ void Hobbit::Module::PrepareJIT() {
   llvm::EngineBuilder engineBuilder(std::move(module_));
   engineBuilder.setErrorStr(&error_str);
   engineBuilder.setEngineKind(llvm::EngineKind::JIT);
-//  engineBuilder.setMCJITMemoryManager(llvm::make_unique<llvm::SectionMemoryManager>());
-//  engineBuilder.setMCPU("x86-64");
+  //  engineBuilder.setMCJITMemoryManager(llvm::make_unique<llvm::SectionMemoryManager>());
+  //  engineBuilder.setMCPU("x86-64");
   engine_ = engineBuilder.create(); // why is engine_ null?
   prepare_called_ = true;
 }
