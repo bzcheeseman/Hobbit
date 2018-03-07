@@ -45,7 +45,7 @@ Hobbit::Buffer *Hobbit::Module::GetIntConstant(const std::string &function_name,
   llvm::Value *out = builder.CreateAlloca(type, alloca_size);
   for (uint32_t i = 0; i < size; i++) {
     llvm::Value *elt = builder.getInt(llvm::APInt(int_width, ptr[i]));
-    builder.CreateStore(elt, builder.CreateGEP(out, builder.getInt32(i)));
+    builder.CreateAlignedStore(elt, builder.CreateGEP(out, builder.getInt32(i)), 4);
   }
 
   out->setName("hobbit.compiletimebuffer.INT" + std::to_string(int_width));
@@ -66,9 +66,9 @@ Hobbit::Buffer *Hobbit::Module::GetHalfConstant(const std::string &function_name
   llvm::Value *alloca_size = builder.getInt64(size);
 
   llvm::Value *out = builder.CreateAlloca(type, alloca_size);
-  for (uint32_t i = 0; i < size; i++) {
+  for (uint64_t i = 0; i < size; i++) {
     llvm::Value *elt = llvm::ConstantFP::get(type, (double)ptr[i]);
-    builder.CreateStore(elt, builder.CreateGEP(out, builder.getInt32(i)));
+    builder.CreateAlignedStore(elt, builder.CreateGEP(out, builder.getInt64(i)), 4);
   }
 
   out->setName("hobbit.compiletimebuffer.HALF");
@@ -89,9 +89,9 @@ Hobbit::Buffer *Hobbit::Module::GetFloatConstant(const std::string &function_nam
   llvm::Value *alloca_size = builder.getInt64(size);
 
   llvm::Value *out = builder.CreateAlloca(type, alloca_size);
-  for (uint32_t i = 0; i < size; i++) {
+  for (uint64_t i = 0; i < size; i++) {
     llvm::Value *elt = llvm::ConstantFP::get(type, (double)ptr[i]);
-    builder.CreateStore(elt, builder.CreateGEP(out, builder.getInt32(i)));
+    builder.CreateAlignedStore(elt, builder.CreateGEP(out, builder.getInt64(i)), 4);
   }
 
   out->setName("hobbit.compiletimebuffer.FLOAT");
@@ -112,9 +112,9 @@ Hobbit::Buffer *Hobbit::Module::GetDoubleConstant(const std::string &function_na
   llvm::Value *alloca_size = builder.getInt64(size);
 
   llvm::Value *out = builder.CreateAlloca(type, alloca_size);
-  for (uint32_t i = 0; i < size; i++) {
+  for (uint64_t i = 0; i < size; i++) {
     llvm::Value *elt = llvm::ConstantFP::get(type, ptr[i]);
-    builder.CreateStore(elt, builder.CreateGEP(out, builder.getInt32(i)));
+    builder.CreateAlignedStore(elt, builder.CreateGEP(out, builder.getInt64(i)), 4);
   }
 
   out->setName("hobbit.compiletimebuffer.DOUBLE");
@@ -155,15 +155,6 @@ Hobbit::Module::InsertOperation(const std::string &function_name, Hobbit::Operat
 
   internal::Function &f = function_table_.at(function_name);
 
-  llvm::IRBuilder<> builder (*ctx_);
-
-  if (f.bb.empty()) {
-    builder.SetInsertPoint(f.entry_block);
-  }
-  else {
-    builder.SetInsertPoint(*(f.bb.end()-1));
-  }
-
   llvm::BasicBlock *bb = f.AddBB(*ctx_, op->GetName());
 
   op->Emit(f.entry_block, bb, input);
@@ -185,18 +176,19 @@ void Hobbit::Module::FinalizeFunction(const std::string &function_name, Hobbit::
   llvm::Value *array_size = builder.CreateMul(size, builder.getInt64(return_value->GetShape().GetSize()));
 
   llvm::Value *mallocd_array = builder.CreateCall(malloc_, array_size);
+  mallocd_array = builder.CreateBitCast(mallocd_array, llvm::PointerType::get(return_value->GetType(), 0));
 
   uint64_t return_size = return_value->GetShape().GetSize();
   for (uint64_t i = 0; i < return_size; i++) {
     llvm::Value *mallocd_elt = builder.CreateGEP(mallocd_array, builder.getInt64(i));
-    llvm::Value *buffer_elt = builder.CreateGEP(return_value->GetValue(), builder.getInt64(i));
-    builder.CreateStore(builder.CreateLoad(buffer_elt), mallocd_elt); // is this right? Store into the gep?
+    llvm::Value *buffer_elt = builder.CreateLoad(builder.CreateGEP(return_value->GetValue(), builder.getInt64(i)));
+    builder.CreateStore(buffer_elt, mallocd_elt); // is this right? Store into the gep?
   }
 
   builder.CreateRet(mallocd_array);
 }
 
-void Hobbit::Module::FinalizeModule() {
+void Hobbit::Module::FinalizeModule(unsigned opt_level) {
 
   llvm::IRBuilder<> builder(*ctx_);
 
@@ -212,6 +204,14 @@ void Hobbit::Module::FinalizeModule() {
 
   llvm::verifyModule(*module_);
 
+  llvm::legacy::PassManager PM;
+  llvm::PassManagerBuilder PMBuilder;
+
+  PMBuilder.OptLevel = opt_level;
+  PMBuilder.DisableUnrollLoops = false;
+  PMBuilder.populateModulePassManager(llvm::cast<llvm::PassManagerBase>(PM));
+
+  PM.run(*module_);
 }
 
 Hobbit::Buffer *Hobbit::Module::GetBufferFromInputs(const std::string &function_name, const uint32_t &ptr_idx,

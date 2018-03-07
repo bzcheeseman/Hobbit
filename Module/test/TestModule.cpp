@@ -57,14 +57,14 @@ TEST(TestModule, AllocBuffer) {
   Hobbit::Module module("test_module", ctx);
 
   std::vector<llvm::Type *> args = {llvm::Type::getFloatPtrTy(ctx), llvm::Type::getInt64Ty(ctx)};
-  module.CreateFunction("sdot", llvm::Type::getFloatTy(ctx), args);
+  module.CreateFunction("Test", llvm::Type::getFloatTy(ctx), args);
 
   std::vector<float> f;
   for (int i = 0; i < 10; i++) {
     f.push_back(i);
   }
 
-  EXPECT_NO_THROW(module.GetFloatConstant("sdot", f.data(), Hobbit::Shape(1, 2, 5)));
+  EXPECT_NO_THROW(module.GetFloatConstant("Test", f.data(), Hobbit::Shape(1, 2, 5)));
 
   module.PrintModule();
 }
@@ -75,10 +75,9 @@ TEST(TestModule, PerformProd) {
   Hobbit::Module module("test_module", ctx);
 
   std::vector<llvm::Type *> args = {
-          llvm::Type::getFloatPtrTy(ctx), // input
-          llvm::Type::getFloatPtrTy(ctx)  // output
+          llvm::Type::getFloatPtrTy(ctx)  // input
   };
-  module.CreateFunction("prod", llvm::Type::getVoidTy(ctx), args);
+  module.CreateFunction("prod", llvm::Type::getFloatPtrTy(ctx), args);
   Hobbit::Buffer *input_buffer = module.GetBufferFromInputs("prod", 0, Hobbit::Shape(1, 1, 10));
 
   std::vector<float> f;
@@ -96,16 +95,15 @@ TEST(TestModule, PerformProd) {
 
   module.FinalizeFunction("prod", result);
 
-  module.FinalizeModule();
+  module.FinalizeModule(3);
 
   module.PrintModule();
   module.PrepareJIT();
 
-  float *(*prod_fn)(float *) = (float *(*)(float *))module.GetFunctionPtr("prod"); // this is segfaulting, can't find the function I guess?
-
+  float * (*prod_fn)(float *) = (float * (*)(float *))module.GetFunctionPtr("prod");
   float *float_result = prod_fn(f.data());
+
   for (int i = 0; i < 10; i++) {
-    std::cout << f.data()[i] << std::endl;
-    std::cout << float_result[i] << std::endl; // not working because the output is stored in an alloca, not a malloc
+    EXPECT_FLOAT_EQ(float_result[i], (float)i*i);
   }
 }

@@ -26,12 +26,17 @@
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
 #include <llvm/Support/raw_ostream.h>
+
 #include <llvm/IR/Verifier.h>
-#include <llvm/IR/Mangler.h>
+
 #include <llvm/ExecutionEngine/SectionMemoryManager.h>
 #include <llvm/ExecutionEngine/ExecutionEngine.h>
 #include <llvm/ExecutionEngine/MCJIT.h>
 #include <llvm/Support/TargetSelect.h>
+#include <llvm/Target/TargetMachine.h>
+
+#include <llvm/IR/LegacyPassManager.h>
+#include <llvm/Transforms/IPO/PassManagerBuilder.h>
 
 #include <Buffer.hpp>
 #include <Operation.hpp>
@@ -79,7 +84,7 @@ namespace Hobbit {
 
     void FinalizeFunction(const std::string &function_name, Buffer *return_value);
 
-    void FinalizeModule();
+    void FinalizeModule(unsigned opt_level);
 
     void PrepareJIT();
 

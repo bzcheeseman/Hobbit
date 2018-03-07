@@ -67,22 +67,26 @@ namespace Hobbit {
       if (type->isIntegerTy()) {
         for (uint64_t i = 0; i < c_->GetShape().GetSize(); i++) {
           llvm::Value *c_gep = builder.CreateGEP(c_value, builder.getInt64(i));
-          llvm::Value *c_elt = builder.CreateLoad(c_gep);
+          llvm::Value *c_elt = builder.CreateAlignedLoad(c_gep, 4);
 
           llvm::Value *i_gep = builder.CreateGEP(input_value, builder.getInt64(i));
-          llvm::Value *i_elt = builder.CreateLoad(i_gep);
+          llvm::Value *i_elt = builder.CreateAlignedLoad(i_gep, 4);
 
-          builder.CreateStore(builder.CreateMul(c_elt, i_elt), ret);
+          llvm::Value *ret_elt = builder.CreateGEP(ret, builder.getInt64(i));
+
+          builder.CreateAlignedStore(builder.CreateMul(c_elt, i_elt), ret_elt, 4);
         }
       } else if (type->isFloatingPointTy()) {
         for (uint64_t i = 0; i < c_->GetShape().GetSize(); i++) {
           llvm::Value *c_gep = builder.CreateGEP(c_value, builder.getInt64(i));
-          llvm::Value *c_elt = builder.CreateLoad(c_gep);
+          llvm::Value *c_elt = builder.CreateAlignedLoad(c_gep, 4);
 
           llvm::Value *i_gep = builder.CreateGEP(input_value, builder.getInt64(i));
-          llvm::Value *i_elt = builder.CreateLoad(i_gep);
+          llvm::Value *i_elt = builder.CreateAlignedLoad(i_gep, 4);
 
-          builder.CreateStore(builder.CreateFMul(c_elt, i_elt), ret);
+          llvm::Value *ret_elt = builder.CreateGEP(ret, builder.getInt64(i));
+
+          builder.CreateAlignedStore(builder.CreateFMul(c_elt, i_elt), ret_elt, 4);
         }
       }
     }

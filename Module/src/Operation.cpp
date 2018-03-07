@@ -35,7 +35,7 @@ void Hobbit::Operation::PushFunctor(Hobbit::Functor &f) {
 
 void Hobbit::Operation::Emit(llvm::BasicBlock *entry_BB, llvm::BasicBlock *BB, Hobbit::Buffer *input) {
   for (auto &op : op_table_) {
-    Hobbit::Buffer buffer = op_table_.front()->AllocOutput(entry_BB);
+    Hobbit::Buffer buffer = op->AllocOutput(entry_BB);
     op->Emit(BB, input, &buffer);
     *input = buffer;
   }
