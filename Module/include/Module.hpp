@@ -27,9 +27,11 @@
 #include <llvm/IR/Module.h>
 #include <llvm/Support/raw_ostream.h>
 #include <llvm/IR/Verifier.h>
+#include <llvm/IR/Mangler.h>
 #include <llvm/ExecutionEngine/SectionMemoryManager.h>
 #include <llvm/ExecutionEngine/ExecutionEngine.h>
 #include <llvm/ExecutionEngine/MCJIT.h>
+#include <llvm/Support/TargetSelect.h>
 
 #include <Buffer.hpp>
 #include <Operation.hpp>
@@ -87,6 +89,7 @@ namespace Hobbit {
     llvm::LLVMContext *ctx_;
     std::unique_ptr<llvm::Module> module_;
     std::map<std::string, internal::Function> function_table_;
+    llvm::Function *malloc_;
 
     bool prepare_called_;
     llvm::ExecutionEngine *engine_;

@@ -23,7 +23,12 @@
 #include "Module.hpp"
 
 Hobbit::Module::Module(const std::string &name, llvm::LLVMContext &ctx)
-    : ctx_(&ctx), module_(llvm::make_unique<llvm::Module>(name, ctx)) {}
+    : ctx_(&ctx), module_(llvm::make_unique<llvm::Module>(name, ctx)) {
+  module_->setTargetTriple(llvm::sys::getDefaultTargetTriple());
+  llvm::ArrayRef<llvm::Type *> malloc_arg_type = {llvm::Type::getInt64Ty(*ctx_)};
+  llvm::FunctionType *malloc_ft = llvm::FunctionType::get(llvm::Type::getInt8PtrTy(*ctx_), malloc_arg_type, false);
+  malloc_ = llvm::Function::Create(malloc_ft, llvm::Function::ExternalLinkage, "malloc", module_.get());
+}
 
 Hobbit::Buffer *Hobbit::Module::GetIntConstant(const std::string &function_name, uint64_t *ptr,
                                                const uint8_t &int_width,
@@ -172,7 +177,23 @@ void Hobbit::Module::FinalizeFunction(const std::string &function_name, Hobbit::
   llvm::BasicBlock *exit_bb = f.AddBB(*ctx_, "exit");
   llvm::IRBuilder<> builder(exit_bb);
 
-  builder.CreateRet(return_value->GetValue());
+  llvm::Type *ptr_type = llvm::PointerType::get(return_value->GetType(), 0);
+  llvm::Value *ptr, *size;
+  ptr = llvm::Constant::getNullValue(ptr_type);
+  size = builder.CreateGEP(ptr, builder.getInt64(1));
+  size = builder.CreatePtrToInt(size, llvm::Type::getInt64Ty(*ctx_));
+  llvm::Value *array_size = builder.CreateMul(size, builder.getInt64(return_value->GetShape().GetSize()));
+
+  llvm::Value *mallocd_array = builder.CreateCall(malloc_, array_size);
+
+  uint64_t return_size = return_value->GetShape().GetSize();
+  for (uint64_t i = 0; i < return_size; i++) {
+    llvm::Value *mallocd_elt = builder.CreateGEP(mallocd_array, builder.getInt64(i));
+    llvm::Value *buffer_elt = builder.CreateGEP(return_value->GetValue(), builder.getInt64(i));
+    builder.CreateStore(builder.CreateLoad(buffer_elt), mallocd_elt); // is this right? Store into the gep?
+  }
+
+  builder.CreateRet(mallocd_array);
 }
 
 void Hobbit::Module::FinalizeModule() {
@@ -216,7 +237,12 @@ Hobbit::Buffer *Hobbit::Module::GetBufferFromInputs(const std::string &function_
 void Hobbit::Module::PrepareJIT() {
   std::string error_str;
 
-  module_->setTargetTriple(llvm::sys::getDefaultTargetTriple());
+  llvm::InitializeAllTargets();
+  llvm::InitializeAllTargetMCs();
+  llvm::InitializeAllAsmPrinters();
+  llvm::InitializeAllAsmParsers();
+  llvm::InitializeNativeTarget();
+
   llvm::EngineBuilder engineBuilder(std::move(module_));
   engineBuilder.setErrorStr(&error_str);
   engineBuilder.setEngineKind(llvm::EngineKind::JIT);

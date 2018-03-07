@@ -70,25 +70,23 @@ TEST(TestModule, AllocBuffer) {
 }
 
 TEST(TestModule, PerformProd) {
-//  llvm::InitializeAllTargets();
-  llvm::InitializeAllTargetMCs();
-  llvm::InitializeAllAsmPrinters();
-  llvm::InitializeAllAsmParsers();
-  llvm::InitializeNativeTarget();
 
   llvm::LLVMContext ctx;
   Hobbit::Module module("test_module", ctx);
 
-  std::vector<llvm::Type *> args = {llvm::Type::getFloatPtrTy(ctx)};
-  module.CreateFunction("prod", llvm::Type::getFloatPtrTy(ctx), args);
-  Hobbit::Buffer *input_buffer = module.GetBufferFromInputs("prod", 0, Hobbit::Shape(1, 2, 5));
+  std::vector<llvm::Type *> args = {
+          llvm::Type::getFloatPtrTy(ctx), // input
+          llvm::Type::getFloatPtrTy(ctx)  // output
+  };
+  module.CreateFunction("prod", llvm::Type::getVoidTy(ctx), args);
+  Hobbit::Buffer *input_buffer = module.GetBufferFromInputs("prod", 0, Hobbit::Shape(1, 1, 10));
 
   std::vector<float> f;
   for (int i = 0; i < 10; i++) {
     f.push_back(i);
   }
 
-  Hobbit::Buffer *fconst = module.GetFloatConstant("prod", f.data(), Hobbit::Shape(1, 2, 5));
+  Hobbit::Buffer *fconst = module.GetFloatConstant("prod", f.data(), Hobbit::Shape(1, 1, 10));
 
   Hobbit::ElementWiseProduct prod(fconst);
   Hobbit::Operation prod_op("prod_op");
@@ -98,15 +96,16 @@ TEST(TestModule, PerformProd) {
 
   module.FinalizeFunction("prod", result);
 
-  module.PrintModule();
-
   module.FinalizeModule();
+
+  module.PrintModule();
   module.PrepareJIT();
 
   float *(*prod_fn)(float *) = (float *(*)(float *))module.GetFunctionPtr("prod"); // this is segfaulting, can't find the function I guess?
 
   float *float_result = prod_fn(f.data());
   for (int i = 0; i < 10; i++) {
-    std::cout << float_result[i] << std::endl;
+    std::cout << f.data()[i] << std::endl;
+    std::cout << float_result[i] << std::endl; // not working because the output is stored in an alloca, not a malloc
   }
 }
