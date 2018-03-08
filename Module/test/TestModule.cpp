@@ -263,3 +263,45 @@ TEST(TestModule, CompileSDOT) {
 
   EXPECT_NO_THROW(module.PrintModule(dest));
 }
+
+TEST(TestModule, CompileLargeSDOT) {
+
+  llvm::LLVMContext ctx;
+  Hobbit::Module module("test_module", ctx);
+
+  int n_elts = 100;
+
+  std::vector<llvm::Type *> args = {
+          llvm::Type::getFloatPtrTy(ctx) // input
+  };
+  module.CreateFunction("sdot", llvm::Type::getFloatTy(ctx), args);
+  Hobbit::Buffer *input_buffer =
+          module.GetBufferFromInputs("sdot", 0, Hobbit::Shape(1, 1, n_elts));
+
+  std::vector<float> f;
+  for (int i = 0; i < n_elts; i++) {
+    f.push_back(i);
+  }
+
+  Hobbit::Buffer *fconst =
+          module.GetFloatConstant("sdot", f.data(), Hobbit::Shape(1, 1, n_elts));
+
+  Hobbit::LargeElementWiseProduct prod(fconst);
+  Hobbit::LargeSumReduction hsum(llvm::Type::getFloatTy(ctx));
+  Hobbit::Operation sdot_op("sdot_op");
+  sdot_op.PushFunctor(prod);
+  sdot_op.PushFunctor(hsum);
+
+  Hobbit::Buffer *result =
+          module.InsertOperation("sdot", &sdot_op, input_buffer);
+
+  EXPECT_NO_THROW(module.FinalizeFunction("sdot", result));
+
+  EXPECT_NO_THROW(module.FinalizeModule(3));
+
+  std::string filename = "sdot_large";
+  std::error_code EC;
+  llvm::raw_fd_ostream dest(filename, EC, llvm::sys::fs::F_None);
+
+  EXPECT_NO_THROW(module.PrintModule(dest));
+}

@@ -61,6 +61,8 @@ namespace Hobbit {
     Buffer *GetBufferFromInputs(const std::string &function_name,
                                 const uint32_t &ptr_idx, const Shape &shape);
 
+    // TODO: add GetFunction (by name - returns a Hobbit::Function pointer)
+
     // Getters
     Buffer *GetVariable(const std::string &function_name,
                         llvm::Type *scalar_type, const Hobbit::Shape &shape);
@@ -91,7 +93,7 @@ namespace Hobbit {
   private:
     llvm::LLVMContext *ctx_;
     std::unique_ptr<llvm::Module> module_;
-    std::map<std::string, internal::Function> function_table_;
+    std::map<std::string, Function> function_table_;
     llvm::Function *malloc_;
 
     bool prepare_called_;

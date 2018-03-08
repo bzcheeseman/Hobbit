@@ -61,7 +61,7 @@ TEST(TestBuffer, CreateEmpty) {
 
   Hobbit::Buffer buffer(entry, float_type, shape);
 
-  Mod->print(llvm::errs(), nullptr);
+  Mod->print(llvm::outs(), nullptr);
   llvm::verifyFunction(*f);
 }
 
@@ -95,6 +95,6 @@ TEST(TestBuffer, Subindex) {
       entry, Hobbit::Range(0, 1), Hobbit::Range(0, 1), Hobbit::Range(2, 3));
   EXPECT_TRUE(sub_subbuffer->GetShape() == Hobbit::Shape(1, 1, 1));
 
-  Mod->print(llvm::errs(), nullptr);
+  Mod->print(llvm::outs(), nullptr);
   llvm::verifyFunction(*f);
 }

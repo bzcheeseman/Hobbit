@@ -43,7 +43,7 @@ namespace Hobbit {
       return Buffer(BB, output_type_, Shape(1, 1, 1));
     }
 
-    inline void Emit(internal::Function &f, Buffer *input,
+    inline void Emit(Function &f, Buffer *input,
                      Buffer *output) override {
       if (output_type_ != input->GetType())
         throw std::runtime_error("Input and output must be the same type!");
@@ -98,7 +98,7 @@ namespace Hobbit {
       return Buffer(BB, output_type_, Shape(1, 1, 1));
     }
 
-    inline void Emit(internal::Function &f, Buffer *input,
+    inline void Emit(Function &f, Buffer *input,
                      Buffer *output) override {
       if (output_type_ != input->GetType())
         throw std::runtime_error("Input and output must be the same type!");

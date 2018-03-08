@@ -49,7 +49,7 @@ Hobbit::Buffer *Hobbit::Module::GetIntConstant(const std::string &function_name,
   llvm::Value *out = builder.CreateAlloca(type, alloca_size);
   for (uint32_t i = 0; i < size; i++) {
     llvm::Value *elt = builder.getInt(llvm::APInt(int_width, ptr[i]));
-    builder.CreateAlignedStore(elt, builder.CreateGEP(out, builder.getInt32(i)),
+    builder.CreateAlignedStore(elt, builder.CreateGEP(out, builder.getInt64(i)),
                                4);
   }
 
@@ -97,7 +97,7 @@ Hobbit::Module::GetFloatConstant(const std::string &function_name, float *ptr,
   llvm::Value *alloca_size = builder.getInt64(size);
 
   llvm::Value *out = builder.CreateAlloca(type, alloca_size);
-  for (uint64_t i = 0; i < size; i++) { // TODO: swap these all to be for-style loops (don't unroll these)
+  for (uint64_t i = 0; i < size; i++) {
     llvm::Value *elt = llvm::ConstantFP::get(type, (double)ptr[i]);
     builder.CreateAlignedStore(elt, builder.CreateGEP(out, builder.getInt64(i)),
                                4);
@@ -148,7 +148,7 @@ void Hobbit::Module::CreateFunction(const std::string &name,
   if (function_table_.find(name) != function_table_.end())
     throw std::runtime_error("Function already exists in table!");
 
-  internal::Function func;
+  Function func;
 
   func.ctx_ = ctx_;
   llvm::FunctionType *function_type =
@@ -181,7 +181,7 @@ Hobbit::Module::InsertOperation(const std::string &function_name,
 
 void Hobbit::Module::FinalizeFunction(const std::string &function_name,
                                       Hobbit::Buffer *return_value) {
-  internal::Function &f = function_table_.at(function_name);
+  Function &f = function_table_.at(function_name);
 
   llvm::BasicBlock *exit_bb = f.AddBB("exit");
   llvm::IRBuilder<> builder(exit_bb);
@@ -248,7 +248,7 @@ Hobbit::Buffer *
 Hobbit::Module::GetBufferFromInputs(const std::string &function_name,
                                     const uint32_t &ptr_idx,
                                     const Hobbit::Shape &shape) {
-  internal::Function &f = function_table_.at(function_name);
+  Function &f = function_table_.at(function_name);
   auto func_iter = f.llvm_function->arg_begin();
   uint32_t i = 0;
   llvm::Value *function_ptr_input;

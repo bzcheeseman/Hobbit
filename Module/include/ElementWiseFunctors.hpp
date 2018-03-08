@@ -41,7 +41,7 @@ namespace Hobbit {
       return Buffer(BB, c_->GetType(), c_->GetShape());
     }
 
-    inline void Emit(internal::Function &f, Buffer *input,
+    inline void Emit(Function &f, Buffer *input,
                      Buffer *output) override {
       if (c_->GetType() != input->GetType())
         throw std::runtime_error(
@@ -109,7 +109,7 @@ namespace Hobbit {
       return Buffer(BB, c_->GetType(), c_->GetShape());
     }
 
-    inline void Emit(internal::Function &f, Buffer *input,
+    inline void Emit(Function &f, Buffer *input,
                      Buffer *output) override {
       if (c_->GetType() != input->GetType())
         throw std::runtime_error(

@@ -28,19 +28,17 @@
 #include <llvm/IR/Module.h>
 
 namespace Hobbit {
-  namespace internal {
-    struct Function {
-      llvm::LLVMContext *ctx_;
-      llvm::Function *llvm_function = nullptr;
-      llvm::BasicBlock *entry_block = nullptr;
-      std::vector<llvm::BasicBlock *> bb;
+  struct Function {
+    llvm::LLVMContext *ctx_;
+    llvm::Function *llvm_function = nullptr;
+    llvm::BasicBlock *entry_block = nullptr;
+    std::vector<llvm::BasicBlock *> bb;
 
-      llvm::BasicBlock *AddBB(const std::string &name = "") {
-        bb.push_back(llvm::BasicBlock::Create(*ctx_, name, llvm_function));
-        return *(bb.end()-1); // return BB just created
-      }
-    };
-  }
+    llvm::BasicBlock *AddBB(const std::string &name = "") {
+      bb.push_back(llvm::BasicBlock::Create(*ctx_, name, llvm_function));
+      return *(bb.end()-1); // return BB just created
+    }
+  };
 }
 
 #endif //HOBBIT_FUNCTION_HPP
