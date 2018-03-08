@@ -1,5 +1,5 @@
 //
-// Created by Aman LaChapelle on 2/22/18.
+// Created by Aman LaChapelle on 3/7/18.
 //
 // Hobbit
 // Copyright (c) 2018 Aman LaChapelle
@@ -10,9 +10,9 @@
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
     You may obtain a copy of the License at
-
+    
         http://www.apache.org/licenses/LICENSE-2.0
-
+    
     Unless required by applicable law or agreed to in writing, software
     distributed under the License is distributed on an "AS IS" BASIS,
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -20,20 +20,27 @@
     limitations under the License.
  */
 
-#ifndef HOBBIT_FUNCTOR_HPP
-#define HOBBIT_FUNCTOR_HPP
 
-#include <llvm/IR/IRBuilder.h>
+#ifndef HOBBIT_FUNCTION_HPP
+#define HOBBIT_FUNCTION_HPP
 
-#include "Buffer.hpp"
-#include "Function.hpp"
+#include <llvm/IR/LLVMContext.h>
+#include <llvm/IR/Module.h>
 
 namespace Hobbit {
-  class Functor {
-  public:
-    virtual Buffer AllocOutput(llvm::BasicBlock *BB) = 0;
-    virtual void Emit(internal::Function &f, Buffer *input, Buffer *output) = 0;
-  };
+  namespace internal {
+    struct Function {
+      llvm::LLVMContext *ctx_;
+      llvm::Function *llvm_function = nullptr;
+      llvm::BasicBlock *entry_block = nullptr;
+      std::vector<llvm::BasicBlock *> bb;
+
+      llvm::BasicBlock *AddBB(const std::string &name = "") {
+        bb.push_back(llvm::BasicBlock::Create(*ctx_, name, llvm_function));
+        return *(bb.end()-1); // return BB just created
+      }
+    };
+  }
 }
 
-#endif // HOBBIT_FUNCTOR_HPP
+#endif //HOBBIT_FUNCTION_HPP

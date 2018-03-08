@@ -33,29 +33,21 @@
 #include <llvm/ExecutionEngine/MCJIT.h>
 #include <llvm/ExecutionEngine/SectionMemoryManager.h>
 #include <llvm/Support/TargetSelect.h>
+#include <llvm/Support/TargetRegistry.h>
+#include <llvm/Support/FileSystem.h>
+#include <llvm/Support/Host.h>
 #include <llvm/Target/TargetMachine.h>
+#include <llvm/Target/TargetOptions.h>
+#include <llvm/Bitcode/BitcodeWriter.h>
 
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/Transforms/IPO/PassManagerBuilder.h>
 
+#include <Function.hpp>
 #include <Buffer.hpp>
 #include <Operation.hpp>
 
 namespace Hobbit {
-
-  namespace internal {
-    struct Function {
-      llvm::Function *llvm_function;
-      llvm::BasicBlock *entry_block;
-      std::vector<llvm::BasicBlock *> bb;
-
-      llvm::BasicBlock *AddBB(llvm::LLVMContext &ctx,
-                              const std::string &name = "") {
-        bb.push_back(llvm::BasicBlock::Create(ctx, name, llvm_function));
-        return *(bb.end() - 1); // return BB just created
-      }
-    };
-  }
 
   class Module {
   public:
@@ -84,7 +76,8 @@ namespace Hobbit {
     Buffer *InsertOperation(const std::string &function_name, Operation *op,
                             Buffer *input);
 
-    void PrintModule();
+    void PrintModule(llvm::raw_ostream &out_stream);
+    void PrintModule(llvm::raw_fd_ostream &out_stream);
 
     void FinalizeFunction(const std::string &function_name,
                           Buffer *return_value);

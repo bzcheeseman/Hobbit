@@ -41,7 +41,7 @@ namespace Hobbit {
                        const std::string name = "");
 
     void PushFunctor(Functor &f);
-    void Emit(llvm::BasicBlock *entry_BB, llvm::BasicBlock *BB, Buffer *input);
+    void Emit(internal::Function &f, Buffer *input);
 
     const std::string &GetName();
 

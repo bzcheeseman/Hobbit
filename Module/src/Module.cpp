@@ -97,7 +97,7 @@ Hobbit::Module::GetFloatConstant(const std::string &function_name, float *ptr,
   llvm::Value *alloca_size = builder.getInt64(size);
 
   llvm::Value *out = builder.CreateAlloca(type, alloca_size);
-  for (uint64_t i = 0; i < size; i++) {
+  for (uint64_t i = 0; i < size; i++) { // TODO: swap these all to be for-style loops (don't unroll these)
     llvm::Value *elt = llvm::ConstantFP::get(type, (double)ptr[i]);
     builder.CreateAlignedStore(elt, builder.CreateGEP(out, builder.getInt64(i)),
                                4);
@@ -150,6 +150,7 @@ void Hobbit::Module::CreateFunction(const std::string &name,
 
   internal::Function func;
 
+  func.ctx_ = ctx_;
   llvm::FunctionType *function_type =
       llvm::FunctionType::get(return_type, args_types, false);
   func.llvm_function = llvm::cast<llvm::Function>(
@@ -160,17 +161,20 @@ void Hobbit::Module::CreateFunction(const std::string &name,
   function_table_[name] = std::move(func);
 }
 
-void Hobbit::Module::PrintModule() { module_->print(llvm::outs(), nullptr); }
+void Hobbit::Module::PrintModule(llvm::raw_ostream &out_stream) {
+  module_->print(out_stream, nullptr);
+}
+
+void Hobbit::Module::PrintModule(llvm::raw_fd_ostream &out_stream) {
+  llvm::WriteBitcodeToFile(module_.get(), out_stream);
+  out_stream.flush();
+}
 
 Hobbit::Buffer *
 Hobbit::Module::InsertOperation(const std::string &function_name,
                                 Hobbit::Operation *op, Hobbit::Buffer *input) {
 
-  internal::Function &f = function_table_.at(function_name);
-
-  llvm::BasicBlock *bb = f.AddBB(*ctx_, op->GetName());
-
-  op->Emit(f.entry_block, bb, input);
+  op->Emit(function_table_.at(function_name), input);
 
   return input;
 }
@@ -179,10 +183,10 @@ void Hobbit::Module::FinalizeFunction(const std::string &function_name,
                                       Hobbit::Buffer *return_value) {
   internal::Function &f = function_table_.at(function_name);
 
-  llvm::BasicBlock *exit_bb = f.AddBB(*ctx_, "exit");
+  llvm::BasicBlock *exit_bb = f.AddBB("exit");
   llvm::IRBuilder<> builder(exit_bb);
 
-  if (!return_value->GetType()->isPointerTy()) {
+  if (!f.llvm_function->getReturnType()->isPointerTy()) {
     builder.CreateRet(builder.CreateLoad(return_value->GetValue()));
     return;
   }
@@ -219,6 +223,7 @@ void Hobbit::Module::FinalizeModule(unsigned opt_level) {
     builder.SetInsertPoint(f.second.entry_block);
     builder.CreateBr(*f.second.bb.begin());
     for (auto bb = f.second.bb.begin(); bb != f.second.bb.end() - 1; bb++) {
+      if (llvm::dyn_cast<llvm::BranchInst>(--(*bb)->end())) continue;
       builder.SetInsertPoint(*bb);
       builder.CreateBr(*(bb + 1));
     }
@@ -231,10 +236,12 @@ void Hobbit::Module::FinalizeModule(unsigned opt_level) {
   llvm::PassManagerBuilder PMBuilder;
 
   PMBuilder.OptLevel = opt_level;
-  PMBuilder.DisableUnrollLoops = false;
+  PMBuilder.MergeFunctions = true;
+
   PMBuilder.populateModulePassManager(llvm::cast<llvm::PassManagerBase>(PM));
 
   PM.run(*module_);
+
 }
 
 Hobbit::Buffer *
@@ -270,9 +277,9 @@ void Hobbit::Module::PrepareJIT() {
   llvm::EngineBuilder engineBuilder(std::move(module_));
   engineBuilder.setErrorStr(&error_str);
   engineBuilder.setEngineKind(llvm::EngineKind::JIT);
-  //  engineBuilder.setMCJITMemoryManager(llvm::make_unique<llvm::SectionMemoryManager>());
-  //  engineBuilder.setMCPU("x86-64");
-  engine_ = engineBuilder.create(); // why is engine_ null?
+  engineBuilder.setMCPU("x86-64");
+  engine_ = engineBuilder.create();
+
   prepare_called_ = true;
 }
 

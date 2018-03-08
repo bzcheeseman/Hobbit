@@ -43,13 +43,14 @@ namespace Hobbit {
       return Buffer(BB, output_type_, Shape(1, 1, 1));
     }
 
-    inline void Emit(llvm::BasicBlock *BB, Buffer *input,
+    inline void Emit(internal::Function &f, Buffer *input,
                      Buffer *output) override {
       if (output_type_ != input->GetType())
         throw std::runtime_error("Input and output must be the same type!");
       if (output->GetShape() != Shape(1, 1, 1))
         throw std::runtime_error("Output shape must match specified shape!");
 
+      llvm::BasicBlock *BB = f.AddBB("SumReduction");
       llvm::IRBuilder<> builder(BB);
 
       llvm::Value *input_value = input->GetValue();
@@ -82,6 +83,65 @@ namespace Hobbit {
                                      output_value, 4);
         }
       }
+    }
+
+  private:
+    llvm::Type *output_type_;
+  };
+
+  class LargeSumReduction : public Functor {
+  public:
+    explicit LargeSumReduction(llvm::Type *output_type)
+            : output_type_(output_type) {}
+
+    inline Buffer AllocOutput(llvm::BasicBlock *BB) override {
+      return Buffer(BB, output_type_, Shape(1, 1, 1));
+    }
+
+    inline void Emit(internal::Function &f, Buffer *input,
+                     Buffer *output) override {
+      if (output_type_ != input->GetType())
+        throw std::runtime_error("Input and output must be the same type!");
+      if (output->GetShape() != Shape(1, 1, 1))
+        throw std::runtime_error("Output shape must match specified shape!");
+
+      llvm::BasicBlock *entryBB = f.AddBB("LargeSumRedEntry");
+      llvm::BasicBlock *loopBB = f.AddBB("LargeSumRedProduct");
+      llvm::BasicBlock *exitBB = f.AddBB("LargeSumRedExit");
+
+      llvm::IRBuilder<> builder(entryBB);
+      builder.CreateBr(loopBB);
+
+      llvm::Value *input_value = input->GetValue();
+      llvm::Value *output_value = output->GetValue();
+
+      builder.SetInsertPoint(loopBB);
+      llvm::PHINode *idx_var = builder.CreatePHI(builder.getInt64Ty(), 2, "LargeSumRedIndex");
+      llvm::PHINode *var = builder.CreatePHI(output_type_, 2, "LargeSumRedResult");
+      idx_var->addIncoming(builder.getInt64(0), entryBB);
+      var->addIncoming(builder.CreateBitCast(builder.getInt64(0), output_type_), entryBB);
+
+      llvm::Value *i_gep = builder.CreateGEP(input_value, idx_var);
+      llvm::Value *i_elt = builder.CreateAlignedLoad(i_gep, 4);
+
+      llvm::Value *nextvar;
+      if (output_type_->isIntegerTy()) {
+        nextvar = builder.CreateAdd(var, i_elt);
+      }
+      else if (output_type_->isFloatingPointTy()) {
+        nextvar = builder.CreateFAdd(var, i_elt);
+      }
+
+      llvm::Value *next_idx_var = builder.CreateAdd(idx_var, builder.getInt64(1));
+      llvm::Value *end_condition = builder.CreateICmpEQ(next_idx_var, builder.getInt64(input->GetShape().GetSize()));
+
+      builder.CreateCondBr(end_condition, exitBB, loopBB);
+      idx_var->addIncoming(next_idx_var, loopBB);
+      var->addIncoming(nextvar, loopBB);
+
+      builder.SetInsertPoint(exitBB);
+      builder.CreateAlignedStore(nextvar, output_value, 4);
+
     }
 
   private:
