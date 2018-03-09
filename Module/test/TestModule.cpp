@@ -78,20 +78,22 @@ TEST(TestModule, PerformProd) {
   llvm::LLVMContext ctx;
   Hobbit::Module module("test_module", ctx);
 
+  int num_elements = 100;
+
   std::vector<llvm::Type *> args = {
       llvm::Type::getFloatPtrTy(ctx) // input
   };
   module.CreateFunction("prod", llvm::Type::getFloatPtrTy(ctx), args);
   Hobbit::Buffer *input_buffer =
-      module.GetBufferFromInputs("prod", 0, Hobbit::Shape(1, 1, 10));
+      module.GetBufferFromInputs("prod", 0, Hobbit::Shape(1, 1, num_elements));
 
   std::vector<float> f;
-  for (int i = 0; i < 10; i++) {
+  for (int i = 0; i < num_elements; i++) {
     f.push_back(i);
   }
 
-  Hobbit::Buffer *fconst =
-      module.GetFloatConstant("prod", f.data(), Hobbit::Shape(1, 1, 10));
+  Hobbit::Buffer *fconst = module.GetFloatConstant(
+      "prod", f.data(), Hobbit::Shape(1, 1, num_elements));
 
   Hobbit::ElementWiseProduct prod(fconst);
   Hobbit::Operation prod_op("prod_op");
@@ -111,7 +113,7 @@ TEST(TestModule, PerformProd) {
       (float *(*)(float *))module.GetFunctionPtr("prod");
   float *float_result = prod_fn(f.data());
 
-  for (int i = 0; i < 10; i++) {
+  for (int i = 0; i < num_elements; i++) {
     EXPECT_FLOAT_EQ(float_result[i], (float)i * i);
   }
 }
@@ -250,7 +252,8 @@ TEST(TestModule, PerformNoConstSDOT) {
   sdot_op.PushFunctor(prod);
   sdot_op.PushFunctor(hsum);
 
-  Hobbit::Buffer *result = module.InsertOperation("sdot", &sdot_op, vec1, false);
+  Hobbit::Buffer *result =
+      module.InsertOperation("sdot", &sdot_op, vec1, false);
 
   module.FinalizeFunction("sdot", result);
 

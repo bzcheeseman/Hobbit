@@ -31,9 +31,11 @@
 
 #include "Buffer.hpp"
 #include "Functor.hpp"
+#include "Kernel.hpp"
 
 namespace Hobbit {
-  class ElementWiseProduct : public Functor {
+  class ElementWiseProduct
+      : public Functor { // TODO: emit kernels where we do just one iteration
   public:
     explicit ElementWiseProduct(Buffer *c) : c_(c) {}
 
@@ -41,7 +43,8 @@ namespace Hobbit {
       return Buffer(BB, c_->GetType(), c_->GetShape());
     }
 
-    inline void Emit(Function *f, Buffer *input, Buffer *output, bool emit_inline) override {
+    inline void Emit(Function *f, Buffer *input, Buffer *output,
+                     bool emit_inline) override {
       emit_inline ? EmitInline_(f, input, output) : EmitPHI_(f, input, output);
     }
 
@@ -49,109 +52,69 @@ namespace Hobbit {
     void EmitInline_(Function *f, Buffer *input, Buffer *output) {
       if (c_->GetType() != input->GetType())
         throw std::runtime_error(
-                "Both Variable and Constant must be the same type!");
+            "Both Variable and Constant must be the same type!");
       if (c_->GetShape() != input->GetShape())
         throw std::runtime_error(
-                "Both Variable and Constant must be the same shape!");
+            "Both Variable and Constant must be the same shape!");
       if (output->GetType() != input->GetType())
         throw std::runtime_error(
-                "Both input and output must be the same type!");
+            "Both input and output must be the same type!");
       if (output->GetShape() != input->GetShape())
         throw std::runtime_error(
-                "Both input and output must be the same shape!");
+            "Both input and output must be the same shape!");
 
       llvm::BasicBlock *BB = f->AddBB("EWiseProduct");
       llvm::IRBuilder<> builder(BB);
 
       const Shape &shape = c_->GetShape();
-      llvm::Type *type = c_->GetType();
-      llvm::Value *c_value = c_->GetValue();
-      llvm::Value *input_value = input->GetValue();
+      internal::ElementWiseProduct prod_kernel;
 
-      llvm::Value *ret = output->GetValue();
+      std::vector<Buffer *> inputs = {input, c_};
+      std::vector<Buffer *> outputs = {output};
 
-      if (type->isIntegerTy()) {
-        for (uint64_t i = 0; i < c_->GetShape().GetSize(); i++) {
-          llvm::Value *c_gep = builder.CreateGEP(c_value, builder.getInt64(i));
-          llvm::Value *c_elt = builder.CreateAlignedLoad(c_gep, 4);
-
-          llvm::Value *i_gep =
-                  builder.CreateGEP(input_value, builder.getInt64(i));
-          llvm::Value *i_elt = builder.CreateAlignedLoad(i_gep, 4);
-
-          llvm::Value *ret_elt = builder.CreateGEP(ret, builder.getInt64(i));
-
-          builder.CreateAlignedStore(builder.CreateMul(c_elt, i_elt), ret_elt,
-                                     4);
-        }
-      } else if (type->isFloatingPointTy()) {
-        for (uint64_t i = 0; i < c_->GetShape().GetSize(); i++) {
-          llvm::Value *c_gep = builder.CreateGEP(c_value, builder.getInt64(i));
-          llvm::Value *c_elt = builder.CreateAlignedLoad(c_gep, 4);
-
-          llvm::Value *i_gep =
-                  builder.CreateGEP(input_value, builder.getInt64(i));
-          llvm::Value *i_elt = builder.CreateAlignedLoad(i_gep, 4);
-
-          llvm::Value *ret_elt = builder.CreateGEP(ret, builder.getInt64(i));
-
-          builder.CreateAlignedStore(builder.CreateFMul(c_elt, i_elt), ret_elt,
-                                     4);
-        }
+      for (uint64_t i = 0; i < shape.GetSize(); i++) {
+        prod_kernel.Emit(BB, inputs, outputs, builder.getInt64(i));
       }
     }
 
     void EmitPHI_(Function *f, Buffer *input, Buffer *output) {
       if (c_->GetType() != input->GetType())
         throw std::runtime_error(
-                "Both Variable and Constant must be the same type!");
+            "Both Variable and Constant must be the same type!");
       if (c_->GetShape() != input->GetShape())
         throw std::runtime_error(
-                "Both Variable and Constant must be the same shape!");
+            "Both Variable and Constant must be the same shape!");
       if (output->GetType() != input->GetType())
         throw std::runtime_error(
-                "Both input and output must be the same type!");
+            "Both input and output must be the same type!");
       if (output->GetShape() != input->GetShape())
         throw std::runtime_error(
-                "Both input and output must be the same shape!");
+            "Both input and output must be the same shape!");
 
       llvm::BasicBlock *entryBB = f->AddBB("LargeEwiseEntry");
       llvm::BasicBlock *loopBB = f->AddBB("LargeEwiseProduct");
       llvm::BasicBlock *exitBB = f->AddBB("LargeEwiseExit");
 
+      internal::ElementWiseProduct prod_kernel;
+
       llvm::IRBuilder<> builder(entryBB);
       builder.CreateBr(loopBB);
 
       const Shape &shape = c_->GetShape();
-      llvm::Type *type = c_->GetType();
-      llvm::Value *c_value = c_->GetValue();
-      llvm::Value *input_value = input->GetValue();
 
-      llvm::Value *ret = output->GetValue();
+      std::vector<Buffer *> inputs = {input, c_};
+      std::vector<Buffer *> outputs = {output};
 
       builder.SetInsertPoint(loopBB);
       llvm::PHINode *var =
-              builder.CreatePHI(builder.getInt64Ty(), 2, "LargeEwiseProductIndex");
+          builder.CreatePHI(builder.getInt64Ty(), 2, "LargeEwiseProductIndex");
       var->addIncoming(builder.getInt64(0), entryBB);
 
-      llvm::Value *c_gep = builder.CreateGEP(c_value, var);
-      llvm::Value *c_elt = builder.CreateAlignedLoad(c_gep, 4);
-
-      llvm::Value *i_gep = builder.CreateGEP(input_value, var);
-      llvm::Value *i_elt = builder.CreateAlignedLoad(i_gep, 4);
-
-      llvm::Value *ret_elt = builder.CreateGEP(ret, var);
-
-      if (type->isIntegerTy()) {
-        builder.CreateAlignedStore(builder.CreateMul(c_elt, i_elt), ret_elt, 4);
-      } else if (type->isFloatingPointTy()) {
-        builder.CreateAlignedStore(builder.CreateFMul(c_elt, i_elt), ret_elt,
-                                   4);
-      }
+      prod_kernel.Emit(loopBB, inputs, outputs, var);
 
       llvm::Value *nextvar = builder.CreateAdd(var, builder.getInt64(1));
       llvm::Value *end_condition =
-              builder.CreateICmpEQ(nextvar, builder.getInt64(shape.GetSize()));
+          builder.CreateICmpEQ(nextvar, builder.getInt64(shape.GetSize()));
       builder.CreateCondBr(end_condition, exitBB, loopBB);
       var->addIncoming(nextvar, loopBB);
 

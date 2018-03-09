@@ -172,7 +172,8 @@ void Hobbit::Module::PrintModule(llvm::raw_fd_ostream &out_stream) {
 
 Hobbit::Buffer *
 Hobbit::Module::InsertOperation(const std::string &function_name,
-                                Hobbit::Operation *op, Hobbit::Buffer *input, bool emit_inline) {
+                                Hobbit::Operation *op, Hobbit::Buffer *input,
+                                bool emit_inline) {
 
   op->Emit(&function_table_.at(function_name), input, emit_inline);
 

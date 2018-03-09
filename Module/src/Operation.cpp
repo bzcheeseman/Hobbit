@@ -36,7 +36,9 @@ void Hobbit::Operation::PushFunctor(Hobbit::Functor &f) {
   op_table_.push_back(&f);
 }
 
-void Hobbit::Operation::Emit(Function *f, Buffer *input, bool emit_inline) {
+void Hobbit::Operation::Emit(
+    Function *f, Buffer *input,
+    bool emit_inline) { // TODO: this only supports one input/one output
   for (auto &op : op_table_) {
     Hobbit::Buffer buffer = op->AllocOutput(f->entry_block);
     op->Emit(f, input, &buffer, emit_inline);
