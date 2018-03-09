@@ -32,7 +32,7 @@ namespace Hobbit {
   class Functor {
   public:
     virtual Buffer AllocOutput(llvm::BasicBlock *BB) = 0;
-    virtual void Emit(Function &f, Buffer *input, Buffer *output) = 0;
+    virtual void Emit(Function *f, Buffer *input, Buffer *output, bool emit_inline) = 0;
   };
 }
 

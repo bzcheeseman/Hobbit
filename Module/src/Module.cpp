@@ -172,9 +172,9 @@ void Hobbit::Module::PrintModule(llvm::raw_fd_ostream &out_stream) {
 
 Hobbit::Buffer *
 Hobbit::Module::InsertOperation(const std::string &function_name,
-                                Hobbit::Operation *op, Hobbit::Buffer *input) {
+                                Hobbit::Operation *op, Hobbit::Buffer *input, bool emit_inline) {
 
-  op->Emit(function_table_.at(function_name), input);
+  op->Emit(&function_table_.at(function_name), input, emit_inline);
 
   return input;
 }
@@ -223,7 +223,8 @@ void Hobbit::Module::FinalizeModule(unsigned opt_level) {
     builder.SetInsertPoint(f.second.entry_block);
     builder.CreateBr(*f.second.bb.begin());
     for (auto bb = f.second.bb.begin(); bb != f.second.bb.end() - 1; bb++) {
-      if (llvm::dyn_cast<llvm::BranchInst>(--(*bb)->end())) continue;
+      if (llvm::dyn_cast<llvm::BranchInst>(--(*bb)->end()))
+        continue;
       builder.SetInsertPoint(*bb);
       builder.CreateBr(*(bb + 1));
     }
@@ -241,7 +242,6 @@ void Hobbit::Module::FinalizeModule(unsigned opt_level) {
   PMBuilder.populateModulePassManager(llvm::cast<llvm::PassManagerBase>(PM));
 
   PM.run(*module_);
-
 }
 
 Hobbit::Buffer *

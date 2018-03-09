@@ -22,24 +22,24 @@
 
 #include "Operation.hpp"
 
-Hobbit::Operation::Operation(const std::string name) : name_(name) {}
+Hobbit::Operation::Operation(const std::string &name) : name_(name) {}
 
 Hobbit::Operation::Operation(const std::initializer_list<Functor *> &f,
-                             const std::string name)
+                             const std::string &name)
     : op_table_(f), name_(name) {}
 
 Hobbit::Operation::Operation(const std::list<Functor *> &f,
-                             const std::string name)
+                             const std::string &name)
     : op_table_(f), name_(name) {}
 
 void Hobbit::Operation::PushFunctor(Hobbit::Functor &f) {
   op_table_.push_back(&f);
 }
 
-void Hobbit::Operation::Emit(Function &f, Buffer *input) {
+void Hobbit::Operation::Emit(Function *f, Buffer *input, bool emit_inline) {
   for (auto &op : op_table_) {
-    Hobbit::Buffer buffer = op->AllocOutput(f.entry_block);
-    op->Emit(f, input, &buffer);
+    Hobbit::Buffer buffer = op->AllocOutput(f->entry_block);
+    op->Emit(f, input, &buffer, emit_inline);
     *input = buffer;
   }
 }

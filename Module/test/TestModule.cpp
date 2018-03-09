@@ -98,7 +98,7 @@ TEST(TestModule, PerformProd) {
   prod_op.PushFunctor(prod);
 
   Hobbit::Buffer *result =
-      module.InsertOperation("prod", &prod_op, input_buffer);
+      module.InsertOperation("prod", &prod_op, input_buffer, true);
 
   module.FinalizeFunction("prod", result);
 
@@ -145,13 +145,13 @@ TEST(TestModule, PerformSDOT) {
   sdot_op.PushFunctor(hsum);
 
   Hobbit::Buffer *result =
-      module.InsertOperation("sdot", &sdot_op, input_buffer);
+      module.InsertOperation("sdot", &sdot_op, input_buffer, true);
 
   module.FinalizeFunction("sdot", result);
 
   module.FinalizeModule(3);
 
-//  module.PrintModule(llvm::outs());
+  //  module.PrintModule(llvm::outs());
   module.PrepareJIT();
 
   float (*prod_fn)(float *) = (float (*)(float *))module.GetFunctionPtr("sdot");
@@ -177,11 +177,11 @@ TEST(TestModule, PerformLargeSDOT) {
   int n_elts = 100;
 
   std::vector<llvm::Type *> args = {
-          llvm::Type::getFloatPtrTy(ctx) // input
+      llvm::Type::getFloatPtrTy(ctx) // input
   };
   module.CreateFunction("sdot", llvm::Type::getFloatTy(ctx), args);
   Hobbit::Buffer *input_buffer =
-          module.GetBufferFromInputs("sdot", 0, Hobbit::Shape(1, 1, n_elts));
+      module.GetBufferFromInputs("sdot", 0, Hobbit::Shape(1, 1, n_elts));
 
   std::vector<float> f;
   for (int i = 0; i < n_elts; i++) {
@@ -189,22 +189,22 @@ TEST(TestModule, PerformLargeSDOT) {
   }
 
   Hobbit::Buffer *fconst =
-          module.GetFloatConstant("sdot", f.data(), Hobbit::Shape(1, 1, n_elts));
+      module.GetFloatConstant("sdot", f.data(), Hobbit::Shape(1, 1, n_elts));
 
-  Hobbit::LargeElementWiseProduct prod(fconst);
-  Hobbit::LargeSumReduction hsum(llvm::Type::getFloatTy(ctx));
+  Hobbit::ElementWiseProduct prod(fconst);
+  Hobbit::SumReduction hsum(llvm::Type::getFloatTy(ctx));
   Hobbit::Operation sdot_op("sdot_op");
   sdot_op.PushFunctor(prod);
   sdot_op.PushFunctor(hsum);
 
   Hobbit::Buffer *result =
-          module.InsertOperation("sdot", &sdot_op, input_buffer);
+      module.InsertOperation("sdot", &sdot_op, input_buffer, false);
 
   module.FinalizeFunction("sdot", result);
 
   module.FinalizeModule(3);
 
-//  module.PrintModule(llvm::outs());
+  //  module.PrintModule(llvm::outs());
   module.PrepareJIT();
 
   float (*prod_fn)(float *) = (float (*)(float *))module.GetFunctionPtr("sdot");
@@ -219,7 +219,60 @@ TEST(TestModule, PerformLargeSDOT) {
 
   EXPECT_FLOAT_EQ(float_result,
                   (float)(n_elts - 1) / 3.f * ((float)(n_elts - 1) + 1.f) *
-                  ((float)(n_elts - 1) + 0.5f));
+                      ((float)(n_elts - 1) + 0.5f));
+}
+
+TEST(TestModule, PerformNoConstSDOT) {
+
+  llvm::LLVMContext ctx;
+  Hobbit::Module module("test_module", ctx);
+
+  int n_elts = 10000;
+
+  std::vector<llvm::Type *> args = {
+      llvm::Type::getFloatPtrTy(ctx), // input vec 1
+      llvm::Type::getFloatPtrTy(ctx)  // input vec 2
+  };
+  module.CreateFunction("sdot", llvm::Type::getFloatTy(ctx), args);
+  Hobbit::Buffer *vec1 =
+      module.GetBufferFromInputs("sdot", 0, Hobbit::Shape(1, 1, n_elts));
+  Hobbit::Buffer *vec2 =
+      module.GetBufferFromInputs("sdot", 1, Hobbit::Shape(1, 1, n_elts));
+
+  std::vector<float> f;
+  for (int i = 0; i < n_elts; i++) {
+    f.push_back(i);
+  }
+
+  Hobbit::ElementWiseProduct prod(vec2);
+  Hobbit::SumReduction hsum(llvm::Type::getFloatTy(ctx));
+  Hobbit::Operation sdot_op("sdot_op");
+  sdot_op.PushFunctor(prod);
+  sdot_op.PushFunctor(hsum);
+
+  Hobbit::Buffer *result = module.InsertOperation("sdot", &sdot_op, vec1, false);
+
+  module.FinalizeFunction("sdot", result);
+
+  module.FinalizeModule(3);
+
+  module.PrintModule(llvm::outs());
+  module.PrepareJIT();
+
+  float (*prod_fn)(float *, float *) =
+      (float (*)(float *, float *))module.GetFunctionPtr("sdot");
+
+  auto start = std::chrono::high_resolution_clock::now();
+  float float_result = prod_fn(f.data(), f.data());
+  auto finish = std::chrono::high_resolution_clock::now();
+
+  std::chrono::duration<double> elapsed = finish - start;
+  std::cout << "Elapsed time: " << elapsed.count() << " s for " << n_elts
+            << " elements" << std::endl;
+
+  EXPECT_FLOAT_EQ(float_result,
+                  (float)(n_elts - 1) / 3.f * ((float)(n_elts - 1) + 1.f) *
+                      ((float)(n_elts - 1) + 0.5f));
 }
 
 TEST(TestModule, CompileSDOT) {
@@ -230,11 +283,11 @@ TEST(TestModule, CompileSDOT) {
   int n_elts = 100;
 
   std::vector<llvm::Type *> args = {
-          llvm::Type::getFloatPtrTy(ctx) // input
+      llvm::Type::getFloatPtrTy(ctx) // input
   };
   module.CreateFunction("sdot", llvm::Type::getFloatTy(ctx), args);
   Hobbit::Buffer *input_buffer =
-          module.GetBufferFromInputs("sdot", 0, Hobbit::Shape(1, 1, n_elts));
+      module.GetBufferFromInputs("sdot", 0, Hobbit::Shape(1, 1, n_elts));
 
   std::vector<float> f;
   for (int i = 0; i < n_elts; i++) {
@@ -242,7 +295,7 @@ TEST(TestModule, CompileSDOT) {
   }
 
   Hobbit::Buffer *fconst =
-          module.GetFloatConstant("sdot", f.data(), Hobbit::Shape(1, 1, n_elts));
+      module.GetFloatConstant("sdot", f.data(), Hobbit::Shape(1, 1, n_elts));
 
   Hobbit::ElementWiseProduct prod(fconst);
   Hobbit::SumReduction hsum(llvm::Type::getFloatTy(ctx));
@@ -251,7 +304,7 @@ TEST(TestModule, CompileSDOT) {
   sdot_op.PushFunctor(hsum);
 
   Hobbit::Buffer *result =
-          module.InsertOperation("sdot", &sdot_op, input_buffer);
+      module.InsertOperation("sdot", &sdot_op, input_buffer, true);
 
   EXPECT_NO_THROW(module.FinalizeFunction("sdot", result));
 
@@ -272,11 +325,11 @@ TEST(TestModule, CompileLargeSDOT) {
   int n_elts = 100;
 
   std::vector<llvm::Type *> args = {
-          llvm::Type::getFloatPtrTy(ctx) // input
+      llvm::Type::getFloatPtrTy(ctx) // input
   };
   module.CreateFunction("sdot", llvm::Type::getFloatTy(ctx), args);
   Hobbit::Buffer *input_buffer =
-          module.GetBufferFromInputs("sdot", 0, Hobbit::Shape(1, 1, n_elts));
+      module.GetBufferFromInputs("sdot", 0, Hobbit::Shape(1, 1, n_elts));
 
   std::vector<float> f;
   for (int i = 0; i < n_elts; i++) {
@@ -284,16 +337,16 @@ TEST(TestModule, CompileLargeSDOT) {
   }
 
   Hobbit::Buffer *fconst =
-          module.GetFloatConstant("sdot", f.data(), Hobbit::Shape(1, 1, n_elts));
+      module.GetFloatConstant("sdot", f.data(), Hobbit::Shape(1, 1, n_elts));
 
-  Hobbit::LargeElementWiseProduct prod(fconst);
-  Hobbit::LargeSumReduction hsum(llvm::Type::getFloatTy(ctx));
+  Hobbit::ElementWiseProduct prod(fconst);
+  Hobbit::SumReduction hsum(llvm::Type::getFloatTy(ctx));
   Hobbit::Operation sdot_op("sdot_op");
   sdot_op.PushFunctor(prod);
   sdot_op.PushFunctor(hsum);
 
   Hobbit::Buffer *result =
-          module.InsertOperation("sdot", &sdot_op, input_buffer);
+      module.InsertOperation("sdot", &sdot_op, input_buffer, false);
 
   EXPECT_NO_THROW(module.FinalizeFunction("sdot", result));
 

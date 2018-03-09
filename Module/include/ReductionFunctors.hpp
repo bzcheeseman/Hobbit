@@ -43,27 +43,31 @@ namespace Hobbit {
       return Buffer(BB, output_type_, Shape(1, 1, 1));
     }
 
-    inline void Emit(Function &f, Buffer *input,
-                     Buffer *output) override {
+    inline void Emit(Function *f, Buffer *input, Buffer *output, bool emit_inline) override {
+      emit_inline ? EmitInline_(f, input, output) : EmitPHI_(f, input, output);
+    }
+    
+  private:
+    void EmitInline_(Function *f, Buffer *input, Buffer *output) {
       if (output_type_ != input->GetType())
         throw std::runtime_error("Input and output must be the same type!");
       if (output->GetShape() != Shape(1, 1, 1))
         throw std::runtime_error("Output shape must match specified shape!");
 
-      llvm::BasicBlock *BB = f.AddBB("SumReduction");
+      llvm::BasicBlock *BB = f->AddBB("SumReduction");
       llvm::IRBuilder<> builder(BB);
 
       llvm::Value *input_value = input->GetValue();
       llvm::Value *output_value = output->GetValue();
 
       builder.CreateStore(
-          builder.CreateBitCast(builder.getInt64(0), output_type_),
-          output_value);
+              builder.CreateBitCast(builder.getInt64(0), output_type_),
+              output_value);
 
       if (output_type_->isIntegerTy()) {
         for (uint64_t i = 0; i < input->GetShape().GetSize(); i++) {
           llvm::Value *i_gep =
-              builder.CreateGEP(input_value, builder.getInt64(i));
+                  builder.CreateGEP(input_value, builder.getInt64(i));
           llvm::Value *i_elt = builder.CreateAlignedLoad(i_gep, 4);
 
           llvm::Value *out_elt = builder.CreateLoad(output_value);
@@ -74,7 +78,7 @@ namespace Hobbit {
       } else if (output_type_->isFloatingPointTy()) {
         for (uint64_t i = 0; i < input->GetShape().GetSize(); i++) {
           llvm::Value *i_gep =
-              builder.CreateGEP(input_value, builder.getInt64(i));
+                  builder.CreateGEP(input_value, builder.getInt64(i));
           llvm::Value *i_elt = builder.CreateAlignedLoad(i_gep, 4);
 
           llvm::Value *out_elt = builder.CreateLoad(output_value);
@@ -84,30 +88,16 @@ namespace Hobbit {
         }
       }
     }
-
-  private:
-    llvm::Type *output_type_;
-  };
-
-  class LargeSumReduction : public Functor {
-  public:
-    explicit LargeSumReduction(llvm::Type *output_type)
-            : output_type_(output_type) {}
-
-    inline Buffer AllocOutput(llvm::BasicBlock *BB) override {
-      return Buffer(BB, output_type_, Shape(1, 1, 1));
-    }
-
-    inline void Emit(Function &f, Buffer *input,
-                     Buffer *output) override {
+    
+    void EmitPHI_(Function *f, Buffer *input, Buffer *output) {
       if (output_type_ != input->GetType())
         throw std::runtime_error("Input and output must be the same type!");
       if (output->GetShape() != Shape(1, 1, 1))
         throw std::runtime_error("Output shape must match specified shape!");
 
-      llvm::BasicBlock *entryBB = f.AddBB("LargeSumRedEntry");
-      llvm::BasicBlock *loopBB = f.AddBB("LargeSumRedProduct");
-      llvm::BasicBlock *exitBB = f.AddBB("LargeSumRedExit");
+      llvm::BasicBlock *entryBB = f->AddBB("LargeSumRedEntry");
+      llvm::BasicBlock *loopBB = f->AddBB("LargeSumReduce");
+      llvm::BasicBlock *exitBB = f->AddBB("LargeSumRedExit");
 
       llvm::IRBuilder<> builder(entryBB);
       builder.CreateBr(loopBB);
@@ -116,10 +106,13 @@ namespace Hobbit {
       llvm::Value *output_value = output->GetValue();
 
       builder.SetInsertPoint(loopBB);
-      llvm::PHINode *idx_var = builder.CreatePHI(builder.getInt64Ty(), 2, "LargeSumRedIndex");
-      llvm::PHINode *var = builder.CreatePHI(output_type_, 2, "LargeSumRedResult");
+      llvm::PHINode *idx_var =
+              builder.CreatePHI(builder.getInt64Ty(), 2, "LargeSumRedIndex");
+      llvm::PHINode *var =
+              builder.CreatePHI(output_type_, 2, "LargeSumRedResult");
       idx_var->addIncoming(builder.getInt64(0), entryBB);
-      var->addIncoming(builder.CreateBitCast(builder.getInt64(0), output_type_), entryBB);
+      var->addIncoming(builder.CreateBitCast(builder.getInt64(0), output_type_),
+                       entryBB);
 
       llvm::Value *i_gep = builder.CreateGEP(input_value, idx_var);
       llvm::Value *i_elt = builder.CreateAlignedLoad(i_gep, 4);
@@ -127,13 +120,14 @@ namespace Hobbit {
       llvm::Value *nextvar;
       if (output_type_->isIntegerTy()) {
         nextvar = builder.CreateAdd(var, i_elt);
-      }
-      else if (output_type_->isFloatingPointTy()) {
+      } else if (output_type_->isFloatingPointTy()) {
         nextvar = builder.CreateFAdd(var, i_elt);
       }
 
-      llvm::Value *next_idx_var = builder.CreateAdd(idx_var, builder.getInt64(1));
-      llvm::Value *end_condition = builder.CreateICmpEQ(next_idx_var, builder.getInt64(input->GetShape().GetSize()));
+      llvm::Value *next_idx_var =
+              builder.CreateAdd(idx_var, builder.getInt64(1));
+      llvm::Value *end_condition = builder.CreateICmpEQ(
+              next_idx_var, builder.getInt64(input->GetShape().GetSize()));
 
       builder.CreateCondBr(end_condition, exitBB, loopBB);
       idx_var->addIncoming(next_idx_var, loopBB);
@@ -141,7 +135,6 @@ namespace Hobbit {
 
       builder.SetInsertPoint(exitBB);
       builder.CreateAlignedStore(nextvar, output_value, 4);
-
     }
 
   private:

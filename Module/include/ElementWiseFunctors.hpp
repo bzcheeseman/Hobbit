@@ -41,22 +41,26 @@ namespace Hobbit {
       return Buffer(BB, c_->GetType(), c_->GetShape());
     }
 
-    inline void Emit(Function &f, Buffer *input,
-                     Buffer *output) override {
+    inline void Emit(Function *f, Buffer *input, Buffer *output, bool emit_inline) override {
+      emit_inline ? EmitInline_(f, input, output) : EmitPHI_(f, input, output);
+    }
+
+  private:
+    void EmitInline_(Function *f, Buffer *input, Buffer *output) {
       if (c_->GetType() != input->GetType())
         throw std::runtime_error(
-            "Both Variable and Constant must be the same type!");
+                "Both Variable and Constant must be the same type!");
       if (c_->GetShape() != input->GetShape())
         throw std::runtime_error(
-            "Both Variable and Constant must be the same shape!");
+                "Both Variable and Constant must be the same shape!");
       if (output->GetType() != input->GetType())
         throw std::runtime_error(
-            "Both input and output must be the same type!");
+                "Both input and output must be the same type!");
       if (output->GetShape() != input->GetShape())
         throw std::runtime_error(
-            "Both input and output must be the same shape!");
+                "Both input and output must be the same shape!");
 
-      llvm::BasicBlock *BB = f.AddBB("EWiseProduct");
+      llvm::BasicBlock *BB = f->AddBB("EWiseProduct");
       llvm::IRBuilder<> builder(BB);
 
       const Shape &shape = c_->GetShape();
@@ -72,7 +76,7 @@ namespace Hobbit {
           llvm::Value *c_elt = builder.CreateAlignedLoad(c_gep, 4);
 
           llvm::Value *i_gep =
-              builder.CreateGEP(input_value, builder.getInt64(i));
+                  builder.CreateGEP(input_value, builder.getInt64(i));
           llvm::Value *i_elt = builder.CreateAlignedLoad(i_gep, 4);
 
           llvm::Value *ret_elt = builder.CreateGEP(ret, builder.getInt64(i));
@@ -86,7 +90,7 @@ namespace Hobbit {
           llvm::Value *c_elt = builder.CreateAlignedLoad(c_gep, 4);
 
           llvm::Value *i_gep =
-              builder.CreateGEP(input_value, builder.getInt64(i));
+                  builder.CreateGEP(input_value, builder.getInt64(i));
           llvm::Value *i_elt = builder.CreateAlignedLoad(i_gep, 4);
 
           llvm::Value *ret_elt = builder.CreateGEP(ret, builder.getInt64(i));
@@ -97,20 +101,7 @@ namespace Hobbit {
       }
     }
 
-  private:
-    Buffer *c_;
-  };
-
-  class LargeElementWiseProduct : public Functor {
-  public:
-    explicit LargeElementWiseProduct(Buffer *c) : c_(c) {}
-
-    inline Buffer AllocOutput(llvm::BasicBlock *BB) override {
-      return Buffer(BB, c_->GetType(), c_->GetShape());
-    }
-
-    inline void Emit(Function &f, Buffer *input,
-                     Buffer *output) override {
+    void EmitPHI_(Function *f, Buffer *input, Buffer *output) {
       if (c_->GetType() != input->GetType())
         throw std::runtime_error(
                 "Both Variable and Constant must be the same type!");
@@ -124,9 +115,9 @@ namespace Hobbit {
         throw std::runtime_error(
                 "Both input and output must be the same shape!");
 
-      llvm::BasicBlock *entryBB = f.AddBB("LargeEwiseEntry");
-      llvm::BasicBlock *loopBB = f.AddBB("LargeEwiseProduct");
-      llvm::BasicBlock *exitBB = f.AddBB("LargeEwiseExit");
+      llvm::BasicBlock *entryBB = f->AddBB("LargeEwiseEntry");
+      llvm::BasicBlock *loopBB = f->AddBB("LargeEwiseProduct");
+      llvm::BasicBlock *exitBB = f->AddBB("LargeEwiseExit");
 
       llvm::IRBuilder<> builder(entryBB);
       builder.CreateBr(loopBB);
@@ -139,7 +130,8 @@ namespace Hobbit {
       llvm::Value *ret = output->GetValue();
 
       builder.SetInsertPoint(loopBB);
-      llvm::PHINode *var = builder.CreatePHI(builder.getInt64Ty(), 2, "LargeEwiseProductIndex");
+      llvm::PHINode *var =
+              builder.CreatePHI(builder.getInt64Ty(), 2, "LargeEwiseProductIndex");
       var->addIncoming(builder.getInt64(0), entryBB);
 
       llvm::Value *c_gep = builder.CreateGEP(c_value, var);
@@ -152,13 +144,14 @@ namespace Hobbit {
 
       if (type->isIntegerTy()) {
         builder.CreateAlignedStore(builder.CreateMul(c_elt, i_elt), ret_elt, 4);
-      }
-      else if (type->isFloatingPointTy()) {
-        builder.CreateAlignedStore(builder.CreateFMul(c_elt, i_elt), ret_elt, 4);
+      } else if (type->isFloatingPointTy()) {
+        builder.CreateAlignedStore(builder.CreateFMul(c_elt, i_elt), ret_elt,
+                                   4);
       }
 
       llvm::Value *nextvar = builder.CreateAdd(var, builder.getInt64(1));
-      llvm::Value *end_condition = builder.CreateICmpEQ(nextvar, builder.getInt64(shape.GetSize()));
+      llvm::Value *end_condition =
+              builder.CreateICmpEQ(nextvar, builder.getInt64(shape.GetSize()));
       builder.CreateCondBr(end_condition, exitBB, loopBB);
       var->addIncoming(nextvar, loopBB);
 
