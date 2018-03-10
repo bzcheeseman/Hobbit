@@ -153,7 +153,7 @@ TEST(TestModule, PerformSDOT) {
 
   module.FinalizeModule(3);
 
-  //  module.PrintModule(llvm::outs());
+//  module.PrintModule(llvm::outs());
   module.PrepareJIT();
 
   float (*prod_fn)(float *) = (float (*)(float *))module.GetFunctionPtr("sdot");
@@ -206,7 +206,7 @@ TEST(TestModule, PerformLargeSDOT) {
 
   module.FinalizeModule(3);
 
-  //  module.PrintModule(llvm::outs());
+//  module.PrintModule(llvm::outs());
   module.PrepareJIT();
 
   float (*prod_fn)(float *) = (float (*)(float *))module.GetFunctionPtr("sdot");

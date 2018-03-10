@@ -59,7 +59,31 @@ void Hobbit::internal::ElementWiseProduct::Emit(
 
 void Hobbit::internal::SumReduction::Emit(
     llvm::BasicBlock *BB, const llvm::ArrayRef<Buffer *> &inputs,
-    const llvm::ArrayRef<Buffer *> &outputs, llvm::Value *idx) {
+    const llvm::ArrayRef<Buffer *> &outputs, llvm::Value *idx) { // Works inline but not in loop...
+
+  llvm::IRBuilder<> builder(BB);
+
+  llvm::Value *output = outputs[0]->GetValue();
+
+  llvm::Value *input_gep = builder.CreateGEP(inputs[0]->GetValue(), idx);
+
+  llvm::Value *sum;
+  if (outputs[0]->GetType()->isIntegerTy()) {
+    sum = builder.CreateAdd(
+            builder.CreateAlignedLoad(input_gep, 4),
+            builder.CreateAlignedLoad(output, 4)
+    );
+
+  }
+  else if (outputs[0]->GetType()->isFloatingPointTy()) {
+    sum = builder.CreateFAdd(
+            builder.CreateAlignedLoad(input_gep, 4),
+            builder.CreateAlignedLoad(output, 4)
+    );
+  }
+
+  builder.CreateAlignedStore(sum, output, 4);
+
   // outputs is sdata in the nvidia example, eventually will return the first
   // element
   // One ring to rule them all

@@ -57,36 +57,20 @@ namespace Hobbit {
 
       llvm::BasicBlock *BB = f->AddBB("SumReduction");
       llvm::IRBuilder<> builder(BB);
+      internal::SumReduction sum_reduce_kernel;
 
       llvm::Value *input_value = input->GetValue();
       llvm::Value *output_value = output->GetValue();
+
+      std::vector<Buffer *> inputs = {input};
+      std::vector<Buffer *> outputs = {output};
 
       builder.CreateStore(
           builder.CreateBitCast(builder.getInt64(0), output_type_),
           output_value);
 
-      if (output_type_->isIntegerTy()) {
-        for (uint64_t i = 0; i < input->GetShape().GetSize(); i++) {
-          llvm::Value *i_gep =
-              builder.CreateGEP(input_value, builder.getInt64(i));
-          llvm::Value *i_elt = builder.CreateAlignedLoad(i_gep, 4);
-
-          llvm::Value *out_elt = builder.CreateLoad(output_value);
-
-          builder.CreateAlignedStore(builder.CreateAdd(i_elt, out_elt),
-                                     output_value, 4);
-        }
-      } else if (output_type_->isFloatingPointTy()) {
-        for (uint64_t i = 0; i < input->GetShape().GetSize(); i++) {
-          llvm::Value *i_gep =
-              builder.CreateGEP(input_value, builder.getInt64(i));
-          llvm::Value *i_elt = builder.CreateAlignedLoad(i_gep, 4);
-
-          llvm::Value *out_elt = builder.CreateLoad(output_value);
-
-          builder.CreateAlignedStore(builder.CreateFAdd(i_elt, out_elt),
-                                     output_value, 4);
-        }
+      for (uint64_t i = 0; i < input->GetShape().GetSize(); i++) {
+        sum_reduce_kernel.Emit(BB, inputs, outputs, builder.getInt64(i));
       }
     }
 
@@ -100,30 +84,22 @@ namespace Hobbit {
       llvm::BasicBlock *loopBB = f->AddBB("LargeSumReduce");
       llvm::BasicBlock *exitBB = f->AddBB("LargeSumRedExit");
 
+      internal::SumReduction sum_reduce_kernel;
+
       llvm::IRBuilder<> builder(entryBB);
+      llvm::Value *output_value = output->GetValue();
+      builder.CreateAlignedStore(builder.CreateBitCast(builder.getInt64(0), output_type_), output_value, 4);
       builder.CreateBr(loopBB);
 
-      llvm::Value *input_value = input->GetValue();
-      llvm::Value *output_value = output->GetValue();
+      std::vector<Buffer *> inputs = {input};
+      std::vector<Buffer *> outputs = {output};
 
       builder.SetInsertPoint(loopBB);
       llvm::PHINode *idx_var =
           builder.CreatePHI(builder.getInt64Ty(), 2, "LargeSumRedIndex");
-      llvm::PHINode *var =
-          builder.CreatePHI(output_type_, 2, "LargeSumRedResult");
       idx_var->addIncoming(builder.getInt64(0), entryBB);
-      var->addIncoming(builder.CreateBitCast(builder.getInt64(0), output_type_),
-                       entryBB);
 
-      llvm::Value *i_gep = builder.CreateGEP(input_value, idx_var);
-      llvm::Value *i_elt = builder.CreateAlignedLoad(i_gep, 4);
-
-      llvm::Value *nextvar;
-      if (output_type_->isIntegerTy()) {
-        nextvar = builder.CreateAdd(var, i_elt);
-      } else if (output_type_->isFloatingPointTy()) {
-        nextvar = builder.CreateFAdd(var, i_elt);
-      }
+      sum_reduce_kernel.Emit(loopBB, inputs, outputs, idx_var);
 
       llvm::Value *next_idx_var =
           builder.CreateAdd(idx_var, builder.getInt64(1));
@@ -132,10 +108,8 @@ namespace Hobbit {
 
       builder.CreateCondBr(end_condition, exitBB, loopBB);
       idx_var->addIncoming(next_idx_var, loopBB);
-      var->addIncoming(nextvar, loopBB);
 
       builder.SetInsertPoint(exitBB);
-      builder.CreateAlignedStore(nextvar, output_value, 4);
     }
 
   private:
