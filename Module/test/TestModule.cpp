@@ -95,7 +95,7 @@ TEST(TestModule, PerformProd) {
   Hobbit::Buffer *fconst = module.GetFloatConstant(
       "prod", f.data(), Hobbit::Shape(1, 1, num_elements));
 
-  Hobbit::ElementWiseProduct prod(fconst);
+  Hobbit::ElementWiseProduct prod(fconst, 4);
   Hobbit::Operation prod_op("prod_op");
   prod_op.PushFunctor(prod);
 
@@ -140,8 +140,8 @@ TEST(TestModule, PerformSDOT) {
   Hobbit::Buffer *fconst =
       module.GetFloatConstant("sdot", f.data(), Hobbit::Shape(1, 1, n_elts));
 
-  Hobbit::ElementWiseProduct prod(fconst);
-  Hobbit::SumReduction hsum(llvm::Type::getFloatTy(ctx));
+  Hobbit::ElementWiseProduct prod(fconst, 4);
+  Hobbit::SumReduction hsum(llvm::Type::getFloatTy(ctx), 4);
   Hobbit::Operation sdot_op("sdot_op");
   sdot_op.PushFunctor(prod);
   sdot_op.PushFunctor(hsum);
@@ -153,7 +153,7 @@ TEST(TestModule, PerformSDOT) {
 
   module.FinalizeModule(3);
 
-  //  module.PrintModule(llvm::outs());
+  module.PrintModule(llvm::outs());
   module.PrepareJIT();
 
   float (*prod_fn)(float *) = (float (*)(float *))module.GetFunctionPtr("sdot");
@@ -193,8 +193,8 @@ TEST(TestModule, PerformLargeSDOT) {
   Hobbit::Buffer *fconst =
       module.GetFloatConstant("sdot", f.data(), Hobbit::Shape(1, 1, n_elts));
 
-  Hobbit::ElementWiseProduct prod(fconst);
-  Hobbit::SumReduction hsum(llvm::Type::getFloatTy(ctx));
+  Hobbit::ElementWiseProduct prod(fconst, 4);
+  Hobbit::SumReduction hsum(llvm::Type::getFloatTy(ctx), 4);
   Hobbit::Operation sdot_op("sdot_op");
   sdot_op.PushFunctor(prod);
   sdot_op.PushFunctor(hsum);
@@ -206,7 +206,7 @@ TEST(TestModule, PerformLargeSDOT) {
 
   module.FinalizeModule(3);
 
-  //  module.PrintModule(llvm::outs());
+  // module.PrintModule(llvm::outs());
   module.PrepareJIT();
 
   float (*prod_fn)(float *) = (float (*)(float *))module.GetFunctionPtr("sdot");
@@ -246,8 +246,8 @@ TEST(TestModule, PerformNoConstSDOT) {
     f.push_back(i);
   }
 
-  Hobbit::ElementWiseProduct prod(vec2);
-  Hobbit::SumReduction hsum(llvm::Type::getFloatTy(ctx));
+  Hobbit::ElementWiseProduct prod(vec2, 4);
+  Hobbit::SumReduction hsum(llvm::Type::getFloatTy(ctx), 4);
   Hobbit::Operation sdot_op("sdot_op");
   sdot_op.PushFunctor(prod);
   sdot_op.PushFunctor(hsum);
@@ -257,9 +257,9 @@ TEST(TestModule, PerformNoConstSDOT) {
 
   module.FinalizeFunction("sdot", result);
 
-  module.FinalizeModule(3);
+  module.FinalizeModule(0);
 
-  //  module.PrintModule(llvm::outs());
+  module.PrintModule(llvm::outs());
   module.PrepareJIT();
 
   float (*prod_fn)(float *, float *) =
@@ -303,7 +303,7 @@ TEST(TestModule, PerformNoConstProd) {
     f.push_back(i);
   }
 
-  Hobbit::ElementWiseProduct prod(input_buffer2);
+  Hobbit::ElementWiseProduct prod(input_buffer2, 4);
   Hobbit::Operation prod_op("prod_op");
   prod_op.PushFunctor(prod);
 
@@ -312,9 +312,9 @@ TEST(TestModule, PerformNoConstProd) {
 
   module.FinalizeFunction("prod", result, output);
 
-  module.FinalizeModule(3);
+  module.FinalizeModule(0);
 
-//  module.PrintModule(llvm::outs());
+  module.PrintModule(llvm::outs());
   module.PrepareJIT();
 
   void (*prod_fn)(float *, float *, float *) =
@@ -357,8 +357,8 @@ TEST(TestModule, CompileSDOT) {
   Hobbit::Buffer *fconst =
       module.GetFloatConstant("sdot", f.data(), Hobbit::Shape(1, 1, n_elts));
 
-  Hobbit::ElementWiseProduct prod(fconst);
-  Hobbit::SumReduction hsum(llvm::Type::getFloatTy(ctx));
+  Hobbit::ElementWiseProduct prod(fconst, 4);
+  Hobbit::SumReduction hsum(llvm::Type::getFloatTy(ctx), 4);
   Hobbit::Operation sdot_op("sdot_op");
   sdot_op.PushFunctor(prod);
   sdot_op.PushFunctor(hsum);
@@ -399,8 +399,8 @@ TEST(TestModule, CompileLargeSDOT) {
   Hobbit::Buffer *fconst =
       module.GetFloatConstant("sdot", f.data(), Hobbit::Shape(1, 1, n_elts));
 
-  Hobbit::ElementWiseProduct prod(fconst);
-  Hobbit::SumReduction hsum(llvm::Type::getFloatTy(ctx));
+  Hobbit::ElementWiseProduct prod(fconst, 4);
+  Hobbit::SumReduction hsum(llvm::Type::getFloatTy(ctx), 4);
   Hobbit::Operation sdot_op("sdot_op");
   sdot_op.PushFunctor(prod);
   sdot_op.PushFunctor(hsum);

@@ -36,7 +36,7 @@
 namespace Hobbit {
   class ElementWiseProduct : public Functor {
   public:
-    explicit ElementWiseProduct(Buffer *c) : c_(c) {}
+    explicit ElementWiseProduct(Buffer *c, const uint64_t &n_elements) : c_(c), n_elements_(n_elements) {}
 
     inline Buffer AllocOutput(llvm::BasicBlock *BB) override {
       return Buffer(BB, c_->GetType(), c_->GetShape());
@@ -66,10 +66,20 @@ namespace Hobbit {
       llvm::IRBuilder<> builder(BB);
 
       const Shape &shape = c_->GetShape();
-      internal::ElementWiseProduct prod_kernel;
 
-      for (uint64_t i = 0; i < shape.GetSize(); i++) {
+      uint64_t total_size = shape.GetSize();
+      uint64_t leftovers = total_size % n_elements_;
+      uint64_t chunked = total_size - leftovers;
+
+      internal::ElementWiseProduct prod_kernel (n_elements_);
+
+      for (uint64_t i = 0; i < chunked; i+=n_elements_) {
         prod_kernel.Emit(BB, {input, c_}, {output}, builder.getInt64(i));
+      }
+
+      if (leftovers > 0) {
+        internal::ElementWiseProduct prod_kernel_leftovers (leftovers);
+        prod_kernel_leftovers.Emit(BB, {input, c_}, {output}, builder.getInt64(chunked));
       }
     }
 
@@ -91,12 +101,18 @@ namespace Hobbit {
       llvm::BasicBlock *loopBB = f->AddBB("LargeEwiseProduct");
       llvm::BasicBlock *exitBB = f->AddBB("LargeEwiseExit");
 
-      internal::ElementWiseProduct prod_kernel;
+      uint64_t n_elements = 4;
+
+      internal::ElementWiseProduct prod_kernel (n_elements);
 
       llvm::IRBuilder<> builder(entryBB);
       builder.CreateBr(loopBB);
 
       const Shape &shape = c_->GetShape();
+
+      uint64_t total_size = shape.GetSize();
+      uint64_t leftovers = total_size % n_elements_;
+      uint64_t chunked = total_size - leftovers;
 
       builder.SetInsertPoint(loopBB);
       llvm::PHINode *var =
@@ -105,17 +121,22 @@ namespace Hobbit {
 
       prod_kernel.Emit(loopBB, {input, c_}, {output}, var);
 
-      llvm::Value *nextvar = builder.CreateAdd(var, builder.getInt64(1));
+      llvm::Value *nextvar = builder.CreateAdd(var, builder.getInt64(n_elements));
       llvm::Value *end_condition =
-          builder.CreateICmpEQ(nextvar, builder.getInt64(shape.GetSize()));
+          builder.CreateICmpEQ(nextvar, builder.getInt64(chunked));
       builder.CreateCondBr(end_condition, exitBB, loopBB);
       var->addIncoming(nextvar, loopBB);
 
       builder.SetInsertPoint(exitBB);
+      if (leftovers > 0) {
+        internal::ElementWiseProduct prod_kernel_leftovers (leftovers);
+        prod_kernel_leftovers.Emit(exitBB, {input, c_}, {output}, builder.getInt64(chunked));
+      }
     }
 
   private:
     Buffer *c_;
+    uint64_t n_elements_;
   };
 }
 

@@ -36,8 +36,8 @@
 namespace Hobbit {
   class SumReduction : public Functor {
   public:
-    explicit SumReduction(llvm::Type *output_type)
-        : output_type_(output_type) {}
+    explicit SumReduction(llvm::Type *output_type, const uint64_t &n_elements)
+        : output_type_(output_type), n_elements_(n_elements) {}
 
     inline Buffer AllocOutput(llvm::BasicBlock *BB) override {
       return Buffer(BB, output_type_, Shape(1, 1, 1));
@@ -58,13 +58,11 @@ namespace Hobbit {
       llvm::BasicBlock *BB = f->AddBB("SumReduction");
       llvm::IRBuilder<> builder(BB);
 
-      uint64_t n_elements = 8;
       uint64_t total_size = input->GetShape().GetSize();
-      uint64_t leftovers = total_size % n_elements;
+      uint64_t leftovers = total_size % n_elements_;
       uint64_t chunked = total_size - leftovers;
 
-      internal::SumReduction sum_reduce_kernel(n_elements);
-      internal::SumReduction sum_reduce_kernel_leftovers(leftovers);
+      internal::SumReduction sum_reduce_kernel(n_elements_);
 
       llvm::Value *input_value = input->GetValue();
       llvm::Value *output_value = output->GetValue();
@@ -73,12 +71,16 @@ namespace Hobbit {
           builder.CreateBitCast(builder.getInt64(0), output_type_),
           output_value);
 
-      for (uint64_t i = 0; i < chunked; i += n_elements) {
+      for (uint64_t i = 0; i < chunked; i += n_elements_) {
         sum_reduce_kernel.Emit(BB, {input}, {output}, builder.getInt64(i));
       }
 
-      sum_reduce_kernel_leftovers.Emit(BB, {input}, {output},
-                                       builder.getInt64(chunked));
+      if (leftovers > 0) {
+        internal::SumReduction sum_reduce_kernel_leftovers(leftovers);
+        sum_reduce_kernel_leftovers.Emit(BB, {input}, {output},
+                                         builder.getInt64(chunked));
+      }
+
     }
 
     void EmitPHI_(Function *f, Buffer *input, Buffer *output) {
@@ -91,13 +93,11 @@ namespace Hobbit {
       llvm::BasicBlock *loopBB = f->AddBB("LargeSumReduce");
       llvm::BasicBlock *exitBB = f->AddBB("LargeSumRedExit");
 
-      uint64_t n_elements = 8;
       uint64_t total_size = input->GetShape().GetSize();
-      uint64_t leftovers = total_size % n_elements;
+      uint64_t leftovers = total_size % n_elements_;
       uint64_t chunked = total_size - leftovers;
 
-      internal::SumReduction sum_reduce_kernel(n_elements);
-      internal::SumReduction sum_reduce_kernel_leftovers(leftovers);
+      internal::SumReduction sum_reduce_kernel(n_elements_);
 
       llvm::IRBuilder<> builder(entryBB);
       llvm::Value *output_value = output->GetValue();
@@ -114,7 +114,7 @@ namespace Hobbit {
       sum_reduce_kernel.Emit(loopBB, {input}, {output}, idx_var);
 
       llvm::Value *next_idx_var =
-          builder.CreateAdd(idx_var, builder.getInt64(n_elements));
+          builder.CreateAdd(idx_var, builder.getInt64(n_elements_));
       llvm::Value *end_condition =
           builder.CreateICmpEQ(next_idx_var, builder.getInt64(chunked));
 
@@ -122,12 +122,17 @@ namespace Hobbit {
       idx_var->addIncoming(next_idx_var, loopBB);
 
       builder.SetInsertPoint(exitBB);
-      sum_reduce_kernel_leftovers.Emit(exitBB, {input}, {output},
-                                       builder.getInt64(chunked));
+
+      if (leftovers > 0) {
+        internal::SumReduction sum_reduce_kernel_leftovers(leftovers);
+        sum_reduce_kernel_leftovers.Emit(exitBB, {input}, {output},
+                                         builder.getInt64(chunked));
+      }
     }
 
   private:
     llvm::Type *output_type_;
+    uint64_t n_elements_;
   };
 }
 

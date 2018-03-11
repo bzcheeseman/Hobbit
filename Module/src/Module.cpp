@@ -196,7 +196,6 @@ void Hobbit::Module::FinalizeFunction(const std::string &function_name,
       builder.CreateStore(builder.CreateLoad(return_value->GetValue()), output->GetValue());
     }
 
-    // TODO: make sure the copying works here
     llvm::Type *ptr_type = llvm::PointerType::get(return_value->GetType(), 0);
     llvm::Value *ptr, *size;
     ptr = llvm::Constant::getNullValue(ptr_type);

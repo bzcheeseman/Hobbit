@@ -22,68 +22,67 @@
 
 #include "Kernel.hpp"
 
+Hobbit::internal::ElementWiseProduct::ElementWiseProduct(const uint64_t &elts_per_call) : elts_per_call_(elts_per_call) {}
+
 void Hobbit::internal::ElementWiseProduct::Emit(
-    llvm::BasicBlock *BB, const llvm::ArrayRef<Buffer *> &inputs,
-    const llvm::ArrayRef<Buffer *> &outputs,
-    llvm::Value *idx) {
+        llvm::BasicBlock *BB, llvm::ArrayRef<Buffer *> inputs,
+        llvm::ArrayRef<Buffer *> outputs,
+        llvm::Value *idx) {
+
+  // TODO: Something about the NoConst tests breaks this (it worked before this change was made)
 
   llvm::IRBuilder<> builder(BB);
+
+  llvm::Type *type = outputs[0]->GetType();
+  llvm::Type *vec_type = llvm::VectorType::get(type, elts_per_call_);
 
   llvm::Value *output_gep = builder.CreateGEP(outputs[0]->GetValue(), idx);
 
-  llvm::Value *first_input_gep = builder.CreateGEP(inputs[0]->GetValue(), idx);
-  builder.CreateStore(builder.CreateLoad(first_input_gep),
-                      output_gep); // store the first item
+  llvm::Value *lhs_vec = builder.CreateAlignedLoad(builder.CreateBitCast(
+          builder.CreateGEP(inputs[0]->GetValue(), idx), vec_type->getPointerTo()), 8);
+  llvm::Value *rhs_vec = builder.CreateAlignedLoad(builder.CreateBitCast(
+          builder.CreateGEP(inputs[1]->GetValue(), idx), vec_type->getPointerTo()), 8);
 
+  llvm::Value *result;
   if (outputs[0]->GetType()->isIntegerTy()) {
-    for (uint64_t i = 1; i < inputs.size(); i++) {
-      llvm::Value *input_gep = builder.CreateGEP(inputs[i]->GetValue(), idx);
-      llvm::Value *loaded_input = builder.CreateAlignedLoad(input_gep, 4);
-
-      llvm::Value *loaded_output = builder.CreateAlignedLoad(output_gep, 4);
-
-      builder.CreateStore(builder.CreateMul(loaded_input, loaded_output),
-                          output_gep);
-    }
+    result = builder.CreateMul(lhs_vec, rhs_vec);
   } else if (outputs[0]->GetType()->isFloatingPointTy()) {
-    for (uint64_t i = 1; i < inputs.size(); i++) {
-      llvm::Value *input_gep = builder.CreateGEP(inputs[i]->GetValue(), idx);
-      llvm::Value *loaded_input = builder.CreateAlignedLoad(input_gep, 4);
-
-      llvm::Value *loaded_output = builder.CreateAlignedLoad(output_gep, 4);
-
-      builder.CreateStore(builder.CreateFMul(loaded_input, loaded_output),
-                          output_gep);
-    }
+    result = builder.CreateFMul(lhs_vec, rhs_vec);
   }
+
+  llvm::Value *result_ptr = builder.CreateBitCast(result, type);
+  builder.CreateStore(result_ptr, output_gep);
 }
 
 Hobbit::internal::SumReduction::SumReduction(const uint64_t &elts_per_call)
-    : elts_per_call_(elts_per_call), stride_(1) {}
+    : elts_per_call_(elts_per_call) {}
 
 void Hobbit::internal::SumReduction::Emit(
-    llvm::BasicBlock *BB, const llvm::ArrayRef<Buffer *> &inputs,
-    const llvm::ArrayRef<Buffer *> &outputs,
-    llvm::Value *idx) {
+        llvm::BasicBlock *BB, llvm::ArrayRef<Buffer *> inputs,
+        llvm::ArrayRef<Buffer *> outputs,
+        llvm::Value *idx) {
 
   llvm::IRBuilder<> builder(BB);
 
+  llvm::Value *input = inputs[0]->GetValue();
   llvm::Value *output = outputs[0]->GetValue();
+  llvm::Type *type = outputs[0]->GetType();
+  llvm::Type *vec_type = llvm::VectorType::get(type, elts_per_call_);
+
+  llvm::Value *input_gep = builder.CreateGEP(input, idx);
+
+  llvm::Value *loaded_vector = builder.CreateAlignedLoad(builder.CreateBitCast(input_gep, vec_type->getPointerTo()), 8);
+
   llvm::Value *sum = builder.CreateAlignedLoad(output, 4);
 
-  std::vector<llvm::Value *> loaded_inputs(elts_per_call_);
-
-  for (uint64_t i = 0; i < elts_per_call_; i++) {
-    llvm::Value *index = builder.CreateAdd(idx, builder.getInt64(i)); // idx = idx + i
-    loaded_inputs[i] = builder.CreateAlignedLoad(builder.CreateGEP(inputs[0]->GetValue(), index), 4);
+  if (type->isIntegerTy()) {
+    llvm::Value *vector_hsum = builder.CreateAddReduce(loaded_vector);
+    sum = builder.CreateAdd(vector_hsum, sum);
   }
-
-  for (auto &loaded_input : loaded_inputs) {
-    if (outputs[0]->GetType()->isIntegerTy()) {
-      sum = builder.CreateAdd(loaded_input, sum);
-    } else if (outputs[0]->GetType()->isFloatingPointTy()) {
-      sum = builder.CreateFAdd(loaded_input, sum);
-    }
+  else if (type->isFloatingPointTy()) {
+    llvm::CallInst *vector_hsum = builder.CreateFAddReduce(llvm::UndefValue::get(type), loaded_vector);
+    vector_hsum->setFast(true);
+    sum = builder.CreateFAdd(vector_hsum, sum);
   }
 
   builder.CreateAlignedStore(sum, output, 4);

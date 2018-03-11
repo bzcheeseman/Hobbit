@@ -31,29 +31,32 @@ namespace Hobbit {
     class Kernel {
     public:
       virtual void Emit(llvm::BasicBlock *BB,
-                        const llvm::ArrayRef<Buffer *> &inputs,
-                        const llvm::ArrayRef<Buffer *> &outputs,
+                        llvm::ArrayRef<Buffer *> inputs,
+                        llvm::ArrayRef<Buffer *> outputs,
                         llvm::Value *idx) = 0;
     };
 
     class ElementWiseProduct : public Kernel {
     public:
-      void Emit(llvm::BasicBlock *BB, const llvm::ArrayRef<Buffer *> &inputs,
-                const llvm::ArrayRef<Buffer *> &outputs,
+      explicit ElementWiseProduct(const uint64_t &elts_per_call);
+
+      void Emit(llvm::BasicBlock *BB, llvm::ArrayRef<Buffer *> inputs,
+                llvm::ArrayRef<Buffer *> outputs,
                 llvm::Value *idx) override;
+    private:
+      uint64_t elts_per_call_;
     };
 
     class SumReduction : public Kernel {
     public:
       explicit SumReduction(const uint64_t &elts_per_call);
 
-      void Emit(llvm::BasicBlock *BB, const llvm::ArrayRef<Buffer *> &inputs,
-                const llvm::ArrayRef<Buffer *> &outputs,
+      void Emit(llvm::BasicBlock *BB, llvm::ArrayRef<Buffer *> inputs,
+                llvm::ArrayRef<Buffer *> outputs,
                 llvm::Value *idx) override;
 
     private:
       uint64_t elts_per_call_;
-      uint64_t stride_;
     };
   }
 }
