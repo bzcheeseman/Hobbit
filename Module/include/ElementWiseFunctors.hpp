@@ -34,8 +34,7 @@
 #include "Kernel.hpp"
 
 namespace Hobbit {
-  class ElementWiseProduct
-      : public Functor { // TODO: emit kernels where we do just one iteration
+  class ElementWiseProduct : public Functor {
   public:
     explicit ElementWiseProduct(Buffer *c) : c_(c) {}
 
@@ -69,11 +68,8 @@ namespace Hobbit {
       const Shape &shape = c_->GetShape();
       internal::ElementWiseProduct prod_kernel;
 
-      std::vector<Buffer *> inputs = {input, c_};
-      std::vector<Buffer *> outputs = {output};
-
       for (uint64_t i = 0; i < shape.GetSize(); i++) {
-        prod_kernel.Emit(BB, inputs, outputs, builder.getInt64(i));
+        prod_kernel.Emit(BB, {input, c_}, {output}, builder.getInt64(i));
       }
     }
 
@@ -102,15 +98,12 @@ namespace Hobbit {
 
       const Shape &shape = c_->GetShape();
 
-      std::vector<Buffer *> inputs = {input, c_};
-      std::vector<Buffer *> outputs = {output};
-
       builder.SetInsertPoint(loopBB);
       llvm::PHINode *var =
           builder.CreatePHI(builder.getInt64Ty(), 2, "LargeEwiseProductIndex");
       var->addIncoming(builder.getInt64(0), entryBB);
 
-      prod_kernel.Emit(loopBB, inputs, outputs, var);
+      prod_kernel.Emit(loopBB, {input, c_}, {output}, var);
 
       llvm::Value *nextvar = builder.CreateAdd(var, builder.getInt64(1));
       llvm::Value *end_condition =

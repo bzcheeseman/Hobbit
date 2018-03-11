@@ -24,7 +24,8 @@
 
 void Hobbit::internal::ElementWiseProduct::Emit(
     llvm::BasicBlock *BB, const llvm::ArrayRef<Buffer *> &inputs,
-    const llvm::ArrayRef<Buffer *> &outputs, llvm::Value *idx) {
+    const llvm::ArrayRef<Buffer *> &outputs,
+    llvm::Value *idx) {
 
   llvm::IRBuilder<> builder(BB);
 
@@ -57,37 +58,33 @@ void Hobbit::internal::ElementWiseProduct::Emit(
   }
 }
 
+Hobbit::internal::SumReduction::SumReduction(const uint64_t &elts_per_call)
+    : elts_per_call_(elts_per_call), stride_(1) {}
+
 void Hobbit::internal::SumReduction::Emit(
     llvm::BasicBlock *BB, const llvm::ArrayRef<Buffer *> &inputs,
-    const llvm::ArrayRef<Buffer *> &outputs, llvm::Value *idx) { // Works inline but not in loop...
+    const llvm::ArrayRef<Buffer *> &outputs,
+    llvm::Value *idx) {
 
   llvm::IRBuilder<> builder(BB);
 
   llvm::Value *output = outputs[0]->GetValue();
+  llvm::Value *sum = builder.CreateAlignedLoad(output, 4);
 
-  llvm::Value *input_gep = builder.CreateGEP(inputs[0]->GetValue(), idx);
+  std::vector<llvm::Value *> loaded_inputs(elts_per_call_);
 
-  llvm::Value *sum;
-  if (outputs[0]->GetType()->isIntegerTy()) {
-    sum = builder.CreateAdd(
-            builder.CreateAlignedLoad(input_gep, 4),
-            builder.CreateAlignedLoad(output, 4)
-    );
-
+  for (uint64_t i = 0; i < elts_per_call_; i++) {
+    llvm::Value *index = builder.CreateAdd(idx, builder.getInt64(i)); // idx = idx + i
+    loaded_inputs[i] = builder.CreateAlignedLoad(builder.CreateGEP(inputs[0]->GetValue(), index), 4);
   }
-  else if (outputs[0]->GetType()->isFloatingPointTy()) {
-    sum = builder.CreateFAdd(
-            builder.CreateAlignedLoad(input_gep, 4),
-            builder.CreateAlignedLoad(output, 4)
-    );
+
+  for (auto &loaded_input : loaded_inputs) {
+    if (outputs[0]->GetType()->isIntegerTy()) {
+      sum = builder.CreateAdd(loaded_input, sum);
+    } else if (outputs[0]->GetType()->isFloatingPointTy()) {
+      sum = builder.CreateFAdd(loaded_input, sum);
+    }
   }
 
   builder.CreateAlignedStore(sum, output, 4);
-
-  // outputs is sdata in the nvidia example, eventually will return the first
-  // element
-  // One ring to rule them all
-  // One ring to find them
-  // One ring to bring them all and in the darkness bind them
-  // In the land of Morrrrdorrrrrr where the shadows lie
 }

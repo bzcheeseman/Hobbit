@@ -25,6 +25,7 @@
 Hobbit::Module::Module(const std::string &name, llvm::LLVMContext &ctx)
     : ctx_(&ctx), module_(llvm::make_unique<llvm::Module>(name, ctx)) {
   module_->setTargetTriple(llvm::sys::getDefaultTargetTriple());
+
   llvm::ArrayRef<llvm::Type *> malloc_arg_type = {
       llvm::Type::getInt64Ty(*ctx_)};
   llvm::FunctionType *malloc_ft = llvm::FunctionType::get(
@@ -143,14 +144,17 @@ Hobbit::Buffer *Hobbit::Module::GetVariable(const std::string &function_name,
 
 void Hobbit::Module::CreateFunction(const std::string &name,
                                     llvm::Type *return_type,
-                                    llvm::ArrayRef<llvm::Type *> args_types) {
+                                    llvm::ArrayRef<llvm::Type *> args_types, bool last_is_output) {
 
   if (function_table_.find(name) != function_table_.end())
     throw std::runtime_error("Function already exists in table!");
+  if (last_is_output && !return_type->isVoidTy())
+    throw std::runtime_error("Trying to return from function and pass output pointer!");
 
   Function func;
 
   func.ctx_ = ctx_;
+  func.last_is_output = last_is_output;
   llvm::FunctionType *function_type =
       llvm::FunctionType::get(return_type, args_types, false);
   func.llvm_function = llvm::cast<llvm::Function>(
@@ -176,18 +180,37 @@ Hobbit::Module::InsertOperation(const std::string &function_name,
                                 bool emit_inline) {
 
   op->Emit(&function_table_.at(function_name), input, emit_inline);
-
   return input;
 }
 
 void Hobbit::Module::FinalizeFunction(const std::string &function_name,
-                                      Hobbit::Buffer *return_value) {
+                                      Hobbit::Buffer *return_value, Buffer *output) {
   Function &f = function_table_.at(function_name);
 
   llvm::BasicBlock *exit_bb = f.AddBB("exit");
   llvm::IRBuilder<> builder(exit_bb);
 
-  if (!f.llvm_function->getReturnType()->isPointerTy()) {
+  if (f.last_is_output) {
+    if (output == nullptr) throw std::runtime_error("Nothing to store output in!");
+    if (return_value->GetShape().GetSize() == 1) {
+      builder.CreateStore(builder.CreateLoad(return_value->GetValue()), output->GetValue());
+    }
+
+    // TODO: make sure the copying works here
+    llvm::Type *ptr_type = llvm::PointerType::get(return_value->GetType(), 0);
+    llvm::Value *ptr, *size;
+    ptr = llvm::Constant::getNullValue(ptr_type);
+    size = builder.CreateGEP(ptr, builder.getInt64(1));
+    size = builder.CreatePtrToInt(size, llvm::Type::getInt64Ty(*ctx_));
+    llvm::Value *array_size = builder.CreateMul(
+            size, builder.getInt64(return_value->GetShape().GetSize()));
+
+    builder.CreateMemCpy(output->GetValue(), return_value->GetValue(), array_size, 4);
+    builder.CreateRetVoid();
+    return;
+  }
+
+  if (return_value->GetShape().GetSize() == 1) {
     builder.CreateRet(builder.CreateLoad(return_value->GetValue()));
     return;
   }
@@ -204,14 +227,7 @@ void Hobbit::Module::FinalizeFunction(const std::string &function_name,
   mallocd_array = builder.CreateBitCast(
       mallocd_array, llvm::PointerType::get(return_value->GetType(), 0));
 
-  uint64_t return_size = return_value->GetShape().GetSize();
-  for (uint64_t i = 0; i < return_size; i++) {
-    llvm::Value *mallocd_elt =
-        builder.CreateGEP(mallocd_array, builder.getInt64(i));
-    llvm::Value *buffer_elt = builder.CreateLoad(
-        builder.CreateGEP(return_value->GetValue(), builder.getInt64(i)));
-    builder.CreateStore(buffer_elt, mallocd_elt);
-  }
+  builder.CreateMemCpy(mallocd_array, return_value->GetValue(), array_size, 4);
 
   builder.CreateRet(mallocd_array);
 }

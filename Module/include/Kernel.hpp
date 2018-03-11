@@ -45,9 +45,15 @@ namespace Hobbit {
 
     class SumReduction : public Kernel {
     public:
+      explicit SumReduction(const uint64_t &elts_per_call);
+
       void Emit(llvm::BasicBlock *BB, const llvm::ArrayRef<Buffer *> &inputs,
                 const llvm::ArrayRef<Buffer *> &outputs,
                 llvm::Value *idx) override;
+
+    private:
+      uint64_t elts_per_call_;
+      uint64_t stride_;
     };
   }
 }

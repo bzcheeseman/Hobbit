@@ -57,21 +57,28 @@ namespace Hobbit {
 
       llvm::BasicBlock *BB = f->AddBB("SumReduction");
       llvm::IRBuilder<> builder(BB);
-      internal::SumReduction sum_reduce_kernel;
+
+      uint64_t n_elements = 8;
+      uint64_t total_size = input->GetShape().GetSize();
+      uint64_t leftovers = total_size % n_elements;
+      uint64_t chunked = total_size - leftovers;
+
+      internal::SumReduction sum_reduce_kernel(n_elements);
+      internal::SumReduction sum_reduce_kernel_leftovers(leftovers);
 
       llvm::Value *input_value = input->GetValue();
       llvm::Value *output_value = output->GetValue();
-
-      std::vector<Buffer *> inputs = {input};
-      std::vector<Buffer *> outputs = {output};
 
       builder.CreateStore(
           builder.CreateBitCast(builder.getInt64(0), output_type_),
           output_value);
 
-      for (uint64_t i = 0; i < input->GetShape().GetSize(); i++) {
-        sum_reduce_kernel.Emit(BB, inputs, outputs, builder.getInt64(i));
+      for (uint64_t i = 0; i < chunked; i += n_elements) {
+        sum_reduce_kernel.Emit(BB, {input}, {output}, builder.getInt64(i));
       }
+
+      sum_reduce_kernel_leftovers.Emit(BB, {input}, {output},
+                                       builder.getInt64(chunked));
     }
 
     void EmitPHI_(Function *f, Buffer *input, Buffer *output) {
@@ -84,32 +91,39 @@ namespace Hobbit {
       llvm::BasicBlock *loopBB = f->AddBB("LargeSumReduce");
       llvm::BasicBlock *exitBB = f->AddBB("LargeSumRedExit");
 
-      internal::SumReduction sum_reduce_kernel;
+      uint64_t n_elements = 8;
+      uint64_t total_size = input->GetShape().GetSize();
+      uint64_t leftovers = total_size % n_elements;
+      uint64_t chunked = total_size - leftovers;
+
+      internal::SumReduction sum_reduce_kernel(n_elements);
+      internal::SumReduction sum_reduce_kernel_leftovers(leftovers);
 
       llvm::IRBuilder<> builder(entryBB);
       llvm::Value *output_value = output->GetValue();
-      builder.CreateAlignedStore(builder.CreateBitCast(builder.getInt64(0), output_type_), output_value, 4);
+      builder.CreateAlignedStore(
+          builder.CreateBitCast(builder.getInt64(0), output_type_),
+          output_value, 4);
       builder.CreateBr(loopBB);
-
-      std::vector<Buffer *> inputs = {input};
-      std::vector<Buffer *> outputs = {output};
 
       builder.SetInsertPoint(loopBB);
       llvm::PHINode *idx_var =
           builder.CreatePHI(builder.getInt64Ty(), 2, "LargeSumRedIndex");
       idx_var->addIncoming(builder.getInt64(0), entryBB);
 
-      sum_reduce_kernel.Emit(loopBB, inputs, outputs, idx_var);
+      sum_reduce_kernel.Emit(loopBB, {input}, {output}, idx_var);
 
       llvm::Value *next_idx_var =
-          builder.CreateAdd(idx_var, builder.getInt64(1));
-      llvm::Value *end_condition = builder.CreateICmpEQ(
-          next_idx_var, builder.getInt64(input->GetShape().GetSize()));
+          builder.CreateAdd(idx_var, builder.getInt64(n_elements));
+      llvm::Value *end_condition =
+          builder.CreateICmpEQ(next_idx_var, builder.getInt64(chunked));
 
       builder.CreateCondBr(end_condition, exitBB, loopBB);
       idx_var->addIncoming(next_idx_var, loopBB);
 
       builder.SetInsertPoint(exitBB);
+      sum_reduce_kernel_leftovers.Emit(exitBB, {input}, {output},
+                                       builder.getInt64(chunked));
     }
 
   private:

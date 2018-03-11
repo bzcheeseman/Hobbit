@@ -153,7 +153,7 @@ TEST(TestModule, PerformSDOT) {
 
   module.FinalizeModule(3);
 
-//  module.PrintModule(llvm::outs());
+  //  module.PrintModule(llvm::outs());
   module.PrepareJIT();
 
   float (*prod_fn)(float *) = (float (*)(float *))module.GetFunctionPtr("sdot");
@@ -206,7 +206,7 @@ TEST(TestModule, PerformLargeSDOT) {
 
   module.FinalizeModule(3);
 
-//  module.PrintModule(llvm::outs());
+  //  module.PrintModule(llvm::outs());
   module.PrepareJIT();
 
   float (*prod_fn)(float *) = (float (*)(float *))module.GetFunctionPtr("sdot");
@@ -259,7 +259,7 @@ TEST(TestModule, PerformNoConstSDOT) {
 
   module.FinalizeModule(3);
 
-  module.PrintModule(llvm::outs());
+  //  module.PrintModule(llvm::outs());
   module.PrepareJIT();
 
   float (*prod_fn)(float *, float *) =
@@ -276,6 +276,63 @@ TEST(TestModule, PerformNoConstSDOT) {
   EXPECT_FLOAT_EQ(float_result,
                   (float)(n_elts - 1) / 3.f * ((float)(n_elts - 1) + 1.f) *
                       ((float)(n_elts - 1) + 0.5f));
+}
+
+TEST(TestModule, PerformNoConstProd) {
+
+  llvm::LLVMContext ctx;
+  Hobbit::Module module("test_module", ctx);
+
+  uint64_t num_elements = 10000;
+
+  std::vector<llvm::Type *> args = {
+          llvm::Type::getFloatPtrTy(ctx), // input1
+          llvm::Type::getFloatPtrTy(ctx), // input2
+          llvm::Type::getFloatPtrTy(ctx)  // output
+  };
+  module.CreateFunction("prod", llvm::Type::getVoidTy(ctx), args, true); // last_is_output
+  Hobbit::Buffer *input_buffer =
+          module.GetBufferFromInputs("prod", 0, Hobbit::Shape(1, 1, num_elements));
+  Hobbit::Buffer *input_buffer2 =
+          module.GetBufferFromInputs("prod", 1, Hobbit::Shape(1, 1, num_elements));
+  Hobbit::Buffer *output =
+          module.GetBufferFromInputs("prod", 2, Hobbit::Shape(1, 1, num_elements));
+
+  std::vector<float> f;
+  for (int i = 0; i < num_elements; i++) {
+    f.push_back(i);
+  }
+
+  Hobbit::ElementWiseProduct prod(input_buffer2);
+  Hobbit::Operation prod_op("prod_op");
+  prod_op.PushFunctor(prod);
+
+  Hobbit::Buffer *result =
+          module.InsertOperation("prod", &prod_op, input_buffer, false);
+
+  module.FinalizeFunction("prod", result, output);
+
+  module.FinalizeModule(3);
+
+//  module.PrintModule(llvm::outs());
+  module.PrepareJIT();
+
+  void (*prod_fn)(float *, float *, float *) =
+  (void (*)(float *, float *, float *))module.GetFunctionPtr("prod");
+
+  float *float_result = (float *)calloc(num_elements, sizeof(float));
+
+  auto start = std::chrono::high_resolution_clock::now();
+  prod_fn(f.data(), f.data(), float_result);
+  auto finish = std::chrono::high_resolution_clock::now();
+
+  std::chrono::duration<double> elapsed = finish - start;
+  std::cout << "Elapsed time: " << elapsed.count() << " s for " << num_elements
+            << " elements" << std::endl;
+
+  for (int i = 0; i < num_elements; i++) {
+    EXPECT_FLOAT_EQ(float_result[i], (float)i * i);
+  }
 }
 
 TEST(TestModule, CompileSDOT) {

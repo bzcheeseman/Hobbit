@@ -32,6 +32,7 @@ namespace Hobbit {
     llvm::Function *llvm_function = nullptr;
     llvm::BasicBlock *entry_block = nullptr;
     std::vector<llvm::BasicBlock *> bb;
+    bool last_is_output;
 
     llvm::BasicBlock *AddBB(const std::string &name = "") {
       bb.push_back(llvm::BasicBlock::Create(*ctx_, name, llvm_function));
