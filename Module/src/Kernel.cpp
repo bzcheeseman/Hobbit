@@ -39,9 +39,9 @@ void Hobbit::internal::ElementWiseProduct::Emit(
   );
 
   llvm::Value *lhs_vec = builder.CreateAlignedLoad(builder.CreateBitCast(
-          builder.CreateGEP(inputs[0]->GetValue(), idx), vec_type->getPointerTo()), 8);
+          builder.CreateGEP(inputs[0]->GetValue(), idx), vec_type->getPointerTo()), 32);
   llvm::Value *rhs_vec = builder.CreateAlignedLoad(builder.CreateBitCast(
-          builder.CreateGEP(inputs[1]->GetValue(), idx), vec_type->getPointerTo()), 8);
+          builder.CreateGEP(inputs[1]->GetValue(), idx), vec_type->getPointerTo()), 32);
 
   llvm::Value *result;
   if (outputs[0]->GetType()->isIntegerTy()) {

@@ -20,11 +20,25 @@
     limitations under the License.
  */
 
+#include <random>
+
 #include <gtest/gtest.h>
 
 #include <ElementWiseFunctors.hpp>
 #include <Module.hpp>
 #include <ReductionFunctors.hpp>
+
+template<size_t N>
+float ref_sdot(float *lhs, float *rhs) {
+  float sum1 = 0, sum2 = 0, sum3 = 0, sum4 = 0;
+  for (size_t i = 0; i < N; i+=4) {
+    sum1 += lhs[i] * rhs[i];
+    sum2 += lhs[i+1] * rhs[i+1];
+    sum2 += lhs[i+2] * rhs[i+2];
+    sum2 += lhs[i+3] * rhs[i+3];
+  }
+  return sum1+sum2+sum3+sum4;
+}
 
 TEST(TestModule, Init) {
   llvm::LLVMContext ctx;
@@ -123,7 +137,7 @@ TEST(TestModule, PerformSDOT) {
   llvm::LLVMContext ctx;
   Hobbit::Module module("test_module", ctx);
 
-  int n_elts = 100;
+  const int n_elts = 100;
 
   std::vector<llvm::Type *> args = {
       llvm::Type::getFloatPtrTy(ctx) // input
@@ -132,13 +146,18 @@ TEST(TestModule, PerformSDOT) {
   Hobbit::Buffer *input_buffer =
       module.GetBufferFromInputs("sdot", 0, Hobbit::Shape(1, 1, n_elts));
 
-  std::vector<float> f;
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_real_distribution<float> dis(0.0, 1.0);
+
+  std::vector<float> f1, f2;
   for (int i = 0; i < n_elts; i++) {
-    f.push_back(i);
+    f1.push_back(dis(gen));
+    f2.push_back(dis(gen));
   }
 
   Hobbit::Buffer *fconst =
-      module.GetFloatConstant("sdot", f.data(), Hobbit::Shape(1, 1, n_elts));
+      module.GetFloatConstant("sdot", f2.data(), Hobbit::Shape(1, 1, n_elts));
 
   Hobbit::ElementWiseProduct prod(fconst, 4);
   Hobbit::SumReduction hsum(llvm::Type::getFloatTy(ctx), 4);
@@ -159,16 +178,14 @@ TEST(TestModule, PerformSDOT) {
   float (*prod_fn)(float *) = (float (*)(float *))module.GetFunctionPtr("sdot");
 
   auto start = std::chrono::high_resolution_clock::now();
-  float float_result = prod_fn(f.data());
+  float float_result = prod_fn(f1.data());
   auto finish = std::chrono::high_resolution_clock::now();
 
   std::chrono::duration<double> elapsed = finish - start;
   std::cout << "Elapsed time: " << elapsed.count() << " s for " << n_elts
             << " elements" << std::endl;
 
-  EXPECT_FLOAT_EQ(float_result,
-                  (float)(n_elts - 1) / 3.f * ((float)(n_elts - 1) + 1.f) *
-                      ((float)(n_elts - 1) + 0.5f));
+  EXPECT_FLOAT_EQ(float_result, ref_sdot<n_elts>(f1.data(), f2.data()));
 }
 
 TEST(TestModule, PerformLargeSDOT) {
@@ -176,7 +193,7 @@ TEST(TestModule, PerformLargeSDOT) {
   llvm::LLVMContext ctx;
   Hobbit::Module module("test_module", ctx);
 
-  int n_elts = 100;
+  const int n_elts = 100;
 
   std::vector<llvm::Type *> args = {
       llvm::Type::getFloatPtrTy(ctx) // input
@@ -185,13 +202,18 @@ TEST(TestModule, PerformLargeSDOT) {
   Hobbit::Buffer *input_buffer =
       module.GetBufferFromInputs("sdot", 0, Hobbit::Shape(1, 1, n_elts));
 
-  std::vector<float> f;
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_real_distribution<float> dis(0.0, 1.0);
+
+  std::vector<float> f1, f2;
   for (int i = 0; i < n_elts; i++) {
-    f.push_back(i);
+    f1.push_back(dis(gen));
+    f2.push_back(dis(gen));
   }
 
   Hobbit::Buffer *fconst =
-      module.GetFloatConstant("sdot", f.data(), Hobbit::Shape(1, 1, n_elts));
+      module.GetFloatConstant("sdot", f2.data(), Hobbit::Shape(1, 1, n_elts));
 
   Hobbit::ElementWiseProduct prod(fconst, 4);
   Hobbit::SumReduction hsum(llvm::Type::getFloatTy(ctx), 4);
@@ -212,16 +234,14 @@ TEST(TestModule, PerformLargeSDOT) {
   float (*prod_fn)(float *) = (float (*)(float *))module.GetFunctionPtr("sdot");
 
   auto start = std::chrono::high_resolution_clock::now();
-  float float_result = prod_fn(f.data());
+  float float_result = prod_fn(f1.data());
   auto finish = std::chrono::high_resolution_clock::now();
 
   std::chrono::duration<double> elapsed = finish - start;
   std::cout << "Elapsed time: " << elapsed.count() << " s for " << n_elts
             << " elements" << std::endl;
 
-  EXPECT_FLOAT_EQ(float_result,
-                  (float)(n_elts - 1) / 3.f * ((float)(n_elts - 1) + 1.f) *
-                      ((float)(n_elts - 1) + 0.5f));
+  EXPECT_FLOAT_EQ(float_result, ref_sdot<n_elts>(f1.data(), f2.data()));
 }
 
 TEST(TestModule, PerformNoConstSDOT) {
@@ -229,7 +249,7 @@ TEST(TestModule, PerformNoConstSDOT) {
   llvm::LLVMContext ctx;
   Hobbit::Module module("test_module", ctx);
 
-  int n_elts = 10000;
+  const int n_elts = 10000;
 
   std::vector<llvm::Type *> args = {
       llvm::Type::getFloatPtrTy(ctx), // input vec 1
@@ -241,15 +261,19 @@ TEST(TestModule, PerformNoConstSDOT) {
   Hobbit::Buffer *vec2 =
       module.GetBufferFromInputs("sdot", 1, Hobbit::Shape(1, 1, n_elts));
 
-  float *f;
-  posix_memalign((void**)&f, 32, n_elts*sizeof(float));
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_real_distribution<float> dis(0.0, 1.0);
+
+  std::vector<float> f1, f2;
   for (int i = 0; i < n_elts; i++) {
-    f[i] = i;
+    f1.push_back(dis(gen));
+    f2.push_back(dis(gen));
   }
 
   Hobbit::ElementWiseProduct prod(vec2, 4);
   Hobbit::SumReduction hsum(llvm::Type::getFloatTy(ctx), 4);
-  Hobbit::Operation sdot_op("sdot_op");
+  Hobbit::Operation sdot_op("sdot_op"); // TODO: now how to run both in one loop...?
   sdot_op.PushFunctor(prod);
   sdot_op.PushFunctor(hsum);
 
@@ -260,23 +284,21 @@ TEST(TestModule, PerformNoConstSDOT) {
 
   module.FinalizeModule(3);
 
-  //module.PrintModule(llvm::outs());
+  module.PrintModule(llvm::outs());
   module.PrepareJIT();
 
   float (*prod_fn)(float *, float *) =
       (float (*)(float *, float *))module.GetFunctionPtr("sdot");
 
   auto start = std::chrono::high_resolution_clock::now();
-  float float_result = prod_fn(f, f);
+  float float_result = prod_fn(f1.data(), f2.data());
   auto finish = std::chrono::high_resolution_clock::now();
 
   std::chrono::duration<double> elapsed = finish - start;
   std::cout << "Elapsed time: " << elapsed.count() << " s for " << n_elts
             << " elements" << std::endl;
 
-  EXPECT_FLOAT_EQ(float_result,
-                  (float)(n_elts - 1) / 3.f * ((float)(n_elts - 1) + 1.f) *
-                      ((float)(n_elts - 1) + 0.5f));
+  EXPECT_FLOAT_EQ(float_result, ref_sdot<n_elts>(f1.data(), f2.data()));
 }
 
 TEST(TestModule, PerformNoConstProd) {

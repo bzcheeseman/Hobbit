@@ -233,6 +233,12 @@ void Hobbit::Module::FinalizeFunction(const std::string &function_name,
 
 void Hobbit::Module::FinalizeModule(unsigned opt_level) {
 
+  llvm::InitializeAllTargetInfos();
+  llvm::InitializeAllTargets();
+  llvm::InitializeAllTargetMCs();
+  llvm::InitializeAllAsmPrinters();
+  llvm::InitializeAllAsmParsers();
+
   llvm::IRBuilder<> builder(*ctx_);
 
   for (auto &f : function_table_) {
@@ -247,7 +253,22 @@ void Hobbit::Module::FinalizeModule(unsigned opt_level) {
     llvm::verifyFunction(*f.second.llvm_function);
   }
 
-  llvm::verifyModule(*module_);
+  auto TargetTriple = llvm::sys::getDefaultTargetTriple();
+  module_->setTargetTriple(TargetTriple);
+
+  std::string Error;
+  auto target = llvm::TargetRegistry::lookupTarget(TargetTriple, Error);
+
+  llvm::TargetOptions options;
+  auto RM = llvm::Optional<llvm::Reloc::Model>();
+
+  // TODO: decide how to do target decisions
+  auto CPU = "corei7-avx";
+  auto features = "";
+  llvm::TargetMachine *target_machine = target->createTargetMachine(TargetTriple, CPU, features, options, RM);
+
+  module_->setDataLayout(target_machine->createDataLayout());
+  module_->setTargetTriple(TargetTriple);
 
   llvm::legacy::PassManager PM;
   llvm::PassManagerBuilder PMBuilder;
@@ -256,8 +277,12 @@ void Hobbit::Module::FinalizeModule(unsigned opt_level) {
   PMBuilder.MergeFunctions = true;
 
   PMBuilder.populateModulePassManager(llvm::cast<llvm::PassManagerBase>(PM));
+  target_machine->adjustPassManager(PMBuilder);
 
   PM.run(*module_);
+
+
+  llvm::verifyModule(*module_);
 }
 
 Hobbit::Buffer *
@@ -283,12 +308,6 @@ Hobbit::Module::GetBufferFromInputs(const std::string &function_name,
 
 void Hobbit::Module::PrepareJIT() {
   std::string error_str;
-
-  llvm::InitializeAllTargets();
-  llvm::InitializeAllTargetMCs();
-  llvm::InitializeAllAsmPrinters();
-  llvm::InitializeAllAsmParsers();
-  llvm::InitializeNativeTarget();
 
   llvm::EngineBuilder engineBuilder(std::move(module_));
   engineBuilder.setErrorStr(&error_str);
