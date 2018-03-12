@@ -8,6 +8,14 @@ run optimizations and compilation against those.
 This project is very much a work in progress, and since everything I know about LLVM comes from reading the docs and 
 seeing what produces (in my mind) correct IR through trial and error, I welcome feedback and PRs.
 
+Requires:
+```
+llvm >= 6.0
+```
+
+On macOS simply run `brew install llvm`
+
+
 TODO
 ----
 - Use dot basis to build up gemm/conv

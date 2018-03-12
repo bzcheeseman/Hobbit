@@ -29,14 +29,14 @@ void Hobbit::internal::ElementWiseProduct::Emit(
         llvm::ArrayRef<Buffer *> outputs,
         llvm::Value *idx) {
 
-  // TODO: Something about the NoConst tests breaks this (it worked before this change was made)
-
   llvm::IRBuilder<> builder(BB);
 
   llvm::Type *type = outputs[0]->GetType();
   llvm::Type *vec_type = llvm::VectorType::get(type, elts_per_call_);
 
-  llvm::Value *output_gep = builder.CreateGEP(outputs[0]->GetValue(), idx);
+  llvm::Value *output_gep = builder.CreateBitCast(builder.CreateGEP(
+          outputs[0]->GetValue(), idx), vec_type->getPointerTo()
+  );
 
   llvm::Value *lhs_vec = builder.CreateAlignedLoad(builder.CreateBitCast(
           builder.CreateGEP(inputs[0]->GetValue(), idx), vec_type->getPointerTo()), 8);
@@ -50,8 +50,7 @@ void Hobbit::internal::ElementWiseProduct::Emit(
     result = builder.CreateFMul(lhs_vec, rhs_vec);
   }
 
-  llvm::Value *result_ptr = builder.CreateBitCast(result, type);
-  builder.CreateStore(result_ptr, output_gep);
+  builder.CreateAlignedStore(result, output_gep, 8);
 }
 
 Hobbit::internal::SumReduction::SumReduction(const uint64_t &elts_per_call)
