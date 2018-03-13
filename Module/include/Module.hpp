@@ -27,8 +27,8 @@
 #include <llvm/IR/Module.h>
 #include <llvm/Support/raw_ostream.h>
 
-#include <llvm/IR/Verifier.h>
 #include <llvm/IR/Intrinsics.h>
+#include <llvm/IR/Verifier.h>
 
 #include <llvm/Bitcode/BitcodeWriter.h>
 #include <llvm/ExecutionEngine/ExecutionEngine.h>
@@ -57,7 +57,8 @@ namespace Hobbit {
     // TODO: Do I want to make the functions return void? that way only the host
     // calls malloc...
     void CreateFunction(const std::string &name, llvm::Type *return_type,
-                        llvm::ArrayRef<llvm::Type *> args_types, bool last_is_output=false);
+                        llvm::ArrayRef<llvm::Type *> args_types,
+                        bool last_is_output = false);
 
     Buffer *GetBufferFromInputs(const std::string &function_name,
                                 const uint32_t &ptr_idx, const Shape &shape);
@@ -81,7 +82,7 @@ namespace Hobbit {
     void PrintModule(llvm::raw_fd_ostream &out_stream);
 
     void FinalizeFunction(const std::string &function_name,
-                          Buffer *return_value, Buffer *output=nullptr);
+                          Buffer *return_value, Buffer *output = nullptr);
 
     void FinalizeModule(unsigned opt_level);
 

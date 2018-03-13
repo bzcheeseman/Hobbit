@@ -32,14 +32,17 @@
 #include "Functor.hpp"
 
 namespace Hobbit {
-  class Operation {
+  class Operation { // TODO: operations are composed of Kernels now, can reorder
+                    // kernels that are not reductions
   public:
     explicit Operation(const std::string &name = "");
     explicit Operation(const std::initializer_list<Functor *> &f,
-              const std::string &name = "");
-    explicit Operation(const std::list<Functor *> &f, const std::string &name = "");
+                       const std::string &name = "");
+    explicit Operation(const std::list<Functor *> &f,
+                       const std::string &name = "");
 
     void PushFunctor(Functor &f);
+    void PushKernel(internal::Kernel *kernel);
     void Emit(Function *f, Buffer *input, bool emit_inline);
 
     const std::string &GetName();

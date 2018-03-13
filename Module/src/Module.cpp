@@ -144,12 +144,14 @@ Hobbit::Buffer *Hobbit::Module::GetVariable(const std::string &function_name,
 
 void Hobbit::Module::CreateFunction(const std::string &name,
                                     llvm::Type *return_type,
-                                    llvm::ArrayRef<llvm::Type *> args_types, bool last_is_output) {
+                                    llvm::ArrayRef<llvm::Type *> args_types,
+                                    bool last_is_output) {
 
   if (function_table_.find(name) != function_table_.end())
     throw std::runtime_error("Function already exists in table!");
   if (last_is_output && !return_type->isVoidTy())
-    throw std::runtime_error("Trying to return from function and pass output pointer!");
+    throw std::runtime_error(
+        "Trying to return from function and pass output pointer!");
 
   Function func;
 
@@ -184,16 +186,19 @@ Hobbit::Module::InsertOperation(const std::string &function_name,
 }
 
 void Hobbit::Module::FinalizeFunction(const std::string &function_name,
-                                      Hobbit::Buffer *return_value, Buffer *output) {
+                                      Hobbit::Buffer *return_value,
+                                      Buffer *output) {
   Function &f = function_table_.at(function_name);
 
   llvm::BasicBlock *exit_bb = f.AddBB("exit");
   llvm::IRBuilder<> builder(exit_bb);
 
   if (f.last_is_output) {
-    if (output == nullptr) throw std::runtime_error("Nothing to store output in!");
+    if (output == nullptr)
+      throw std::runtime_error("Nothing to store output in!");
     if (return_value->GetShape().GetSize() == 1) {
-      builder.CreateStore(builder.CreateLoad(return_value->GetValue()), output->GetValue());
+      builder.CreateStore(builder.CreateLoad(return_value->GetValue()),
+                          output->GetValue());
     }
 
     llvm::Type *ptr_type = llvm::PointerType::get(return_value->GetType(), 0);
@@ -202,9 +207,10 @@ void Hobbit::Module::FinalizeFunction(const std::string &function_name,
     size = builder.CreateGEP(ptr, builder.getInt64(1));
     size = builder.CreatePtrToInt(size, llvm::Type::getInt64Ty(*ctx_));
     llvm::Value *array_size = builder.CreateMul(
-            size, builder.getInt64(return_value->GetShape().GetSize()));
+        size, builder.getInt64(return_value->GetShape().GetSize()));
 
-    builder.CreateMemCpy(output->GetValue(), return_value->GetValue(), array_size, 4);
+    builder.CreateMemCpy(output->GetValue(), return_value->GetValue(),
+                         array_size, 4);
     builder.CreateRetVoid();
     return;
   }
@@ -265,7 +271,8 @@ void Hobbit::Module::FinalizeModule(unsigned opt_level) {
   // TODO: decide how to do target decisions
   auto CPU = "corei7-avx";
   auto features = "";
-  llvm::TargetMachine *target_machine = target->createTargetMachine(TargetTriple, CPU, features, options, RM);
+  llvm::TargetMachine *target_machine =
+      target->createTargetMachine(TargetTriple, CPU, features, options, RM);
 
   module_->setDataLayout(target_machine->createDataLayout());
   module_->setTargetTriple(TargetTriple);
@@ -280,7 +287,6 @@ void Hobbit::Module::FinalizeModule(unsigned opt_level) {
   target_machine->adjustPassManager(PMBuilder);
 
   PM.run(*module_);
-
 
   llvm::verifyModule(*module_);
 }

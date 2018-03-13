@@ -1,5 +1,5 @@
 //
-// Created by Aman LaChapelle on 3/7/18.
+// Created by Aman LaChapelle on 3/13/18.
 //
 // Hobbit
 // Copyright (c) 2018 Aman LaChapelle
@@ -20,22 +20,9 @@
     limitations under the License.
  */
 
-#ifndef HOBBIT_FUNCTION_HPP
-#define HOBBIT_FUNCTION_HPP
+#include <Function.hpp>
 
-#include <llvm/IR/LLVMContext.h>
-#include <llvm/IR/Module.h>
-
-namespace Hobbit {
-  struct Function {
-    llvm::LLVMContext *ctx_;
-    llvm::Function *llvm_function = nullptr;
-    llvm::BasicBlock *entry_block = nullptr;
-    std::vector<llvm::BasicBlock *> bb;
-    bool last_is_output;
-
-    llvm::BasicBlock *AddBB(const std::string &name = "");
-  };
+llvm::BasicBlock *Hobbit::Function::AddBB(const std::string &name) {
+  bb.push_back(llvm::BasicBlock::Create(*ctx_, name, llvm_function));
+  return *(bb.end() - 1); // return BB just created
 }
-
-#endif // HOBBIT_FUNCTION_HPP

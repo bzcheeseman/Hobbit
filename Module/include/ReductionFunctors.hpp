@@ -80,7 +80,6 @@ namespace Hobbit {
         sum_reduce_kernel_leftovers.Emit(BB, {input}, {output},
                                          builder.getInt64(chunked));
       }
-
     }
 
     void EmitPHI_(Function *f, Buffer *input, Buffer *output) {

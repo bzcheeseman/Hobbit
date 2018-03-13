@@ -36,7 +36,8 @@
 namespace Hobbit {
   class ElementWiseProduct : public Functor {
   public:
-    explicit ElementWiseProduct(Buffer *c, const uint64_t &n_elements) : c_(c), n_elements_(n_elements) {}
+    explicit ElementWiseProduct(Buffer *c, const uint64_t &n_elements)
+        : c_(c), n_elements_(n_elements) {}
 
     inline Buffer AllocOutput(llvm::BasicBlock *BB) override {
       return Buffer(BB, c_->GetType(), c_->GetShape());
@@ -71,15 +72,16 @@ namespace Hobbit {
       uint64_t leftovers = total_size % n_elements_;
       uint64_t chunked = total_size - leftovers;
 
-      internal::ElementWiseProduct prod_kernel (n_elements_);
+      internal::ElementWiseProduct prod_kernel(n_elements_);
 
-      for (uint64_t i = 0; i < chunked; i+=n_elements_) {
+      for (uint64_t i = 0; i < chunked; i += n_elements_) {
         prod_kernel.Emit(BB, {input, c_}, {output}, builder.getInt64(i));
       }
 
       if (leftovers > 0) {
-        internal::ElementWiseProduct prod_kernel_leftovers (leftovers);
-        prod_kernel_leftovers.Emit(BB, {input, c_}, {output}, builder.getInt64(chunked));
+        internal::ElementWiseProduct prod_kernel_leftovers(leftovers);
+        prod_kernel_leftovers.Emit(BB, {input, c_}, {output},
+                                   builder.getInt64(chunked));
       }
     }
 
@@ -103,7 +105,7 @@ namespace Hobbit {
 
       uint64_t n_elements = 4;
 
-      internal::ElementWiseProduct prod_kernel (n_elements);
+      internal::ElementWiseProduct prod_kernel(n_elements);
 
       llvm::IRBuilder<> builder(entryBB);
       builder.CreateBr(loopBB);
@@ -121,7 +123,8 @@ namespace Hobbit {
 
       prod_kernel.Emit(loopBB, {input, c_}, {output}, var);
 
-      llvm::Value *nextvar = builder.CreateAdd(var, builder.getInt64(n_elements));
+      llvm::Value *nextvar =
+          builder.CreateAdd(var, builder.getInt64(n_elements));
       llvm::Value *end_condition =
           builder.CreateICmpEQ(nextvar, builder.getInt64(chunked));
       builder.CreateCondBr(end_condition, exitBB, loopBB);
@@ -129,8 +132,9 @@ namespace Hobbit {
 
       builder.SetInsertPoint(exitBB);
       if (leftovers > 0) {
-        internal::ElementWiseProduct prod_kernel_leftovers (leftovers);
-        prod_kernel_leftovers.Emit(exitBB, {input, c_}, {output}, builder.getInt64(chunked));
+        internal::ElementWiseProduct prod_kernel_leftovers(leftovers);
+        prod_kernel_leftovers.Emit(exitBB, {input, c_}, {output},
+                                   builder.getInt64(chunked));
       }
     }
 

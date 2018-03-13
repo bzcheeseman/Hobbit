@@ -23,27 +23,35 @@
 #ifndef HOBBIT_KERNEL_HPP
 #define HOBBIT_KERNEL_HPP
 
-#include "Function.hpp"
 #include <Buffer.hpp>
 
 namespace Hobbit {
   namespace internal {
     class Kernel {
     public:
-      virtual void Emit(llvm::BasicBlock *BB,
-                        llvm::ArrayRef<Buffer *> inputs,
-                        llvm::ArrayRef<Buffer *> outputs,
-                        llvm::Value *idx) = 0;
+      virtual void Emit(llvm::BasicBlock *BB, llvm::ArrayRef<Buffer *> inputs,
+                        llvm::ArrayRef<Buffer *> outputs, llvm::Value *idx) = 0;
+
+      // these two should be static functions
+      virtual bool IsReduction() = 0;
+      virtual const std::string &GetName() = 0;
     };
+
+    // TODO: Use traits class - see https://stackoverflow.com/questions/515763/how-can-derived-class-inherit-a-static-function-from-base-class
 
     class ElementWiseProduct : public Kernel {
     public:
       explicit ElementWiseProduct(const uint64_t &elts_per_call);
 
       void Emit(llvm::BasicBlock *BB, llvm::ArrayRef<Buffer *> inputs,
-                llvm::ArrayRef<Buffer *> outputs,
-                llvm::Value *idx) override;
+                llvm::ArrayRef<Buffer *> outputs, llvm::Value *idx) override;
+
+      inline bool IsReduction() override { return false; }
+
+      const std::string &GetName() override { return name; }
+
     private:
+      const std::string name = "hobbit.elementwiseproduct";
       uint64_t elts_per_call_;
     };
 
@@ -52,10 +60,14 @@ namespace Hobbit {
       explicit SumReduction(const uint64_t &elts_per_call);
 
       void Emit(llvm::BasicBlock *BB, llvm::ArrayRef<Buffer *> inputs,
-                llvm::ArrayRef<Buffer *> outputs,
-                llvm::Value *idx) override;
+                llvm::ArrayRef<Buffer *> outputs, llvm::Value *idx) override;
+
+      inline bool IsReduction() override { return true; }
+
+      const std::string &GetName() override { return name; }
 
     private:
+      const std::string name = "hobbit.sumreduction";
       uint64_t elts_per_call_;
     };
   }

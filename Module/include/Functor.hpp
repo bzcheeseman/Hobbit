@@ -27,6 +27,7 @@
 
 #include "Buffer.hpp"
 #include "Function.hpp"
+#include "Kernel.hpp"
 
 namespace Hobbit {
   class Functor {
