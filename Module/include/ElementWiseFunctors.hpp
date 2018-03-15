@@ -41,15 +41,16 @@ namespace Hobbit {
 
     inline Workspace AllocOutput(llvm::BasicBlock *BB) override {
       Workspace out;
-      out.PushBuffer(new Buffer(BB, c_->GetType(), c_->GetShape()));
+      out.PushBuffer(Buffer(BB, c_->GetType(), c_->GetShape()));
 
       return out;
     }
 
     inline Buffer *Emit(Function *f, Buffer *input, Workspace &workspace,
                          bool emit_inline) override {
-      emit_inline ? EmitInline_(f, input, workspace.GetBuffer(0)) : EmitPHI_(f, input, workspace.GetBuffer(0));
-      return workspace.GetBuffer(0);
+      Buffer *output = workspace.GetBuffer(0);
+      emit_inline ? EmitInline_(f, input, output) : EmitPHI_(f, input, output);
+      return output;
     }
 
   private:

@@ -51,7 +51,7 @@ namespace Hobbit {
     // also no matter what will have to be able to loop over functors (gemm, conv == repeated sdot)
 
     void PushFunctor(Functor &f);
-    void Emit(Function *f, Buffer *input, bool emit_inline);
+    Buffer *Emit(Function *f, Buffer *input, bool emit_inline);
 
     const std::string &GetName();
 

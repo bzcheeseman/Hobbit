@@ -118,9 +118,9 @@ TEST(TestModule, PerformProd) {
 
   module.FinalizeFunction("prod", result);
 
-  module.FinalizeModule(3);
+  module.FinalizeModule(0);
 
-  // module.PrintModule(llvm::outs());
+   module.PrintModule(llvm::outs());
   module.PrepareJIT();
 
   float *(*prod_fn)(float *) =

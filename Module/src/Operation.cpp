@@ -36,13 +36,14 @@ void Hobbit::Operation::PushFunctor(Hobbit::Functor &f) {
   op_table_.push_back(&f);
 }
 
-// TODO: this only supports one input/one output
-void Hobbit::Operation::Emit(Function *f, Buffer *input, bool emit_inline) {
+Hobbit::Buffer *Hobbit::Operation::Emit(Function *f, Buffer *input, bool emit_inline) {
+  Buffer *temp = input, *functor_input = input;
   for (auto &op : op_table_) {
     Workspace buffer = op->AllocOutput(f->entry_block);
-    Buffer *temp = op->Emit(f, input, buffer, emit_inline);
-    input = temp;
+    temp = op->Emit(f, functor_input, buffer, emit_inline);
+    functor_input = temp;
   }
+  return temp;
 }
 
 const std::string &Hobbit::Operation::GetName() { return name_; }

@@ -41,7 +41,7 @@ namespace Hobbit {
 
     inline Workspace AllocOutput(llvm::BasicBlock *BB) override {
       Workspace out;
-      out.PushBuffer(new Buffer(BB, output_type_, Shape(1, 1, 1)));
+      out.PushBuffer(Buffer(BB, output_type_, Shape(1, 1, 1)));
 
       return out;
     }

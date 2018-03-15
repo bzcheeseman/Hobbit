@@ -181,8 +181,7 @@ Hobbit::Module::InsertOperation(const std::string &function_name,
                                 Hobbit::Operation *op, Hobbit::Buffer *input,
                                 bool emit_inline) {
 
-  op->Emit(&function_table_.at(function_name), input, emit_inline);
-  return input;
+  return op->Emit(&function_table_.at(function_name), input, emit_inline);
 }
 
 void Hobbit::Module::FinalizeFunction(const std::string &function_name,
@@ -191,7 +190,7 @@ void Hobbit::Module::FinalizeFunction(const std::string &function_name,
   Function &f = function_table_.at(function_name);
 
   llvm::BasicBlock *exit_bb = f.AddBB("exit");
-  llvm::IRBuilder<> builder(exit_bb);
+  llvm::IRBuilder<> builder(exit_bb); // return_value gets invalidated!?!?!?!
 
   if (f.last_is_output) {
     if (output == nullptr)
@@ -220,7 +219,7 @@ void Hobbit::Module::FinalizeFunction(const std::string &function_name,
     return;
   }
 
-  llvm::Type *ptr_type = llvm::PointerType::get(return_value->GetType(), 0);
+  llvm::Type *ptr_type = llvm::PointerType::get(return_value->GetType(), 0); // why is this bad access?
   llvm::Value *ptr, *size;
   ptr = llvm::Constant::getNullValue(ptr_type);
   size = builder.CreateGEP(ptr, builder.getInt64(1));

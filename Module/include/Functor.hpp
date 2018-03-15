@@ -32,16 +32,16 @@
 namespace Hobbit {
   class Workspace {
   public:
-    inline void PushBuffer(Buffer *buffer) {
+    inline void PushBuffer(Buffer buffer) {
       buffer_table_.push_back(buffer);
     }
 
     inline Buffer *GetBuffer(const uint64_t &i) {
-      return buffer_table_[i];
+      return &(buffer_table_[i]);
     }
 
   protected:
-    std::vector<Buffer *> buffer_table_;
+    std::vector<Buffer> buffer_table_;
   };
 
   class Functor {
