@@ -118,7 +118,7 @@ TEST(TestModule, PerformProd) {
 
   module.FinalizeFunction("prod", result);
 
-  module.FinalizeModule(0);
+  module.FinalizeModule(3);
 
    module.PrintModule(llvm::outs());
   module.PrepareJIT();

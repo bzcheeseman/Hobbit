@@ -219,6 +219,7 @@ void Hobbit::Module::FinalizeFunction(const std::string &function_name,
     return;
   }
 
+//  return_value has void type...?
   llvm::Type *ptr_type = llvm::PointerType::get(return_value->GetType(), 0); // why is this bad access?
   llvm::Value *ptr, *size;
   ptr = llvm::Constant::getNullValue(ptr_type);

@@ -46,7 +46,7 @@ namespace Hobbit {
 
   class Functor {
   public:
-    virtual Workspace AllocOutput(llvm::BasicBlock *BB) = 0;
+    virtual void AllocOutput(llvm::BasicBlock *BB, Workspace &workspace) = 0;
     virtual Buffer *Emit(Function *f, Buffer *input, Workspace &workspace,
                       bool emit_inline) = 0;
   };

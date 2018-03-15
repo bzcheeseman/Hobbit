@@ -37,13 +37,14 @@ void Hobbit::Operation::PushFunctor(Hobbit::Functor &f) {
 }
 
 Hobbit::Buffer *Hobbit::Operation::Emit(Function *f, Buffer *input, bool emit_inline) {
-  Buffer *temp = input, *functor_input = input;
+  Buffer *temp, *functor_input = input;
+  Workspace workspace;
   for (auto &op : op_table_) {
-    Workspace buffer = op->AllocOutput(f->entry_block);
-    temp = op->Emit(f, functor_input, buffer, emit_inline);
+    op->AllocOutput(f->entry_block, workspace);
+    temp = op->Emit(f, functor_input, workspace, emit_inline);
     functor_input = temp;
   }
-  return temp;
+  return functor_input;
 }
 
 const std::string &Hobbit::Operation::GetName() { return name_; }

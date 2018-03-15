@@ -39,11 +39,8 @@ namespace Hobbit {
     explicit ElementWiseProduct(Buffer *c, const uint64_t &n_elements)
         : c_(c), n_elements_(n_elements) {}
 
-    inline Workspace AllocOutput(llvm::BasicBlock *BB) override {
-      Workspace out;
-      out.PushBuffer(Buffer(BB, c_->GetType(), c_->GetShape()));
-
-      return out;
+    inline void AllocOutput(llvm::BasicBlock *BB, Workspace &workspace) override {
+      workspace.PushBuffer(Buffer(BB, c_->GetType(), c_->GetShape()));
     }
 
     inline Buffer *Emit(Function *f, Buffer *input, Workspace &workspace,
