@@ -30,11 +30,38 @@
 #include "Kernel.hpp"
 
 namespace Hobbit {
+  class Workspace {
+  public:
+    inline void PushBuffer(Buffer *buffer) {
+      buffer_table_.push_back(buffer);
+    }
+
+    inline Buffer *GetBuffer(const uint64_t &i) {
+      return buffer_table_[i];
+    }
+
+  protected:
+    std::vector<Buffer *> buffer_table_;
+  };
+
   class Functor {
   public:
-    virtual Buffer AllocOutput(llvm::BasicBlock *BB) = 0;
-    virtual void Emit(Function *f, Buffer *input, Buffer *output,
+    virtual Workspace AllocOutput(llvm::BasicBlock *BB) = 0;
+    virtual Buffer *Emit(Function *f, Buffer *input, Workspace &workspace,
                       bool emit_inline) = 0;
+  };
+
+  class Dot : public Functor {
+  public:
+    explicit Dot(Buffer *c, const uint64_t &n_elements) : c_(c), n_elements_(n_elements) {}
+
+//    llvm::ArrayRef<Buffer *> AllocOutput(llvm::BasicBlock *BB);
+//    void Emit(Function *f, Buffer *input, llvm::ArrayRef<Buffer *> output,
+//                      bool emit_inline);
+
+  private:
+    Buffer *c_;
+    uint64_t n_elements_;
   };
 }
 
