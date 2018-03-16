@@ -159,20 +159,18 @@ TEST(TestModule, PerformSDOT) {
   Hobbit::Buffer *fconst =
       module.GetFloatConstant("sdot", f2.data(), Hobbit::Shape(1, 1, n_elts));
 
-  Hobbit::ElementWiseProduct prod(fconst, 4);
-  Hobbit::SumReduction hsum(llvm::Type::getFloatTy(ctx), 4);
+  Hobbit::Dot dot(fconst, 4);
   Hobbit::Operation sdot_op("sdot_op");
-  sdot_op.PushFunctor(prod);
-  sdot_op.PushFunctor(hsum);
+  sdot_op.PushFunctor(dot);
 
   Hobbit::Buffer *result =
       module.InsertOperation("sdot", &sdot_op, input_buffer, true);
 
   module.FinalizeFunction("sdot", result);
 
-  module.FinalizeModule(3);
+  module.FinalizeModule(0);
 
-  // module.PrintModule(llvm::outs());
+   module.PrintModule(llvm::outs());
   module.PrepareJIT();
 
   float (*prod_fn)(float *) = (float (*)(float *))module.GetFunctionPtr("sdot");
@@ -185,7 +183,7 @@ TEST(TestModule, PerformSDOT) {
   std::cout << "Elapsed time: " << elapsed.count() << " s for " << n_elts
             << " elements" << std::endl;
 
-  EXPECT_FLOAT_EQ(float_result, ref_sdot<n_elts>(f1.data(), f2.data()));
+  EXPECT_FLOAT_EQ(float_result, ref_sdot<n_elts>(f1.data(), f2.data())); // apparently the sdot is squaring the input
 }
 
 TEST(TestModule, PerformLargeSDOT) {
@@ -193,7 +191,7 @@ TEST(TestModule, PerformLargeSDOT) {
   llvm::LLVMContext ctx;
   Hobbit::Module module("test_module", ctx);
 
-  const int n_elts = 100;
+  const int n_elts = 4000;
 
   std::vector<llvm::Type *> args = {
       llvm::Type::getFloatPtrTy(ctx) // input
@@ -215,11 +213,9 @@ TEST(TestModule, PerformLargeSDOT) {
   Hobbit::Buffer *fconst =
       module.GetFloatConstant("sdot", f2.data(), Hobbit::Shape(1, 1, n_elts));
 
-  Hobbit::ElementWiseProduct prod(fconst, 4);
-  Hobbit::SumReduction hsum(llvm::Type::getFloatTy(ctx), 4);
+  Hobbit::Dot dot(fconst, 4);
   Hobbit::Operation sdot_op("sdot_op");
-  sdot_op.PushFunctor(prod);
-  sdot_op.PushFunctor(hsum);
+  sdot_op.PushFunctor(dot);
 
   Hobbit::Buffer *result =
       module.InsertOperation("sdot", &sdot_op, input_buffer, false);
@@ -228,7 +224,7 @@ TEST(TestModule, PerformLargeSDOT) {
 
   module.FinalizeModule(3);
 
-  // module.PrintModule(llvm::outs());
+   module.PrintModule(llvm::outs());
   module.PrepareJIT();
 
   float (*prod_fn)(float *) = (float (*)(float *))module.GetFunctionPtr("sdot");
@@ -249,7 +245,7 @@ TEST(TestModule, PerformNoConstSDOT) {
   llvm::LLVMContext ctx;
   Hobbit::Module module("test_module", ctx);
 
-  const int n_elts = 10000;
+  const int n_elts = 33142000; // 30 ms, vector width = 4 - 25 ms, vector width = 8, 23 ms, vector width = 16
 
   std::vector<llvm::Type *> args = {
       llvm::Type::getFloatPtrTy(ctx), // input vec 1
@@ -271,12 +267,9 @@ TEST(TestModule, PerformNoConstSDOT) {
     f2.push_back(dis(gen));
   }
 
-  Hobbit::ElementWiseProduct prod(vec2, 4);
-  Hobbit::SumReduction hsum(llvm::Type::getFloatTy(ctx), 4);
-  Hobbit::Operation sdot_op(
-      "sdot_op"); // TODO: now how to run both in one loop...?
-  sdot_op.PushFunctor(prod);
-  sdot_op.PushFunctor(hsum);
+  Hobbit::Dot dot(vec2, 4);
+  Hobbit::Operation sdot_op("sdot_op");
+  sdot_op.PushFunctor(dot);
 
   Hobbit::Buffer *result =
       module.InsertOperation("sdot", &sdot_op, vec1, false);

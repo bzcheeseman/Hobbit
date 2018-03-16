@@ -32,8 +32,7 @@
 #include "Functor.hpp"
 
 namespace Hobbit {
-  class Operation { // TODO: operations are composed of Kernels now, can reorder
-                    // kernels that are not reductions
+  class Operation {
   public:
     explicit Operation(const std::string &name = "");
     explicit Operation(const std::initializer_list<Functor *> &f,
@@ -41,17 +40,8 @@ namespace Hobbit {
     explicit Operation(const std::list<Functor *> &f,
                        const std::string &name = "");
 
-    // kernel -> functor -> operation (multiple functors)
-    // functor allows many kernels to be emitted
-    // functors apply kernels over a given range of indices, emit inline code
-    // operations give functors their ranges and handle chunking/setup of the problem in nice ways
-
-    // this way we can have an sdot functor, operation can loop over chunks of the input for sdot, and loop
-    // over that for gemm/conv (already have buffer subindexing)
-    // also no matter what will have to be able to loop over functors (gemm, conv == repeated sdot)
-
     void PushFunctor(Functor &f);
-    Buffer *Emit(Function *f, Buffer *input, bool emit_inline);
+    Buffer Emit(Function *f, Buffer *input, bool emit_inline);
 
     const std::string &GetName();
 

@@ -39,14 +39,10 @@ namespace Hobbit {
     explicit SumReduction(llvm::Type *output_type, const uint64_t &n_elements)
         : output_type_(output_type), n_elements_(n_elements) {}
 
-    inline void AllocOutput(llvm::BasicBlock *BB, Workspace &workspace) override {
-      workspace.PushBuffer(Buffer(BB, output_type_, Shape(1, 1, 1)));
-    }
-
-    inline Buffer *Emit(Function *f, Buffer *input, Workspace &workspace,
-                     bool emit_inline) override {
-      emit_inline ? EmitInline_(f, input, workspace.GetBuffer(0)) : EmitPHI_(f, input, workspace.GetBuffer(0));
-      return workspace.GetBuffer(0);
+    inline Buffer Emit(Function *f, Buffer *input, bool emit_inline) override {
+      Buffer out = Buffer(f->entry_block, output_type_, Shape(1, 1, 1));
+      emit_inline ? EmitInline_(f, input, &out) : EmitPHI_(f, input, &out);
+      return out;
     }
 
   private:

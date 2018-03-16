@@ -181,7 +181,8 @@ Hobbit::Module::InsertOperation(const std::string &function_name,
                                 Hobbit::Operation *op, Hobbit::Buffer *input,
                                 bool emit_inline) {
 
-  return op->Emit(&function_table_.at(function_name), input, emit_inline);
+  Buffer temp = op->Emit(&function_table_.at(function_name), input, emit_inline);
+  return new Buffer(temp.GetValue(), temp.GetShape());
 }
 
 void Hobbit::Module::FinalizeFunction(const std::string &function_name,
@@ -219,8 +220,7 @@ void Hobbit::Module::FinalizeFunction(const std::string &function_name,
     return;
   }
 
-//  return_value has void type...?
-  llvm::Type *ptr_type = llvm::PointerType::get(return_value->GetType(), 0); // why is this bad access?
+  llvm::Type *ptr_type = llvm::PointerType::get(return_value->GetType(), 0);
   llvm::Value *ptr, *size;
   ptr = llvm::Constant::getNullValue(ptr_type);
   size = builder.CreateGEP(ptr, builder.getInt64(1));
@@ -269,8 +269,8 @@ void Hobbit::Module::FinalizeModule(unsigned opt_level) {
   auto RM = llvm::Optional<llvm::Reloc::Model>();
 
   // TODO: decide how to do target decisions
-  auto CPU = "corei7-avx";
-  auto features = "";
+  auto CPU = "corei7";
+  auto features = "avx";
   llvm::TargetMachine *target_machine =
       target->createTargetMachine(TargetTriple, CPU, features, options, RM);
 

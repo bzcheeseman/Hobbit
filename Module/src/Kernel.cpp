@@ -77,17 +77,16 @@ void Hobbit::internal::SumReduction::Emit(llvm::BasicBlock *BB,
   llvm::Value *loaded_vector = builder.CreateAlignedLoad(
       builder.CreateBitCast(input_gep, vec_type->getPointerTo()), 8);
 
-  llvm::Value *sum = builder.CreateAlignedLoad(output, 4);
+  llvm::Value *sum = builder.CreateAlignedLoad(builder.CreateBitCast(output, vec_type->getPointerTo()), 8);
 
   if (type->isIntegerTy()) {
-    llvm::Value *vector_hsum = builder.CreateAddReduce(loaded_vector);
-    sum = builder.CreateAdd(vector_hsum, sum);
+//    llvm::Value *vector_hsum = builder.CreateAddReduce(loaded_vector);
+    sum = builder.CreateAdd(loaded_vector, sum);
   } else if (type->isFloatingPointTy()) {
-    llvm::CallInst *vector_hsum =
-        builder.CreateFAddReduce(llvm::UndefValue::get(type), loaded_vector);
-    vector_hsum->setFast(true);
-    sum = builder.CreateFAdd(vector_hsum, sum);
+
+//    vector_hsum->setFast(true);
+    sum = builder.CreateFAdd(loaded_vector, sum);
   }
 
-  builder.CreateAlignedStore(sum, output, 4);
+  builder.CreateAlignedStore(sum, builder.CreateBitCast(output, vec_type->getPointerTo()), 8);
 }
