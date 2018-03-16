@@ -159,7 +159,7 @@ TEST(TestModule, PerformSDOT) {
   Hobbit::Buffer *fconst =
       module.GetFloatConstant("sdot", f2.data(), Hobbit::Shape(1, 1, n_elts));
 
-  Hobbit::Dot dot(fconst, 4);
+  Hobbit::Dot dot(fconst, 4, 32);
   Hobbit::Operation sdot_op("sdot_op");
   sdot_op.PushFunctor(dot);
 
@@ -213,7 +213,7 @@ TEST(TestModule, PerformLargeSDOT) {
   Hobbit::Buffer *fconst =
       module.GetFloatConstant("sdot", f2.data(), Hobbit::Shape(1, 1, n_elts));
 
-  Hobbit::Dot dot(fconst, 4);
+  Hobbit::Dot dot(fconst, 4, 32);
   Hobbit::Operation sdot_op("sdot_op");
   sdot_op.PushFunctor(dot);
 
@@ -245,7 +245,7 @@ TEST(TestModule, PerformNoConstSDOT) {
   llvm::LLVMContext ctx;
   Hobbit::Module module("test_module", ctx);
 
-  const int n_elts = 33142000; // 30 ms, vector width = 4 - 25 ms, vector width = 8, 23 ms, vector width = 16
+  const int n_elts = 33554432;
 
   std::vector<llvm::Type *> args = {
       llvm::Type::getFloatPtrTy(ctx), // input vec 1
@@ -261,13 +261,13 @@ TEST(TestModule, PerformNoConstSDOT) {
   std::mt19937 gen(rd());
   std::uniform_real_distribution<float> dis(0.0, 1.0);
 
-  std::vector<float> f1, f2;
+  __attribute__ ((aligned (32))) std::vector<float> f1, f2;
   for (int i = 0; i < n_elts; i++) {
     f1.push_back(dis(gen));
     f2.push_back(dis(gen));
   }
 
-  Hobbit::Dot dot(vec2, 4);
+  Hobbit::Dot dot(vec2, 4, 128);
   Hobbit::Operation sdot_op("sdot_op");
   sdot_op.PushFunctor(dot);
 
@@ -286,9 +286,13 @@ TEST(TestModule, PerformNoConstSDOT) {
 
   auto start = std::chrono::high_resolution_clock::now();
   float float_result = prod_fn(f1.data(), f2.data());
+  float_result = prod_fn(f1.data(), f2.data());
+  float_result = prod_fn(f1.data(), f2.data());
+  float_result = prod_fn(f1.data(), f2.data());
+  float_result = prod_fn(f1.data(), f2.data());
   auto finish = std::chrono::high_resolution_clock::now();
 
-  std::chrono::duration<double> elapsed = finish - start;
+  std::chrono::duration<double> elapsed = (finish - start)/5;
   std::cout << "Elapsed time: " << elapsed.count() << " s for " << n_elts
             << " elements" << std::endl;
 

@@ -269,8 +269,8 @@ void Hobbit::Module::FinalizeModule(unsigned opt_level) {
   auto RM = llvm::Optional<llvm::Reloc::Model>();
 
   // TODO: decide how to do target decisions
-  auto CPU = "corei7";
-  auto features = "avx";
+  auto CPU = "corei7-avx";
+  auto features = "avx2";
   llvm::TargetMachine *target_machine =
       target->createTargetMachine(TargetTriple, CPU, features, options, RM);
 

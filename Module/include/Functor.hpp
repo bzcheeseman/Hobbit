@@ -39,7 +39,8 @@ namespace Hobbit {
 
   class Dot : public Functor {
   public:
-    explicit Dot(Buffer *c, const uint64_t &n_elements) : c_(c), n_elements_(n_elements) {}
+    explicit Dot(Buffer *c, const uint64_t &n_elements, const uint64_t &chunk_size) :
+            c_(c), n_elements_(n_elements), chunk_size_(chunk_size) {}
 
     Buffer Emit(Function *f, Buffer *input, bool emit_inline) override {
 
@@ -91,26 +92,28 @@ namespace Hobbit {
                                    builder.getInt64(chunked));
       }
 
-      llvm::Value *vector_hsum;
+      llvm::CallInst *vector_hsum;
       llvm::Value *loaded_output;
       llvm::Type *vec_type = llvm::VectorType::get(c_->GetType(), n_elements_);
       if (c_->GetType()->isIntegerTy()) {
         vector_hsum = builder.CreateAddReduce(builder.CreateAlignedLoad(
                 builder.CreateBitCast(sum_vec_buf.GetValue(), vec_type->getPointerTo()), 32));
+        vector_hsum->setFast(true);
         builder.CreateStore(vector_hsum, output.GetValue());
       }
       if (c_->GetType()->isFloatingPointTy()) {
         vector_hsum = builder.CreateFAddReduce(
-                llvm::UndefValue::get(vec_type),
+                llvm::UndefValue::get(c_->GetType()),
                 builder.CreateAlignedLoad(
                         builder.CreateBitCast(sum_vec_buf.GetValue(), vec_type->getPointerTo()), 32));
+        vector_hsum->setFast(true);
         builder.CreateStore(vector_hsum, output.GetValue());
       }
 
       return output;
     }
 
-    Buffer EmitPHI_(Function *f, Buffer *input) {
+    Buffer EmitPHI_(Function *f, Buffer *input) { // this is somehow incorrect
       if (c_->GetType() != input->GetType())
         throw std::runtime_error(
                 "Both Variable and Constant must be the same type!");
@@ -119,12 +122,20 @@ namespace Hobbit {
                 "Both Variable and Constant must be the same shape!");
 
       Buffer temp (f->entry_block, c_->GetType(), c_->GetShape());
-      Buffer sum_vec_buf (f->entry_block, c_->GetType(), Shape(1, 1, 4));
+      Buffer sum_vec_buf (f->entry_block, c_->GetType(), Shape(1, 1, n_elements_));
       Buffer output (f->entry_block, c_->GetType(), Shape(1, 1, 1));
 
       llvm::IRBuilder<> builder(f->entry_block);
 
       builder.CreateStore(builder.CreateBitCast(builder.getInt64(0), c_->GetType()), output.GetValue());
+
+      llvm::Type *ptr_type = llvm::PointerType::get(c_->GetType(), 0);
+      llvm::Value *ptr, *size;
+      ptr = llvm::Constant::getNullValue(ptr_type);
+      size = builder.CreateGEP(ptr, builder.getInt64(1));
+      size = builder.CreatePtrToInt(size, builder.getInt64Ty());
+
+      builder.CreateMemSet(sum_vec_buf.GetValue(), builder.getInt64(0), builder.CreateMul(builder.getInt64(n_elements_), size), 8);
 
       llvm::BasicBlock *entryBB = f->AddBB("hobbit.dot.entry");
       llvm::BasicBlock *loopBB = f->AddBB("hobbit.dot.loop");
@@ -133,13 +144,16 @@ namespace Hobbit {
       internal::ElementWiseProduct prod_kernel(n_elements_);
       internal::SumReduction reduce_kernel(n_elements_);
 
+//      llvm::Module *M = entryBB->getModule();
+//      llvm::Value *PrefetchFunc = llvm::Intrinsic::getDeclaration(M, llvm::Intrinsic::prefetch);
+
       builder.SetInsertPoint(entryBB);
       builder.CreateBr(loopBB);
 
       const Shape &shape = c_->GetShape();
 
       uint64_t total_size = shape.GetSize();
-      uint64_t leftovers = total_size % n_elements_;
+      uint64_t leftovers = total_size % (chunk_size_);
       uint64_t chunked = total_size - leftovers;
 
       builder.SetInsertPoint(loopBB);
@@ -147,11 +161,30 @@ namespace Hobbit {
               builder.CreatePHI(builder.getInt64Ty(), 2, "hobbit.dot.index");
       var->addIncoming(builder.getInt64(0), entryBB);
 
+      for (uint64_t i = 0; i < chunk_size_; i += n_elements_) {
+        llvm::Value *idx = builder.CreateAdd(var, builder.getInt64(i));
+        prod_kernel.Emit(loopBB, {input, c_}, {&temp}, idx);
+        reduce_kernel.Emit(loopBB, {&temp}, {&sum_vec_buf}, idx);
+      }
+
       prod_kernel.Emit(loopBB, {input, c_}, {&temp}, var);
       reduce_kernel.Emit(loopBB, {&temp}, {&sum_vec_buf}, var);
 
       llvm::Value *nextvar =
-              builder.CreateAdd(var, builder.getInt64(n_elements_));
+              builder.CreateAdd(var, builder.getInt64(chunk_size_));
+
+//      builder.CreateCall(PrefetchFunc, {
+//              builder.CreateBitCast(builder.CreateGEP(input->GetValue(), nextvar),
+//                                    llvm::Type::getInt8PtrTy(entryBB->getContext())),
+//              builder.getInt32(0), builder.getInt32(3), builder.getInt32(1)}
+//      );
+
+//      builder.CreateCall(PrefetchFunc, {
+//              builder.CreateBitCast(builder.CreateGEP(c_->GetValue(), nextvar),
+//                                    llvm::Type::getInt8PtrTy(entryBB->getContext())),
+//              builder.getInt32(0), builder.getInt32(3), builder.getInt32(1)}
+//      );
+
       llvm::Value *end_condition =
               builder.CreateICmpEQ(nextvar, builder.getInt64(chunked));
       builder.CreateCondBr(end_condition, exitBB, loopBB);
@@ -168,20 +201,21 @@ namespace Hobbit {
                                   builder.getInt64(chunked));
       }
 
-      llvm::Value *vector_hsum;
+      llvm::CallInst *vector_hsum;
       llvm::Value *loaded_output;
       llvm::Type *vec_type = llvm::VectorType::get(c_->GetType(), n_elements_);
       if (c_->GetType()->isIntegerTy()) {
         vector_hsum = builder.CreateAddReduce(builder.CreateAlignedLoad(
                 builder.CreateBitCast(sum_vec_buf.GetValue(), vec_type->getPointerTo()), 32));
-        builder.CreateStore(vector_hsum, output.GetValue());
+        builder.CreateAlignedStore(vector_hsum, output.GetValue(), 32);
       }
       if (c_->GetType()->isFloatingPointTy()) {
         vector_hsum = builder.CreateFAddReduce(
-                llvm::UndefValue::get(vec_type),
+                builder.CreateLoad(output.GetValue()),
                 builder.CreateAlignedLoad(
                         builder.CreateBitCast(sum_vec_buf.GetValue(), vec_type->getPointerTo()), 32));
-        builder.CreateStore(vector_hsum, output.GetValue());
+        vector_hsum->setFast(true);
+        builder.CreateAlignedStore(vector_hsum, output.GetValue(), 32);
       }
 
       return output;
@@ -189,6 +223,7 @@ namespace Hobbit {
 
     Buffer *c_;
     uint64_t n_elements_;
+    uint64_t chunk_size_;
   };
 }
 
