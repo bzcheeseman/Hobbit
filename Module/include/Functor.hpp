@@ -52,10 +52,10 @@ namespace Hobbit {
     Buffer EmitInline_(Function *f, Buffer *input) { // this functor is just squaring things
       if (c_->GetType() != input->GetType())
         throw std::runtime_error(
-                "Both Variable and Constant must be the same type!");
+                "Both Core and Constant must be the same type!");
       if (c_->GetShape() != input->GetShape())
         throw std::runtime_error(
-                "Both Variable and Constant must be the same shape!");
+                "Both Core and Constant must be the same shape!");
 
       Buffer temp (f->entry_block, c_->GetType(), c_->GetShape());
       Buffer sum_vec_buf (f->entry_block, c_->GetType(), Shape(1, 1, 4));
@@ -116,10 +116,10 @@ namespace Hobbit {
     Buffer EmitPHI_(Function *f, Buffer *input) { // this is somehow incorrect
       if (c_->GetType() != input->GetType())
         throw std::runtime_error(
-                "Both Variable and Constant must be the same type!");
+                "Both Core and Constant must be the same type!");
       if (c_->GetShape() != input->GetShape())
         throw std::runtime_error(
-                "Both Variable and Constant must be the same shape!");
+                "Both Core and Constant must be the same shape!");
 
       Buffer temp (f->entry_block, c_->GetType(), c_->GetShape());
       Buffer sum_vec_buf (f->entry_block, c_->GetType(), Shape(1, 1, n_elements_));
@@ -153,7 +153,7 @@ namespace Hobbit {
       const Shape &shape = c_->GetShape();
 
       uint64_t total_size = shape.GetSize();
-      uint64_t leftovers = total_size % (chunk_size_);
+      uint64_t leftovers = total_size % (n_elements_);
       uint64_t chunked = total_size - leftovers;
 
       builder.SetInsertPoint(loopBB);
@@ -166,9 +166,6 @@ namespace Hobbit {
         prod_kernel.Emit(loopBB, {input, c_}, {&temp}, idx);
         reduce_kernel.Emit(loopBB, {&temp}, {&sum_vec_buf}, idx);
       }
-
-      prod_kernel.Emit(loopBB, {input, c_}, {&temp}, var);
-      reduce_kernel.Emit(loopBB, {&temp}, {&sum_vec_buf}, var);
 
       llvm::Value *nextvar =
               builder.CreateAdd(var, builder.getInt64(chunk_size_));

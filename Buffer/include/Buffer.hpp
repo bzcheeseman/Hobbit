@@ -30,7 +30,6 @@
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/Value.h>
 
-#include "CompileTimeBuffer.hpp"
 #include "Shape.hpp"
 
 namespace Hobbit {

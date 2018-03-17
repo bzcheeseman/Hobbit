@@ -52,6 +52,9 @@ namespace Hobbit {
 
   class Module {
   public:
+    // TODO: Want to represent computation graph, need Node class and visitors to nodes that can modify them
+    // TODO: Create a kernel based on a basic op and then schedule it (a la Halide)
+
     explicit Module(const std::string &name, llvm::LLVMContext &ctx);
 
     // TODO: Do I want to make the functions return void? that way only the host

@@ -190,8 +190,8 @@ void Hobbit::Module::FinalizeFunction(const std::string &function_name,
                                       Buffer *output) {
   Function &f = function_table_.at(function_name);
 
-  llvm::BasicBlock *exit_bb = f.AddBB("exit");
-  llvm::IRBuilder<> builder(exit_bb); // return_value gets invalidated!?!?!?!
+  llvm::BasicBlock *exit_bb = f.AddBB(function_name + ".exit");
+  llvm::IRBuilder<> builder(exit_bb);
 
   if (f.last_is_output) {
     if (output == nullptr)
@@ -270,7 +270,7 @@ void Hobbit::Module::FinalizeModule(unsigned opt_level) {
 
   // TODO: decide how to do target decisions
   auto CPU = "corei7-avx";
-  auto features = "avx2";
+  auto features = "+avx,+cx16,+fxsr,+mmx,+sse,+sse2,+sse3,+sse4.1,+ssse3,+x87,+fma";
   llvm::TargetMachine *target_machine =
       target->createTargetMachine(TargetTriple, CPU, features, options, RM);
 

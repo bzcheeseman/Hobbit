@@ -5,7 +5,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 
 set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0 -g")
 
 option(BUILD_TESTS "Whether or not to build the tests" ON)
 
@@ -27,8 +27,9 @@ if (BUILD_TESTS)
 
 endif (BUILD_TESTS)
 
-add_subdirectory(Buffer)
-add_subdirectory(Module)
+add_subdirectory(Core)
+#add_subdirectory(Buffer)
+#add_subdirectory(Module)
 
 file(GLOB_RECURSE
         ALL_CXX_SOURCE_FILES

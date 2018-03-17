@@ -49,10 +49,10 @@ namespace Hobbit {
     void EmitInline_(Function *f, Buffer *input, Buffer *output) {
       if (c_->GetType() != input->GetType())
         throw std::runtime_error(
-            "Both Variable and Constant must be the same type!");
+            "Both Core and Constant must be the same type!");
       if (c_->GetShape() != input->GetShape())
         throw std::runtime_error(
-            "Both Variable and Constant must be the same shape!");
+            "Both Core and Constant must be the same shape!");
       if (output->GetType() != input->GetType())
         throw std::runtime_error(
             "Both input and output must be the same type!");
@@ -85,10 +85,10 @@ namespace Hobbit {
     void EmitPHI_(Function *f, Buffer *input, Buffer *output) {
       if (c_->GetType() != input->GetType())
         throw std::runtime_error(
-            "Both Variable and Constant must be the same type!");
+            "Both Core and Constant must be the same type!");
       if (c_->GetShape() != input->GetShape())
         throw std::runtime_error(
-            "Both Variable and Constant must be the same shape!");
+            "Both Core and Constant must be the same shape!");
       if (output->GetType() != input->GetType())
         throw std::runtime_error(
             "Both input and output must be the same type!");

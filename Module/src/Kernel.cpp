@@ -35,16 +35,22 @@ void Hobbit::internal::ElementWiseProduct::Emit(
   llvm::Type *type = outputs[0]->GetType();
   llvm::Type *vec_type = llvm::VectorType::get(type, elts_per_call_);
 
-  llvm::Value *output_gep = builder.CreateBitCast(
-      builder.CreateGEP(outputs[0]->GetValue(), idx), vec_type->getPointerTo());
+  llvm::Value *output_gep = builder.CreateGEP(
+          builder.CreateBitCast(outputs[0]->GetValue(), vec_type->getPointerTo()),
+          builder.CreateUDiv(idx, builder.getInt64(elts_per_call_))
+  );
 
   llvm::Value *lhs_vec = builder.CreateAlignedLoad(
-      builder.CreateBitCast(builder.CreateGEP(inputs[0]->GetValue(), idx),
-                            vec_type->getPointerTo()),
+          builder.CreateGEP(
+                  builder.CreateBitCast(inputs[0]->GetValue(), vec_type->getPointerTo()),
+                  builder.CreateUDiv(idx, builder.getInt64(elts_per_call_))
+          ),
       32);
   llvm::Value *rhs_vec = builder.CreateAlignedLoad(
-      builder.CreateBitCast(builder.CreateGEP(inputs[1]->GetValue(), idx),
-                            vec_type->getPointerTo()),
+          builder.CreateGEP(
+                  builder.CreateBitCast(inputs[1]->GetValue(), vec_type->getPointerTo()),
+                  builder.CreateUDiv(idx, builder.getInt64(elts_per_call_))
+          ),
       32);
 
   llvm::Value *result;
@@ -71,13 +77,16 @@ void Hobbit::internal::SumReduction::Emit(llvm::BasicBlock *BB,
   llvm::Value *output = outputs[0]->GetValue();
   llvm::Type *type = outputs[0]->GetType();
   llvm::Type *vec_type = llvm::VectorType::get(type, elts_per_call_);
+  llvm::Value *casted_output = builder.CreateBitCast(output, vec_type->getPointerTo());
 
-  llvm::Value *input_gep = builder.CreateGEP(input, idx);
+  llvm::Value *input_gep = builder.CreateGEP(
+          builder.CreateBitCast(input, vec_type->getPointerTo()),
+          builder.CreateUDiv(idx, builder.getInt64(elts_per_call_))
+  );
 
-  llvm::Value *loaded_vector = builder.CreateAlignedLoad(
-      builder.CreateBitCast(input_gep, vec_type->getPointerTo()), 32);
+  llvm::Value *loaded_vector = builder.CreateAlignedLoad(input_gep, 32);
 
-  llvm::Value *sum = builder.CreateAlignedLoad(builder.CreateBitCast(output, vec_type->getPointerTo()), 32);
+  llvm::Value *sum = builder.CreateAlignedLoad(casted_output, 32);
 
   if (type->isIntegerTy()) {
     sum = builder.CreateAdd(loaded_vector, sum);
@@ -85,5 +94,5 @@ void Hobbit::internal::SumReduction::Emit(llvm::BasicBlock *BB,
     sum = builder.CreateFAdd(loaded_vector, sum);
   }
 
-  builder.CreateAlignedStore(sum, builder.CreateBitCast(output, vec_type->getPointerTo()), 32);
+  builder.CreateAlignedStore(sum, casted_output, 32);
 }
