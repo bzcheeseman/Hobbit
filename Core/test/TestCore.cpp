@@ -92,7 +92,7 @@ TEST(Basic, AddConstant) {
     input[i] = i;
   }
 
-  core::Type<float, 32> type;
+  core::Type<float *, 32> type;
   Tensor *tensor;
   // Should not throw errors
   EXPECT_NO_THROW(
@@ -115,7 +115,7 @@ TEST(Basic, AddAlloca) {
     input[i] = i;
   }
 
-  core::Type<float, 32> type;
+  core::Type<float *, 32> type;
   Tensor *tensor;
   // Should not throw errors
   EXPECT_NO_THROW(
@@ -186,17 +186,15 @@ TEST(Basic, EmitFunction) {
   EXPECT_EQ(args[1], rhs);
   EXPECT_EQ(args[2], output);
 
-  llvm::Function *f = module.GetFunction(func->GetName(), args);
+  llvm::Function *f;
+  EXPECT_NO_THROW(f = module.GetFunction(func->GetName(), args));
 
-  func->Emit(f);
+  EXPECT_NO_THROW(func->Emit(f));
+  EXPECT_NO_THROW(module.FinalizeFunction(f));
 
-  module.FinalizeFunction(f);
-  //  module.Print();
+  EXPECT_NO_THROW(module.FinalizeModule(3, llvm::sys::getDefaultTargetTriple()));
+  module.Print();
 
-  module.FinalizeModule(3, llvm::sys::getDefaultTargetTriple());
-  //  module.Print();
-
-  std::string error_str;
 
   void (*sdot)(float *, float *, float *) =
       (void (*)(float *, float *, float *))module.GetFunctionPtr("test_func");
@@ -218,7 +216,76 @@ TEST(Basic, EmitFunction) {
   auto finish = std::chrono::high_resolution_clock::now();
 
   std::chrono::duration<double> elapsed = (finish - start);
-  std::cout << "Elapsed time: " << elapsed.count() << " s for " << n_elts
+  std::cout << "\nElapsed time: " << elapsed.count() << " s for " << n_elts
+            << " elements" << std::endl;
+
+  EXPECT_NEAR(float_out, ref_sdot<n_elts>(f1.data(), f2.data()),
+              float_out * 5e-6);
+}
+
+TEST(Basic, EmitConstFunction) { // this is still iffy
+  llvm::LLVMContext ctx;
+
+  const int n_elts = 3;
+
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_real_distribution<float> dis(0.0, 1.0);
+
+  std::vector<float> f1, f2; // why are there a bunch of zeros in the middle...
+  for (int i = 0; i < n_elts; i++) {
+    f1.push_back(dis(gen));
+    f2.push_back(dis(gen));
+  }
+
+  f1.shrink_to_fit();
+  f2.shrink_to_fit();
+
+  Module module("test_module", ctx);
+
+  std::unique_ptr<Function> func = Function::Create(&module, "test_func");
+
+  core::Type<float *, 32> type;
+  Tensor *lhs, *rhs, *output;
+  EXPECT_NO_THROW(lhs = Variable::Create(func, &type, Shape(1, 1, n_elts)));
+  EXPECT_NO_THROW(rhs = Constant::Create(func, &type, Shape(1, 1, n_elts), f2.data()));
+  EXPECT_NO_THROW(output = func->AddOpNode({lhs, rhs}, SDOT));
+
+  EXPECT_EQ(func->GetSymbol(lhs)->type, llvm::Type::getFloatPtrTy(ctx));
+  EXPECT_NO_THROW(func->MarkSymbolAsArg(lhs));
+
+  EXPECT_EQ(func->GetSymbol(rhs)->type, llvm::Type::getFloatPtrTy(ctx));
+  EXPECT_NO_THROW(func->MarkSymbolAsArg(rhs));
+
+  EXPECT_TRUE(output->GetShape() == Shape(1, 1, 1));
+
+  std::vector<Tensor *> args = func->GetSignatureArgs({output});
+  EXPECT_EQ(args.size(), 3);
+  EXPECT_EQ(args[0], lhs);
+  EXPECT_EQ(args[1], rhs);
+  EXPECT_EQ(args[2], output);
+
+  llvm::Function *f;
+  EXPECT_NO_THROW(f = module.GetFunction(func->GetName(), args));
+  EXPECT_EQ(func->GetSymbol(rhs)->type, llvm::Type::getFloatTy(ctx));
+
+  EXPECT_NO_THROW(func->Emit(f));
+  EXPECT_NO_THROW(module.FinalizeFunction(f));
+
+  EXPECT_NO_THROW(module.FinalizeModule(3, llvm::sys::getDefaultTargetTriple()));
+  module.Print();
+
+  void (*sdot)(float *, float *) =
+  (void (*)(float *, float *))module.GetFunctionPtr("test_func");
+
+  float float_out;
+
+  auto start = std::chrono::high_resolution_clock::now();
+  sdot(f1.data(), &float_out);
+  auto finish = std::chrono::high_resolution_clock::now();
+
+  std::chrono::duration<double> elapsed = (finish - start);
+  std::cout << "\nElapsed time: " << elapsed.count() << " s for " << n_elts
             << " elements" << std::endl;
 
   EXPECT_NEAR(float_out, ref_sdot<n_elts>(f1.data(), f2.data()),

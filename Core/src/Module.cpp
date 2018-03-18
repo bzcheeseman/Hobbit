@@ -40,6 +40,7 @@
 #include "Module.hpp"
 #include "Symbol.hpp"
 #include "Tensor.hpp"
+#include "Variable.hpp"
 
 llvm::LLVMContext *Hobbit::Module::GetContext() { return ctx_; }
 
@@ -51,7 +52,8 @@ llvm::Function *Hobbit::Module::GetFunction(const std::string &name,
                                             const std::vector<Tensor *> &args) {
   std::vector<llvm::Type *> arg_types;
   for (auto &arg : args) {
-    arg_types.push_back(arg->GetSymbol()->type);
+    if (arg->GetBuffer() != nullptr) continue;
+    arg_types.push_back(arg->GetType());
   }
 
   llvm::FunctionType *ft =
@@ -63,10 +65,83 @@ llvm::Function *Hobbit::Module::GetFunction(const std::string &name,
 
   // Set up the args properly
   llvm::Function::arg_iterator iter = out->arg_begin();
+
+  std::vector<Constant *> constants;
+
   int idx = 0;
-  while (iter != out->arg_end()) {
-    args[idx]->GetSymbol()->buffer = &(*iter++);
+  while (iter != out->arg_end() && idx < args.size()) {
+    if (args[idx]->GetBuffer() != nullptr) {
+      constants.push_back((Constant *)args[idx]);
+      idx++;
+      continue;
+    }
+    args[idx]->GetBuffer() = &(*iter++);
     idx++;
+  }
+
+  std::vector<llvm::Constant *> buffer_constants;
+  for (auto &c : constants) {
+
+    llvm::Type *c_type = c->GetType();
+    if (c_type->isPointerTy()) {
+      c_type = c_type->getPointerElementType();
+      c->GetSymbol()->type = c_type;
+    }
+
+    if (c_type->isFloatingPointTy()) {
+      if (c_type->isFloatTy()) {
+        float *buf = (float *)c->GetBuffer();
+        for (uint64_t i = 0; i < c->GetShape().GetSize(); i++) {
+          buffer_constants.push_back(llvm::ConstantFP::get(c_type, (double)buf[i]));
+        }
+      }
+      if (c_type->isDoubleTy()) {
+        double *buf = (double *)c->GetBuffer();
+        for (uint64_t i = 0; i < c->GetShape().GetSize(); i++) {
+          buffer_constants.push_back(llvm::ConstantFP::get(c_type, buf[i]));
+        }
+      }
+    }
+    else if (c_type->isIntegerTy(64)) {
+      uint64_t *buf = (uint64_t *)c->GetBuffer();
+      for (uint64_t i = 0; i < c->GetShape().GetSize(); i++) {
+        buffer_constants.push_back(llvm::ConstantInt::get(c_type, buf[i], true));
+      }
+    }
+    else if (c_type->isIntegerTy(32)) {
+      uint32_t *buf = (uint32_t *)c->GetBuffer();
+      for (uint64_t i = 0; i < c->GetShape().GetSize(); i++) {
+        buffer_constants.push_back(llvm::ConstantInt::get(c_type, (uint64_t)buf[i], true));
+      }
+    }
+    else if (c_type->isIntegerTy(16)) {
+      uint16_t *buf = (uint16_t *)c->GetBuffer();
+      for (uint64_t i = 0; i < c->GetShape().GetSize(); i++) {
+        buffer_constants.push_back(llvm::ConstantInt::get(c_type, (uint64_t)buf[i], true));
+      }
+    }
+    else if (c_type->isIntegerTy(8)) {
+      uint8_t *buf = (uint8_t *)c->GetBuffer();
+      for (uint64_t i = 0; i < c->GetShape().GetSize(); i++) {
+        buffer_constants.push_back(llvm::ConstantInt::get(c_type, (uint64_t)buf[i], true));
+      }
+    }
+    else if (c_type->isIntegerTy(1)) {
+      bool *buf = (bool *)c->GetBuffer();
+      for (uint64_t i = 0; i < c->GetShape().GetSize(); i++) {
+        buffer_constants.push_back(llvm::ConstantInt::get(c_type, (uint64_t)buf[i], true));
+      }
+    }
+
+    llvm::ArrayType *arr_type = llvm::ArrayType::get(c_type, buffer_constants.size());
+
+    c->GetBuffer() = llvm::ConstantArray::get(arr_type, buffer_constants);
+    buffer_constants.clear();
+
+//    llvm::IRBuilder<> builder(entryBB);
+//    llvm::Value *arr_alloca = builder.CreateAlloca(arr_type, builder.getInt64(1));
+//    builder.CreateAlignedStore(const_array, arr_alloca, 32);
+//    c->GetBuffer() = builder.CreateAlignedLoad(builder.CreateGEP(arr_alloca, builder.getInt64(0)), 32);
   }
 
   return out;

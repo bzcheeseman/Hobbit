@@ -63,9 +63,10 @@ Hobbit::Tensor *Hobbit::core::Sdot::GetOutput() {
   return output_tensor;
 }
 
+// TODO: emit only kernel, write pass that sets up looping?
 llvm::Value *Hobbit::core::Sdot::Emit(
     llvm::Function
-        *func) { // TODO: emit only kernel, write pass that sets up looping?
+        *func) {
   llvm::BasicBlock *entryBB =
       llvm::BasicBlock::Create(func->getContext(), "hobbit.sdot.entry", func);
   llvm::BasicBlock *loopBB =
@@ -73,14 +74,7 @@ llvm::Value *Hobbit::core::Sdot::Emit(
   llvm::BasicBlock *exitBB =
       llvm::BasicBlock::Create(func->getContext(), "hobbit.sdot.exit", func);
 
-  llvm::Value *lhs = (llvm::Value *)args_[0]->buffer;
-  llvm::Value *rhs = (llvm::Value *)args_[1]->buffer;
-  llvm::Value *output = (llvm::Value *)args_[2]->buffer;
-
   llvm::IRBuilder<> builder(entryBB);
-  builder.CreateBr(loopBB);
-
-  builder.SetInsertPoint(loopBB);
 
   llvm::Type *arg_type = args_[0]->type;
   uint64_t vector_size = args_[0]->shape.GetSize();
@@ -91,17 +85,35 @@ llvm::Value *Hobbit::core::Sdot::Emit(
   llvm::Value *zero = builder.CreateBitCast(builder.getInt64(0), arg_type);
   llvm::Value *end_size = builder.getInt64(vector_size);
 
+  llvm::Value *lhs = (llvm::Value *)args_[0]->buffer;
+  llvm::Value *rhs = (llvm::Value *)args_[1]->buffer;
+  llvm::Value *output = (llvm::Value *)args_[2]->buffer;
+
+  builder.CreateBr(loopBB);
+
+  builder.SetInsertPoint(loopBB);
+
   llvm::PHINode *idx_var =
       builder.CreatePHI(builder.getInt64Ty(), 2, "hobbit.sdot.idx");
   llvm::PHINode *accumulator =
-      builder.CreatePHI(arg_type, 2, "hobbit.sdot.idx");
+      builder.CreatePHI(arg_type, 2, "hobbit.sdot.accumulator");
   idx_var->addIncoming(builder.getInt64(0), entryBB);
   accumulator->addIncoming(zero, entryBB);
 
-  llvm::Value *lhs_elt =
-      builder.CreateAlignedLoad(builder.CreateGEP(lhs, idx_var), 32);
-  llvm::Value *rhs_elt =
-      builder.CreateAlignedLoad(builder.CreateGEP(rhs, idx_var), 32);
+  llvm::Value *lhs_elt, *rhs_elt;
+  if (lhs->getType()->isArrayTy()) {
+    lhs_elt = builder.CreateExtractElement(lhs, idx_var);
+  }
+  else {
+    lhs_elt = builder.CreateAlignedLoad(builder.CreateGEP(lhs, idx_var), 32);
+  }
+
+  if (rhs->getType()->isArrayTy()) {
+    rhs_elt = builder.CreateExtractElement(rhs, idx_var);
+  }
+  else {
+    rhs_elt = builder.CreateAlignedLoad(builder.CreateGEP(rhs, idx_var), 32);
+  }
 
   llvm::Value *accumulator_next;
   if (arg_type->isIntegerTy()) {

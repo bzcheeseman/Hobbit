@@ -38,7 +38,8 @@ namespace Hobbit {
   public:
     explicit Tensor(core::Symbol *s);
 
-    core::Symbol *GetSymbol();
+    void *&GetBuffer();
+    core::Symbol * GetSymbol();
     llvm::Type *GetType();
     const Shape &GetShape();
 

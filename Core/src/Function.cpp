@@ -120,6 +120,10 @@ namespace Hobbit {
     out.reserve(output_types.size());
     out.insert(out.end(), output_types.begin(), output_types.end());
 
+    for (auto &o : out) {
+      this->MarkSymbolAsArg(o);
+    }
+
     return out;
   }
 

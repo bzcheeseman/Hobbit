@@ -74,7 +74,7 @@ namespace Hobbit {
     template <typename T, unsigned int BITWIDTH>
     static Constant *Create(std::unique_ptr<Function> &f,
                             Hobbit::core::Type<T, BITWIDTH> *type,
-                            const Shape &s, T *buffer) {
+                            const Shape &s, T buffer) {
       core::Symbol *sym =
           new core::Symbol(f, s, type->get(f->GetContext()), false, buffer);
 

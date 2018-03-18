@@ -62,7 +62,8 @@ namespace Hobbit {
         if (args.size() != 1)
           throw IncorrectNumArgs("Alloca");
       };
-      Alloca(std::vector<Symbol *> args) : OpNode(args, "Alloca") {
+
+      explicit Alloca(std::vector<Symbol *> args) : OpNode(args, "Alloca") {
         if (args.size() != 1)
           throw IncorrectNumArgs("Alloca");
       };
@@ -77,7 +78,8 @@ namespace Hobbit {
         if (args.size() != 2)
           throw IncorrectNumArgs("Sdot");
       };
-      Sdot(std::vector<Symbol *> args) : OpNode(args, "Sdot") {
+
+      explicit Sdot(std::vector<Symbol *> args) : OpNode(args, "Sdot") {
         if (args.size() != 2)
           throw IncorrectNumArgs("Sdot");
       };
