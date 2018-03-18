@@ -10,9 +10,9 @@
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
     You may obtain a copy of the License at
-    
+
         http://www.apache.org/licenses/LICENSE-2.0
-    
+
     Unless required by applicable law or agreed to in writing, software
     distributed under the License is distributed on an "AS IS" BASIS,
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -20,29 +20,32 @@
     limitations under the License.
  */
 
-
 #ifndef HOBBIT_SYMBOL_HPP
 #define HOBBIT_SYMBOL_HPP
 
-#include <llvm/IR/Type.h>
-
+#include "Function.hpp"
 #include "Shape.hpp"
 
-namespace Hobbit { namespace core {
+namespace llvm {
+  class Type;
+}
 
-  class Function;
+namespace Hobbit {
+  namespace core {
 
-  struct Symbol {
-    Function *parent_func;
-    Shape shape;
-    llvm::Type *type;
-    bool is_arg;
-    void *buffer = nullptr;
+    struct Symbol {
+      std::unique_ptr<Function> &parent_func;
+      Shape shape;
+      llvm::Type *type;
+      bool is_arg;
+      void *buffer = nullptr;
 
-    Symbol(Function *parent_func, const Shape &s, llvm::Type *t, bool is_arg=false, void *buffer=nullptr)
-            : shape(s), type(t), is_arg(is_arg), buffer(buffer) {};
-  };
-}}
+      Symbol(std::unique_ptr<Function> &parent_func, const Shape &s,
+             llvm::Type *t, bool is_arg = false, void *buffer = nullptr)
+          : parent_func(parent_func), shape(s), type(t), is_arg(is_arg),
+            buffer(buffer){};
+    };
+  }
+}
 
-
-#endif //HOBBIT_SYMBOL_HPP
+#endif // HOBBIT_SYMBOL_HPP

@@ -28,12 +28,10 @@ if (BUILD_TESTS)
 endif (BUILD_TESTS)
 
 add_subdirectory(Core)
-#add_subdirectory(Buffer)
-#add_subdirectory(Module)
 
 file(GLOB_RECURSE
         ALL_CXX_SOURCE_FILES
-        **/*.[chi]pp **/*.[chi]
+        Core/**/*.[chi]pp Core/**/*.[chi]
         )
 
 find_program(CLANG_FORMAT "clang-format")

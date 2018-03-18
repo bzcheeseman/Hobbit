@@ -88,3 +88,4 @@ testing/
 .idea/
 sourcetrail/*.*bm
 sourcetrail/*.*db
+archive/

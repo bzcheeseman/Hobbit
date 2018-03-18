@@ -10,9 +10,9 @@
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
     You may obtain a copy of the License at
-    
+
         http://www.apache.org/licenses/LICENSE-2.0
-    
+
     Unless required by applicable law or agreed to in writing, software
     distributed under the License is distributed on an "AS IS" BASIS,
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -20,27 +20,34 @@
     limitations under the License.
  */
 
-
 #ifndef HOBBIT_VARIABLE_HPP
 #define HOBBIT_VARIABLE_HPP
 
-#include <llvm/IR/Instructions.h>
-
 #include "Function.hpp"
 #include "Shape.hpp"
-#include "Type.hpp"
+#include "Symbol.hpp"
 #include "Tensor.hpp"
+#include "Type.hpp"
 
-namespace Hobbit { namespace core {
+namespace llvm {
+  class Type;
+}
 
-  // can get a Core from the global Module - this will insert the correct alloca into the entry block and add it to the function args
+namespace Hobbit {
+
+  // can get a Core from the global Module - this will insert the correct
+  // alloca into the entry block and add it to the function args
   class Variable : public Tensor {
   private:
-    explicit Variable(Symbol *s) : Tensor(s) {};
+    explicit Variable(core::Symbol *s) : Tensor(s){};
+
   public:
-    template<typename T, unsigned int BITWIDTH>
-    static Variable *Create(Function *f, Hobbit::core::Type<T, BITWIDTH> *type, const Shape &s) {
-      Symbol *sym = new Symbol (f, s, type->get(f->GetContext()), false, nullptr);
+    template <typename T, unsigned int BITWIDTH>
+    static Variable *Create(std::unique_ptr<Function> &f,
+                            Hobbit::core::Type<T, BITWIDTH> *type,
+                            const Shape &s) {
+      core::Symbol *sym =
+          new core::Symbol(f, s, type->get(f->GetContext()), false, nullptr);
 
       Variable *var = new Variable(sym);
       f->AddSymbol(var, sym);
@@ -48,8 +55,9 @@ namespace Hobbit { namespace core {
       return var;
     }
 
-    static Variable *Create(Hobbit::core::Function *f, llvm::Type *type, const Shape &s) {
-      Symbol *sym = new Symbol (f, s, type, false, nullptr);
+    static Variable *Create(std::unique_ptr<Function> &f, llvm::Type *type,
+                            const Shape &s) {
+      core::Symbol *sym = new core::Symbol(f, s, type, false, nullptr);
 
       Variable *var = new Variable(sym);
       f->AddSymbol(var, sym);
@@ -60,19 +68,24 @@ namespace Hobbit { namespace core {
 
   class Constant : public Tensor {
   private:
-    explicit Constant(Symbol *s) : Tensor(s) {};
+    explicit Constant(core::Symbol *s) : Tensor(s){};
+
   public:
-    template<typename T, unsigned int BITWIDTH>
-    static Constant *Create(Hobbit::core::Function *f, Hobbit::core::Type<T, BITWIDTH> *type, const Shape &s, T *buffer) {
-      Symbol *sym = new Symbol (f, s, type->get(f->GetContext()), false, buffer);
+    template <typename T, unsigned int BITWIDTH>
+    static Constant *Create(std::unique_ptr<Function> &f,
+                            Hobbit::core::Type<T, BITWIDTH> *type,
+                            const Shape &s, T *buffer) {
+      core::Symbol *sym =
+          new core::Symbol(f, s, type->get(f->GetContext()), false, buffer);
 
       Constant *c = new Constant(sym);
       f->AddSymbol(c, sym);
       return c;
     }
 
-    static Constant *Create(Function *f, llvm::Type *type, const Shape &s, void *buffer) {
-      Symbol *sym = new Symbol (f, s, type, false, buffer);
+    static Constant *Create(std::unique_ptr<Function> &f, llvm::Type *type,
+                            const Shape &s, void *buffer) {
+      core::Symbol *sym = new core::Symbol(f, s, type, false, buffer);
 
       Constant *c = new Constant(sym);
       f->AddSymbol(c, sym);
@@ -80,7 +93,6 @@ namespace Hobbit { namespace core {
       return c;
     }
   };
-}}
+}
 
-
-#endif //HOBBIT_VARIABLE_HPP
+#endif // HOBBIT_VARIABLE_HPP

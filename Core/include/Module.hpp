@@ -10,9 +10,9 @@
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
     You may obtain a copy of the License at
-    
+
         http://www.apache.org/licenses/LICENSE-2.0
-    
+
     Unless required by applicable law or agreed to in writing, software
     distributed under the License is distributed on an "AS IS" BASIS,
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -20,26 +20,37 @@
     limitations under the License.
  */
 
-
 #ifndef HOBBIT_MODULE_HPP
 #define HOBBIT_MODULE_HPP
 
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
+#include <llvm/Support/raw_ostream.h>
 
-namespace Hobbit { namespace core {
+namespace Hobbit {
+  class Tensor;
+
   class Module {
   public:
     Module(const std::string &name, llvm::LLVMContext &ctx);
 
     llvm::LLVMContext *GetContext();
+    llvm::Function *GetFunction(const std::string &name,
+                                const std::vector<Tensor *> &args);
+    void FinalizeFunction(llvm::Function *f);
+    void FinalizeModule(unsigned int opt_level,
+                        const std::string &target_triple,
+                        const std::string &cpu = "corei7",
+                        const std::string &features = "");
+    void Print();
+
+    void *GetFunctionPtr(const std::string &name);
 
   private:
     llvm::LLVMContext *ctx_;
     std::string name_;
     std::unique_ptr<llvm::Module> module_;
   };
-}}
+}
 
-
-#endif //HOBBIT_MODULE_HPP
+#endif // HOBBIT_MODULE_HPP

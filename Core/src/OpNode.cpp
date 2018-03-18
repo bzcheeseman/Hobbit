@@ -10,9 +10,9 @@
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
     You may obtain a copy of the License at
-    
+
         http://www.apache.org/licenses/LICENSE-2.0
-    
+
     Unless required by applicable law or agreed to in writing, software
     distributed under the License is distributed on an "AS IS" BASIS,
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -20,23 +20,18 @@
     limitations under the License.
  */
 
-
 #include "OpNode.hpp"
 
-#include <utility>
+Hobbit::core::OpNode::OpNode(const std::initializer_list<Symbol *> &args,
+                             const std::string &node_name)
+    : args_(args), name_(node_name) {}
 
-Hobbit::core::OpNode::OpNode(const std::initializer_list<Symbol *> &args, const std::string &node_name)
-        : args_(args), name_(node_name) {
-  if (args_.size() != 1) throw TooManyArgs(node_name);
-}
+Hobbit::core::OpNode::OpNode(std::vector<Symbol *> args,
+                             const std::string &node_name)
+    : args_(std::move(args)), name_(node_name) {}
 
-Hobbit::core::OpNode::OpNode(std::vector<Symbol *> args, const std::string &node_name)
-        : args_(std::move(args)), name_(node_name) {
-  if (args_.size() != 1) throw TooManyArgs(node_name);
-}
-
-Hobbit::core::Symbol *Hobbit::core::Alloca::GetOutput() {
-  return args_[0];
+Hobbit::Tensor *Hobbit::core::Alloca::GetOutput() {
+  return new Tensor(args_[0]);
 }
 
 llvm::Value *Hobbit::core::Alloca::Emit(llvm::Function *func) {
@@ -44,7 +39,90 @@ llvm::Value *Hobbit::core::Alloca::Emit(llvm::Function *func) {
 
   llvm::IRBuilder<> builder(BB);
 
-  llvm::Type *arr_type = llvm::ArrayType::get(args_[0]->type, args_[0]->shape.GetSize());
+  llvm::Type *arg_type = args_[0]->type;
+  if (arg_type->isPointerTy()) {
+    arg_type = arg_type->getPointerElementType();
+  }
 
-  return builder.CreateAlloca(arr_type, builder.getInt64(1), "hobbit.alloca");
+  llvm::Type *arr_type =
+      llvm::ArrayType::get(arg_type, args_[0]->shape.GetSize());
+
+  llvm::AllocaInst *output_alloca =
+      builder.CreateAlloca(arr_type, builder.getInt64(1), "hobbit.alloca");
+  output_alloca->setAlignment(32);
+
+  return output_alloca;
+}
+
+Hobbit::Tensor *Hobbit::core::Sdot::GetOutput() {
+  Tensor *output_tensor =
+      Variable::Create(args_[0]->parent_func, args_[0]->type, Shape(1, 1, 1));
+
+  args_.push_back(output_tensor->GetSymbol());
+
+  return output_tensor;
+}
+
+llvm::Value *Hobbit::core::Sdot::Emit(
+    llvm::Function
+        *func) { // TODO: emit only kernel, write pass that sets up looping?
+  llvm::BasicBlock *entryBB =
+      llvm::BasicBlock::Create(func->getContext(), "hobbit.sdot.entry", func);
+  llvm::BasicBlock *loopBB =
+      llvm::BasicBlock::Create(func->getContext(), "hobbit.sdot.loop", func);
+  llvm::BasicBlock *exitBB =
+      llvm::BasicBlock::Create(func->getContext(), "hobbit.sdot.exit", func);
+
+  llvm::Value *lhs = (llvm::Value *)args_[0]->buffer;
+  llvm::Value *rhs = (llvm::Value *)args_[1]->buffer;
+  llvm::Value *output = (llvm::Value *)args_[2]->buffer;
+
+  llvm::IRBuilder<> builder(entryBB);
+  builder.CreateBr(loopBB);
+
+  builder.SetInsertPoint(loopBB);
+
+  llvm::Type *arg_type = args_[0]->type;
+  uint64_t vector_size = args_[0]->shape.GetSize();
+  if (arg_type->isPointerTy()) {
+    arg_type = arg_type->getPointerElementType();
+  }
+
+  llvm::Value *zero = builder.CreateBitCast(builder.getInt64(0), arg_type);
+  llvm::Value *end_size = builder.getInt64(vector_size);
+
+  llvm::PHINode *idx_var =
+      builder.CreatePHI(builder.getInt64Ty(), 2, "hobbit.sdot.idx");
+  llvm::PHINode *accumulator =
+      builder.CreatePHI(arg_type, 2, "hobbit.sdot.idx");
+  idx_var->addIncoming(builder.getInt64(0), entryBB);
+  accumulator->addIncoming(zero, entryBB);
+
+  llvm::Value *lhs_elt =
+      builder.CreateAlignedLoad(builder.CreateGEP(lhs, idx_var), 32);
+  llvm::Value *rhs_elt =
+      builder.CreateAlignedLoad(builder.CreateGEP(rhs, idx_var), 32);
+
+  llvm::Value *accumulator_next;
+  if (arg_type->isIntegerTy()) {
+    accumulator_next =
+        builder.CreateAdd(accumulator, builder.CreateMul(lhs_elt, rhs_elt));
+  }
+  if (arg_type->isFloatingPointTy()) {
+    accumulator_next =
+        builder.CreateFAdd(accumulator, builder.CreateFMul(lhs_elt, rhs_elt));
+  }
+
+  llvm::Value *next_idx_var = builder.CreateAdd(idx_var, builder.getInt64(1));
+
+  idx_var->addIncoming(next_idx_var, loopBB);
+  accumulator->addIncoming(accumulator_next, loopBB);
+
+  llvm::Value *end_cond = builder.CreateICmpEQ(next_idx_var, end_size);
+  builder.CreateCondBr(end_cond, exitBB, loopBB);
+
+  builder.SetInsertPoint(exitBB);
+  builder.CreateAlignedStore(accumulator_next, output, 32);
+
+  return output;
 }
