@@ -131,7 +131,7 @@ llvm::Value *Hobbit::core::Sdot::Emit(
   accumulator->addIncoming(accumulator_next, loopBB);
 
   llvm::Value *end_cond = builder.CreateICmpEQ(next_idx_var, end_size);
-  builder.CreateCondBr(end_cond, exitBB, loopBB);
+  llvm::BranchInst *br = builder.CreateCondBr(end_cond, exitBB, loopBB); // TODO: add metadata here (loop unroll/vectorize)
 
   builder.SetInsertPoint(exitBB);
   builder.CreateAlignedStore(accumulator_next, output, 32);
