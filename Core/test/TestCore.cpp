@@ -192,9 +192,9 @@ TEST(Basic, EmitFunction) {
   EXPECT_NO_THROW(func->Emit(f));
   EXPECT_NO_THROW(module.FinalizeFunction(f));
 
-  EXPECT_NO_THROW(module.FinalizeModule(3, llvm::sys::getDefaultTargetTriple()));
+  EXPECT_NO_THROW(
+      module.FinalizeModule(3, llvm::sys::getDefaultTargetTriple()));
   module.Print();
-
 
   void (*sdot)(float *, float *, float *) =
       (void (*)(float *, float *, float *))module.GetFunctionPtr("test_func");
@@ -248,7 +248,8 @@ TEST(Basic, EmitConstFunction) { // this is still iffy
   core::Type<float *, 32> type;
   Tensor *lhs, *rhs, *output;
   EXPECT_NO_THROW(lhs = Variable::Create(func, &type, Shape(1, 1, n_elts)));
-  EXPECT_NO_THROW(rhs = Constant::Create(func, &type, Shape(1, 1, n_elts), f2.data()));
+  EXPECT_NO_THROW(
+      rhs = Constant::Create(func, &type, Shape(1, 1, n_elts), f2.data()));
   EXPECT_NO_THROW(output = func->AddOpNode({lhs, rhs}, SDOT));
 
   EXPECT_EQ(func->GetSymbol(lhs)->type, llvm::Type::getFloatPtrTy(ctx));
@@ -272,11 +273,12 @@ TEST(Basic, EmitConstFunction) { // this is still iffy
   EXPECT_NO_THROW(func->Emit(f));
   EXPECT_NO_THROW(module.FinalizeFunction(f));
 
-  EXPECT_NO_THROW(module.FinalizeModule(3, llvm::sys::getDefaultTargetTriple()));
+  EXPECT_NO_THROW(
+      module.FinalizeModule(3, llvm::sys::getDefaultTargetTriple()));
   module.Print();
 
   void (*sdot)(float *, float *) =
-  (void (*)(float *, float *))module.GetFunctionPtr("test_func");
+      (void (*)(float *, float *))module.GetFunctionPtr("test_func");
 
   float float_out;
 

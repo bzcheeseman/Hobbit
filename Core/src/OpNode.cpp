@@ -63,10 +63,8 @@ Hobbit::Tensor *Hobbit::core::Sdot::GetOutput() {
   return output_tensor;
 }
 
-// TODO: emit only kernel, write pass that sets up looping?
-llvm::Value *Hobbit::core::Sdot::Emit(
-    llvm::Function
-        *func) {
+// TODO: emit only kernel, write pass that sets up looping
+llvm::Value *Hobbit::core::Sdot::Emit(llvm::Function *func) {
   llvm::BasicBlock *entryBB =
       llvm::BasicBlock::Create(func->getContext(), "hobbit.sdot.entry", func);
   llvm::BasicBlock *loopBB =
@@ -103,15 +101,13 @@ llvm::Value *Hobbit::core::Sdot::Emit(
   llvm::Value *lhs_elt, *rhs_elt;
   if (lhs->getType()->isArrayTy()) {
     lhs_elt = builder.CreateExtractElement(lhs, idx_var);
-  }
-  else {
+  } else {
     lhs_elt = builder.CreateAlignedLoad(builder.CreateGEP(lhs, idx_var), 32);
   }
 
   if (rhs->getType()->isArrayTy()) {
     rhs_elt = builder.CreateExtractElement(rhs, idx_var);
-  }
-  else {
+  } else {
     rhs_elt = builder.CreateAlignedLoad(builder.CreateGEP(rhs, idx_var), 32);
   }
 
@@ -130,8 +126,23 @@ llvm::Value *Hobbit::core::Sdot::Emit(
   idx_var->addIncoming(next_idx_var, loopBB);
   accumulator->addIncoming(accumulator_next, loopBB);
 
+  llvm::SmallVector<llvm::Metadata *, 4> Args;
+  // Reserve operand 0 for loop id self reference.
+  auto TempNode = llvm::MDNode::getTemporary(builder.getContext(), llvm::None);
+  Args.push_back(TempNode.get());
+
+  llvm::Metadata *vecMD[] = {llvm::MDString::get(builder.getContext(), "llvm.loop.vectorize.width"),
+                      llvm::ConstantAsMetadata::get(llvm::ConstantInt::get(
+                              llvm::Type::getInt32Ty(builder.getContext()), 8))};
+  Args.push_back(llvm::MDNode::get(builder.getContext(), vecMD));
+
+  llvm::MDNode *LoopID = llvm::MDNode::get(builder.getContext(), Args);
+  LoopID->replaceOperandWith(0, LoopID);
+
   llvm::Value *end_cond = builder.CreateICmpEQ(next_idx_var, end_size);
-  llvm::BranchInst *br = builder.CreateCondBr(end_cond, exitBB, loopBB); // TODO: add metadata here (loop unroll/vectorize)
+  // TODO: add metadata here (loop unroll/vectorize)
+  llvm::BranchInst *br = builder.CreateCondBr(end_cond, exitBB, loopBB);
+  br->setMetadata("llvm.loop", LoopID);
 
   builder.SetInsertPoint(exitBB);
   builder.CreateAlignedStore(accumulator_next, output, 32);

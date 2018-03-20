@@ -31,6 +31,4 @@ const Hobbit::Shape &Hobbit::Tensor::GetShape() { return s_->shape; }
 
 Hobbit::core::Symbol *Hobbit::Tensor::GetSymbol() { return s_; }
 
-void *&Hobbit::Tensor::GetBuffer() {
-  return s_->buffer;
-}
+void *&Hobbit::Tensor::GetBuffer() { return s_->buffer; }
