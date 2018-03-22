@@ -40,8 +40,8 @@ namespace Hobbit {
     void FinalizeFunction(llvm::Function *f);
     void FinalizeModule(unsigned int opt_level,
                         const std::string &target_triple,
-                        const std::string &cpu = "corei7",
-                        const std::string &features = "");
+                        const std::string &cpu = "corei7-avx",
+                        const std::string &features = "+avx2");
     void Print();
 
     void *GetFunctionPtr(const std::string &name);

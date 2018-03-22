@@ -159,7 +159,7 @@ TEST(Basic, AddArg) {
 TEST(Basic, EmitFunction) {
   llvm::LLVMContext ctx;
 
-  const int n_elts = 3400;
+  const int n_elts = 34000;
 
   Module module("test_module", ctx);
 
