@@ -49,11 +49,12 @@ namespace Hobbit {
     class Node {
     public:
       enum NodeType {
+        TensorID,
         FunctionNodeID,
         LoopNodeID,
       };
 
-      virtual const std::string &GetName() = 0;
+      virtual const std::string &GetName() const { return name_; }
       virtual const std::string &GetSignature() = 0; // for printing?
 
       virtual NodeType GetNodeType() const = 0;
@@ -135,13 +136,19 @@ namespace Hobbit {
       bool redux_;
     };
 
-    class Tensor {
+    class Tensor : public Node {
     public:
 
       static Tensor *CreateVariable(const std::string &name, Node *parent, llvm::SmallVector<uint64_t, 4> dims, llvm::Type *type);
       static Tensor *CreateConstant(const std::string &name,
                                     Node *parent, llvm::SmallVector<uint64_t, 4> dims, llvm::Type *type,
                                     void *buffer);
+
+      NodeType GetNodeType() const override { return TensorID; }
+
+      static inline bool classof(const Node *node) {
+        return node->GetNodeType() == TensorID;
+      }
 
       // Gets the parent/creator node for this tensor (for a function arg, it would be a Function*, for example)
       Node *GetParent();

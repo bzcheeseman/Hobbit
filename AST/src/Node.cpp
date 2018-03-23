@@ -243,7 +243,7 @@ Hobbit::ast::Tensor *
 Hobbit::ast::Tensor::Chip(llvm::BasicBlock *BB, llvm::SmallVector<uint64_t, 4> start_idx, llvm::SmallVector<uint64_t, 4> dims) {
   // create a new tensor that aliases this
   Tensor *chip = new Tensor(this->GEP(BB, std::move(start_idx)), std::move(dims), this->llvm_type_);
-  chip->parent_ = this->parent_;
+  chip->parent_ = this;
 
   return chip;
 }
