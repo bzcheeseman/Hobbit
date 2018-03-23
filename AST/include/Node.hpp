@@ -39,29 +39,37 @@ namespace Hobbit {
       std::vector<Node *> op_table_;
     };
 
-    class Tensor : public Node {
+    class Tensor : public Node { // what methods does a Tensor need?
     public:
+      llvm::Value *At(llvm::SmallVector<uint64_t, 4> idx);
 
     private:
-
 
     private:
       llvm::Value *llvm_buffer_; // can store constant array here
-      std::vector<uint64_t> dims_;
+      llvm::SmallVector<uint64_t, 4> dims_;
     };
 
     class Loop : public Node {
     public:
-      static Loop *Create(Function *f, uint64_t range_start, uint64_t range_end);
+      static Loop *Create(Node *parent, uint64_t range_start, uint64_t range_end, bool is_reduction);
+      void AddArgs(llvm::SmallVector<Tensor *, 2> args);
 
     protected:
-      virtual void AddKernel(llvm::BasicBlock *BB, llvm::ArrayRef<Tensor *> args) = 0; // where to put the IR
+      virtual void AddKernel(llvm::BasicBlock *BB) = 0; // where to put the IR
       void AddLoopMetadata(llvm::BranchInst *loop_end_br); // br has getContext, getParent (for BB)
 
     protected:
-      Function *f_;
+      // Parent node (like containing node) - loop within a loop or loop within a function for example
+      Node *parent_;
+
+      // The input tensors
+      llvm::SmallVector<Tensor *, 2> args_;
+
+      // Loop characteristics
       uint64_t range_start_;
       uint64_t range_end_;
+      bool redux_;
     };
   }
 }
