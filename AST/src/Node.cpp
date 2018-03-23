@@ -32,9 +32,9 @@ Hobbit::ast::Function *Hobbit::ast::Function::Create(const std::string &name) {
   return f;
 }
 
-Hobbit::ast::Tensor *Hobbit::ast::Function::GetNewArg(const std::string &name, llvm::SmallVector<uint64_t, 4> dims) {
+Hobbit::ast::Tensor *Hobbit::ast::Function::GetNewArg(const std::string &name, llvm::SmallVector<uint64_t, 4> dims, llvm::Type *type) {
   // Create a new Tensor
-  Tensor *arg = Tensor::CreateVariable(name, this, dims);
+  Tensor *arg = Tensor::CreateVariable(name, this, dims, type);
   // Add the tensor to the arg table
   this->arg_table_.push_back(arg);
   return arg;
@@ -43,6 +43,31 @@ Hobbit::ast::Tensor *Hobbit::ast::Function::GetNewArg(const std::string &name, l
 void Hobbit::ast::Function::PushNode(Hobbit::ast::Node *node) {
   this->op_table_.push_back(node);
 }
+
+llvm::Function *Hobbit::ast::Function::EmitFunction(llvm::Module *module) {
+  llvm::LLVMContext &ctx = module->getContext();
+
+  llvm::SmallVector<llvm::Type *, 4> arg_types;
+  for (auto &arg : arg_table_) {
+    arg_types.push_back(arg->GetType());
+  }
+
+  llvm::FunctionType *ft =
+          llvm::FunctionType::get(llvm::Type::getVoidTy(ctx), arg_types, false);
+  llvm::Function *out =
+          llvm::cast<llvm::Function>(module->getOrInsertFunction(name_, ft));
+  llvm::BasicBlock *entryBB = llvm::BasicBlock::Create(
+          ctx, "hobbit." + name_ + ".entry", out);
+
+  // Set up the args properly - modify the pointers that are hanging around everywhere
+  llvm::Function::arg_iterator iter = out->arg_begin();
+  for (auto &arg : arg_table_) {
+    arg->SetBuffer(&(*iter++));
+  }
+}
+
+Hobbit::ast::Loop::Loop(const std::string &name, Hobbit::ast::Node *parent, uint64_t range_start, uint64_t range_end)
+        : name_(name), parent_(parent), range_start_(range_start), range_end_(range_end) {}
 
 llvm::PHINode *Hobbit::ast::Loop::AddLoopEntry_(llvm::BranchInst *prev_bb_br) {
   llvm::BasicBlock *prevBB = prev_bb_br->getParent();
@@ -103,8 +128,8 @@ void Hobbit::ast::Loop::AddLoopMetadata_(llvm::BranchInst *loop_end_br) {
 }
 
 Hobbit::ast::Tensor *Hobbit::ast::Tensor::CreateVariable(const std::string &name, Hobbit::ast::Node *parent,
-                                                         llvm::SmallVector<uint64_t, 4> dims) {
-  Tensor *t = new Tensor(nullptr, std::move(dims));
+                                                         llvm::SmallVector<uint64_t, 4> dims, llvm::Type *type) {
+  Tensor *t = new Tensor(nullptr, std::move(dims), type);
 
   t->parent_ = parent;
 
@@ -113,8 +138,8 @@ Hobbit::ast::Tensor *Hobbit::ast::Tensor::CreateVariable(const std::string &name
 
 Hobbit::ast::Tensor *Hobbit::ast::Tensor::CreateConstant(const std::string &name,
                                                          Node *parent, llvm::SmallVector<uint64_t, 4> dims,
-                                                         void *buffer, llvm::Type *type) {
-  Tensor *t = CreateVariable(name, parent, std::move(dims));
+                                                         llvm::Type *type, void *buffer) {
+  Tensor *t = CreateVariable(name, parent, std::move(dims), type);
 
   uint64_t total_size = t->Size();
 
@@ -186,6 +211,18 @@ Hobbit::ast::Node *Hobbit::ast::Tensor::GetParent() {
   return parent_;
 }
 
+llvm::Type *Hobbit::ast::Tensor::GetType() {
+  return llvm_type_;
+}
+
+void Hobbit::ast::Tensor::SetBuffer(llvm::Value *val) {
+  this->llvm_buffer_ = val;
+  this->llvm_type_ = val->getType();
+
+  // set the name of the buffer
+  this->llvm_buffer_->setName(this->name_);
+}
+
 uint64_t Hobbit::ast::Tensor::NDim() {
   return dims_.size();
 }
@@ -205,7 +242,7 @@ uint64_t Hobbit::ast::Tensor::Size() {
 Hobbit::ast::Tensor *
 Hobbit::ast::Tensor::Chip(llvm::BasicBlock *BB, llvm::SmallVector<uint64_t, 4> start_idx, llvm::SmallVector<uint64_t, 4> dims) {
   // create a new tensor that aliases this
-  Tensor *chip = new Tensor(this->GEP(BB, std::move(start_idx)), std::move(dims));
+  Tensor *chip = new Tensor(this->GEP(BB, std::move(start_idx)), std::move(dims), this->llvm_type_);
   chip->parent_ = this->parent_;
 
   return chip;
@@ -214,7 +251,7 @@ Hobbit::ast::Tensor::Chip(llvm::BasicBlock *BB, llvm::SmallVector<uint64_t, 4> s
 Hobbit::ast::Tensor *Hobbit::ast::Tensor::Chip(llvm::BasicBlock *BB, llvm::SmallVector<llvm::Value *, 4> start_idx,
                                                llvm::SmallVector<uint64_t, 4> dims) {
   // create a new tensor that aliases this
-  Tensor *chip = new Tensor(this->GEP(BB, start_idx), dims);
+  Tensor *chip = new Tensor(this->GEP(BB, start_idx), dims, this->llvm_type_);
   chip->parent_ = this->parent_;
 
   return chip;
@@ -280,7 +317,8 @@ llvm::Value *Hobbit::ast::Tensor::Load(llvm::BasicBlock *BB, llvm::Value *raw_id
   return builder.CreateAlignedLoad(gep, ALIGNMENT);
 }
 
-Hobbit::ast::Tensor::Tensor(llvm::Value *ptr, llvm::SmallVector<uint64_t, 4> dims) : llvm_buffer_(ptr), dims_(std::move(dims)) {}
+Hobbit::ast::Tensor::Tensor(llvm::Value *ptr, llvm::SmallVector<uint64_t, 4> dims, llvm::Type *type)
+        : llvm_buffer_(ptr), dims_(std::move(dims)), llvm_type_(type) {}
 
 uint64_t Hobbit::ast::Tensor::At_(llvm::SmallVector<uint64_t, 4> idx) {
   if (idx.size() != dims_.size()) throw std::runtime_error("Incorrect number of indices");

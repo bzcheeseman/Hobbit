@@ -35,6 +35,8 @@ namespace llvm {
   class BranchInst;
   class Value;
   class Type;
+  class Module;
+  class Function;
 }
 
 namespace Hobbit {
@@ -65,7 +67,9 @@ namespace Hobbit {
       static Function *Create(const std::string &name);
 
       // Add an argument to the function signature and get it so that we can operate on it
-      Tensor *GetNewArg(const std::string &name, llvm::SmallVector<uint64_t, 4> dims);
+      Tensor *GetNewArg(const std::string &name, llvm::SmallVector<uint64_t, 4> dims, llvm::Type *type);
+
+      llvm::Function *EmitFunction(llvm::Module *module);
 
       void PushNode(Node *node);
 
@@ -83,9 +87,6 @@ namespace Hobbit {
 
     class Loop : public Node {
     public:
-      // parent will usually be a function
-//      static Loop *Create(const std::string &name, Node *parent, uint64_t range_start, uint64_t range_end);
-
       // Computes the output size and creates a new Tensor that is returned when the args are set.
       // Throws an error if none of the dimensions of the input tensors match the range start and end.
       virtual Tensor *SetArgs(llvm::SmallVector<Tensor *, 2> args) = 0;
@@ -100,6 +101,8 @@ namespace Hobbit {
       }
 
     protected:
+      Loop(const std::string &name, Node *parent, uint64_t range_start, uint64_t range_end);
+
       // where to put the IR for the actual loop
       // GEMM will be a bunch of nested DOTs (for example)
       // Elementwise operations can treat a Tensor as a flat buffer and iterate over everything
@@ -135,13 +138,17 @@ namespace Hobbit {
     class Tensor {
     public:
 
-      static Tensor *CreateVariable(const std::string &name, Node *parent, llvm::SmallVector<uint64_t, 4> dims);
+      static Tensor *CreateVariable(const std::string &name, Node *parent, llvm::SmallVector<uint64_t, 4> dims, llvm::Type *type);
       static Tensor *CreateConstant(const std::string &name,
-                                    Node *parent, llvm::SmallVector<uint64_t, 4> dims,
-                                    void *buffer, llvm::Type *type);
+                                    Node *parent, llvm::SmallVector<uint64_t, 4> dims, llvm::Type *type,
+                                    void *buffer);
 
       // Gets the parent/creator node for this tensor (for a function arg, it would be a Function*, for example)
       Node *GetParent();
+
+      llvm::Type *GetType();
+
+      void SetBuffer(llvm::Value *val);
 
       // Gets the number of dimensions for a tensor
       uint64_t NDim();
@@ -175,17 +182,18 @@ namespace Hobbit {
 
       // elementwise operations?
     private:
-      Tensor(llvm::Value *ptr, llvm::SmallVector<uint64_t, 4> dims);
+      Tensor(llvm::Value *ptr, llvm::SmallVector<uint64_t, 4> dims, llvm::Type *type);
 
       // for calculating the index of an item in a shaped flat buffer
       uint64_t At_(llvm::SmallVector<uint64_t, 4> idx);
       llvm::Value *AtVal_(llvm::BasicBlock *BB, llvm::SmallVector<llvm::Value *, 4> idx);
 
     private:
-      const std::string name_;
+      std::string name_;
 
       // can store constant array here
       llvm::Value *llvm_buffer_;
+      llvm::Type *llvm_type_;
       llvm::SmallVector<uint64_t, 4> dims_;
 
       // not sure if this is necessary?
