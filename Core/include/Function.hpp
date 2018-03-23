@@ -42,7 +42,7 @@ namespace Hobbit {
 
   namespace core {
     class Symbol;
-    class OpNode;
+    class Node;
   }
 
   enum OpCode {
@@ -58,33 +58,27 @@ namespace Hobbit {
     core::Symbol *GetSymbol(void *sym_addr);
     void MarkSymbolAsArg(void *sym_addr);
 
-    Tensor *AddOpNode(std::initializer_list<void *> sym_addrs,
-                      const OpCode &opcode);
+    void AddNode(core::Node *node);
 
     llvm::LLVMContext *GetContext();
 
     const std::string &GetName();
 
-    std::vector<Tensor *>
-    GetSignatureArgs(std::initializer_list<void *> output_addrs);
+    llvm::Function *GetFunction(std::initializer_list<void *> output_addrs);
 
     void Emit(llvm::Function *func);
 
-    void AddBlock(const std::string &name);
-    void AddToBlock(const std::string &name, llvm::Value *v);
+  private:
+    std::vector<Tensor *>
+    GetSignatureArgs(std::initializer_list<void *> output_addrs);
 
   private:
-    //    std::unique_ptr<Tensor> CreateVariable(void *addr);
-    //    std::unique_ptr<Tensor> CreateConstant(void *addr);
-
     std::string name_;
     Module *module_;
 
     // everything in this function comes from these
     std::map<void *, core::Symbol *> symbol_table_;
-    std::vector<core::OpNode *> op_table_;
-
-    std::map<std::string, std::vector<llvm::Value *>> function_blocks_;
+    std::vector<core::Node *> op_table_;
   };
 }
 

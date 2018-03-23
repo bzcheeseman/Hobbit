@@ -25,7 +25,7 @@
 #include <set>
 
 #include "Module.hpp"
-#include "OpNode.hpp"
+#include "Node.hpp"
 
 namespace Hobbit {
   std::unique_ptr<Function> Function::Create(Module *m,
@@ -39,18 +39,6 @@ namespace Hobbit {
 
   llvm::LLVMContext *Function::GetContext() { return module_->GetContext(); }
 
-  void Function::AddBlock(const std::string &name) {
-    if (function_blocks_.find(name) != function_blocks_.end())
-      throw std::runtime_error(
-          "Attempting to overwrite an existing basic block!");
-
-    function_blocks_[name] = std::vector<llvm::Value *>();
-  }
-
-  void Function::AddToBlock(const std::string &name, llvm::Value *v) {
-    function_blocks_[name].push_back(v);
-  }
-
   void Function::AddSymbol(void *sym_addr, core::Symbol *arg) {
     if (symbol_table_.find(sym_addr) != symbol_table_.end())
       throw std::runtime_error("Attempting to overwrite an existing argument!");
@@ -62,33 +50,37 @@ namespace Hobbit {
     symbol_table_.at(sym_addr)->is_arg = true;
   }
 
-  Tensor *Function::AddOpNode(std::initializer_list<void *> sym_addrs,
-                              const OpCode &opcode) {
-
-    std::vector<core::Symbol *> symbols;
-    for (auto &addr : sym_addrs) {
-      symbols.push_back(symbol_table_.at(addr));
-    }
-
-    core::OpNode *op;
-    Tensor *output;
-    switch (opcode) {
-    case ALLOCA: {
-      op = new core::Alloca(symbols);
-      break;
-    }
-    case SDOT: {
-      op = new core::Sdot(symbols);
-      break;
-    }
-    }
-
-    output = op->GetOutput();
-    op_table_.emplace_back(op);
-    symbol_table_[output] = output->GetSymbol();
-
-    return output;
+  void Function::AddNode(core::Node *node) {
+    op_table_.push_back(node);
   }
+
+//  Tensor *Function::AddOpNode(std::initializer_list<void *> sym_addrs,
+//                              const OpCode &opcode) {
+//
+//    std::vector<core::Symbol *> symbols;
+//    for (auto &addr : sym_addrs) {
+//      symbols.push_back(symbol_table_.at(addr));
+//    }
+//
+//    core::Node *op;
+//    Tensor *output;
+//    switch (opcode) {
+//    case ALLOCA: {
+//      op = new core::Alloca(symbols);
+//      break;
+//    }
+//    case SDOT: {
+//      op = new core::Sdot(symbols);
+//      break;
+//    }
+//    }
+//
+//    output = op->GetOutput();
+//    op_table_.emplace_back(op);
+//    symbol_table_[output] = output->GetSymbol();
+//
+//    return output;
+//  }
 
   core::Symbol *Function::GetSymbol(void *sym_addr) {
     return symbol_table_.at(sym_addr);
@@ -129,14 +121,8 @@ namespace Hobbit {
 
   const std::string &Function::GetName() { return name_; }
 
-  // Private functions
-  //  std::unique_ptr<Tensor> Function::CreateVariable(void *addr) {
-  //    return Variable::Create(this, symbol_table_.at(addr)->type,
-  //    symbol_table_.at(addr)->shape);
-  //  }
-  //
-  //  std::unique_ptr<Tensor> Function::CreateConstant(void *addr) {
-  //    return Constant::Create(this, symbol_table_.at(addr)->type,
-  //    symbol_table_.at(addr)->shape);
-  //  }
+  llvm::Function *Function::GetFunction(std::initializer_list<void *> output_addrs) {
+    std::vector<Tensor *> signature_args = this->GetSignatureArgs(std::move(output_addrs));
+    return module_->GetFunction(name_, signature_args);
+  }
 }

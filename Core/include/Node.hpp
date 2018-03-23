@@ -41,13 +41,13 @@ namespace Hobbit {
                 " is initialized with an incorrect number of args!"){};
     };
 
-    class OpNode {
+    class Node {
     public:
-      OpNode(const std::initializer_list<Symbol *> &args,
+      Node(const std::initializer_list<Symbol *> &args,
              const std::string &node_name);
-      OpNode(std::vector<Symbol *> args, const std::string &node_name);
+      Node(std::vector<Symbol *> args, const std::string &node_name);
 
-      virtual Tensor *GetOutput() = 0;
+      virtual Tensor *Register(Function *f, std::initializer_list<Tensor *> args) = 0;
       virtual llvm::Value *Emit(llvm::Function *func) = 0;
 
     protected:
@@ -55,15 +55,15 @@ namespace Hobbit {
       std::vector<Symbol *> args_;
     };
 
-    class Alloca : public OpNode {
+    class Alloca : public Node {
     public:
       Alloca(const std::initializer_list<Symbol *> &args)
-          : OpNode(args, "Alloca") {
+          : Node(args, "Alloca") {
         if (args.size() != 1)
           throw IncorrectNumArgs("Alloca");
       };
 
-      explicit Alloca(std::vector<Symbol *> args) : OpNode(args, "Alloca") {
+      explicit Alloca(std::vector<Symbol *> args) : Node(args, "Alloca") {
         if (args.size() != 1)
           throw IncorrectNumArgs("Alloca");
       };
@@ -72,19 +72,19 @@ namespace Hobbit {
       llvm::Value *Emit(llvm::Function *func) override;
     };
 
-    class Sdot : public OpNode {
+    class Sdot : public Node {
     public:
-      Sdot(const std::initializer_list<Symbol *> &args) : OpNode(args, "Sdot") {
+      Sdot(const std::initializer_list<Symbol *> &args) : Node(args, "Sdot") {
         if (args.size() != 2)
           throw IncorrectNumArgs("Sdot");
       };
 
-      explicit Sdot(std::vector<Symbol *> args) : OpNode(args, "Sdot") {
+      explicit Sdot(std::vector<Symbol *> args) : Node(args, "Sdot") {
         if (args.size() != 2)
           throw IncorrectNumArgs("Sdot");
       };
 
-      Tensor *GetOutput() override;
+      Tensor *Register(Function *f, std::vector<Tensor *> args);
       llvm::Value *Emit(llvm::Function *func) override;
     };
   }

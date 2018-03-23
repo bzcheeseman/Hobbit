@@ -20,13 +20,13 @@
     limitations under the License.
  */
 
-#include "OpNode.hpp"
+#include "Node.hpp"
 
-Hobbit::core::OpNode::OpNode(const std::initializer_list<Symbol *> &args,
+Hobbit::core::Node::Node(const std::initializer_list<Symbol *> &args,
                              const std::string &node_name)
     : args_(args), name_(node_name) {}
 
-Hobbit::core::OpNode::OpNode(std::vector<Symbol *> args,
+Hobbit::core::Node::Node(std::vector<Symbol *> args,
                              const std::string &node_name)
     : args_(std::move(args)), name_(node_name) {}
 
@@ -93,6 +93,7 @@ llvm::Value *Hobbit::core::Sdot::Emit(llvm::Function *func) {
 
   llvm::PHINode *idx_var =
       builder.CreatePHI(builder.getInt64Ty(), 2, "hobbit.sdot.idx");
+  // from here is the kernel
   llvm::PHINode *accumulator =
       builder.CreatePHI(arg_type, 2, "hobbit.sdot.accumulator");
   idx_var->addIncoming(builder.getInt64(0), entryBB);
@@ -140,12 +141,18 @@ llvm::Value *Hobbit::core::Sdot::Emit(llvm::Function *func) {
   LoopID->replaceOperandWith(0, LoopID);
 
   llvm::Value *end_cond = builder.CreateICmpEQ(next_idx_var, end_size);
-  // TODO: add metadata here (loop unroll/vectorize)
   llvm::BranchInst *br = builder.CreateCondBr(end_cond, exitBB, loopBB);
   br->setMetadata("llvm.loop", LoopID);
 
   builder.SetInsertPoint(exitBB);
   builder.CreateAlignedStore(accumulator_next, output, 32);
 
+  return output;
+}
+
+Hobbit::Tensor *Hobbit::core::Sdot::Register(Hobbit::Function *f, std::vector<Tensor *> args) {
+  // Adds itself to the symbol table on creation
+  Tensor *output = Variable::Create(f, args[0]->GetType(), Shape(1, 1, 1)); // TODO: get rid of the unique ptr crap
+  f->AddNode(this); // add myself to its table
   return output;
 }

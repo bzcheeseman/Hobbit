@@ -26,7 +26,7 @@
 
 #include <Function.hpp>
 #include <Module.hpp>
-#include <OpNode.hpp>
+#include <Node.hpp>
 #include <Type.hpp>
 #include <Variable.hpp>
 
@@ -151,9 +151,6 @@ TEST(Basic, AddArg) {
   EXPECT_TRUE(func->GetSymbol(tensor)->shape == tensor->GetShape());
   EXPECT_EQ(func->GetSymbol(tensor)->type, llvm::Type::getHalfTy(ctx));
   EXPECT_NO_THROW(func->MarkSymbolAsArg(tensor));
-
-  std::vector<Tensor *> args = func->GetSignatureArgs({output});
-  EXPECT_EQ(args[0]->GetType()->getTypeID(), tensor->GetType()->getTypeID());
 }
 
 TEST(Basic, EmitFunction) {
@@ -180,14 +177,8 @@ TEST(Basic, EmitFunction) {
 
   EXPECT_TRUE(output->GetShape() == Shape(1, 1, 1));
 
-  std::vector<Tensor *> args = func->GetSignatureArgs({output});
-  EXPECT_EQ(args.size(), 3);
-  EXPECT_EQ(args[0], lhs);
-  EXPECT_EQ(args[1], rhs);
-  EXPECT_EQ(args[2], output);
-
   llvm::Function *f;
-  EXPECT_NO_THROW(f = module.GetFunction(func->GetName(), args));
+  EXPECT_NO_THROW(f = func->GetFunction({output}));
 
   EXPECT_NO_THROW(func->Emit(f));
   EXPECT_NO_THROW(module.FinalizeFunction(f));
@@ -260,14 +251,8 @@ TEST(Basic, EmitConstFunction) { // this is still iffy
 
   EXPECT_TRUE(output->GetShape() == Shape(1, 1, 1));
 
-  std::vector<Tensor *> args = func->GetSignatureArgs({output});
-  EXPECT_EQ(args.size(), 3);
-  EXPECT_EQ(args[0], lhs);
-  EXPECT_EQ(args[1], rhs);
-  EXPECT_EQ(args[2], output);
-
   llvm::Function *f;
-  EXPECT_NO_THROW(f = module.GetFunction(func->GetName(), args));
+  EXPECT_NO_THROW(f = func->GetFunction({output}));
   EXPECT_EQ(func->GetSymbol(rhs)->type, llvm::Type::getFloatTy(ctx));
 
   EXPECT_NO_THROW(func->Emit(f));
