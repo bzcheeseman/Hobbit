@@ -24,8 +24,23 @@
 #ifndef HOBBIT_NODE_HPP
 #define HOBBIT_NODE_HPP
 
+#include <string>
+#include <vector>
+
+#include <llvm/ADT/SmallVector.h>
+
+namespace llvm {
+  class BasicBlock;
+  class PHINode;
+  class BranchInst;
+  class Value;
+  class Type;
+}
+
 namespace Hobbit {
   namespace ast {
+
+    const uint8_t ALIGNMENT = 32;
 
     class Tensor;
 
@@ -40,13 +55,18 @@ namespace Hobbit {
       virtual const std::string &GetSignature() = 0; // for printing?
 
       virtual NodeType GetNodeType() const = 0;
+
+    protected:
+      std::string name_;
     };
 
     class Function : public Node {
     public:
-      static Function *Create();
+      static Function *Create(const std::string &name);
 
-      void PushArg(Tensor *arg);
+      // Add an argument to the function signature and get it so that we can operate on it
+      Tensor *GetNewArg(const std::string &name, llvm::SmallVector<uint64_t, 4> dims);
+
       void PushNode(Node *node);
 
       NodeType GetNodeType() const override { return FunctionNodeID; }
@@ -63,13 +83,17 @@ namespace Hobbit {
 
     class Loop : public Node {
     public:
-      static Loop *Create(Node *parent, uint64_t range_start, uint64_t range_end, bool is_reduction);
+      // parent will usually be a function
+//      static Loop *Create(const std::string &name, Node *parent, uint64_t range_start, uint64_t range_end);
 
       // Computes the output size and creates a new Tensor that is returned when the args are set.
       // Throws an error if none of the dimensions of the input tensors match the range start and end.
       virtual Tensor *SetArgs(llvm::SmallVector<Tensor *, 2> args) = 0;
 
-      NodeType GetNodeType() const { return LoopNodeID; }
+      NodeType GetNodeType() const override { return LoopNodeID; }
+
+      // In case we have analytics that want to know if the loop is a reduction
+      virtual bool GetIsReduction() = 0;
 
       static inline bool classof(const Node *node) {
         return node->GetNodeType() == LoopNodeID;
@@ -77,10 +101,13 @@ namespace Hobbit {
 
     protected:
       // where to put the IR for the actual loop
-      virtual void AddKernel(llvm::PHINode *idx_var) = 0; // for gemm will end up with nested loops
+      // GEMM will be a bunch of nested DOTs (for example)
+      // Elementwise operations can treat a Tensor as a flat buffer and iterate over everything
+      virtual void AddKernel(llvm::SmallVector<llvm::PHINode *, 4> idx_vars) = 0;
 
       // Add basic blocks after the branch instance that ended the previous BB
       // Adds the phi node for the loop index
+      // Can create many of these blocks for nested for loops
       llvm::PHINode *AddLoopEntry_(llvm::BranchInst *prev_bb_br);
 
       // Increments the index and adds the BBs correctly.
@@ -88,6 +115,7 @@ namespace Hobbit {
       void AddLoopExit_(llvm::PHINode *idx_var);
 
       // br has getContext, getParent (for BB) - convenience function for sub-functions
+      // do we want to add a struct for loop options (like clang?)
       void AddLoopMetadata_(llvm::BranchInst *loop_end_br);
 
 
@@ -107,8 +135,10 @@ namespace Hobbit {
     class Tensor {
     public:
 
-      static Tensor *CreateVariable(Node *parent, llvm::SmallVector<uint64_t, 4> dims);
-      static Tensor *CreateConstant(Node *parent, llvm::SmallVector<uint64_t, 4> dims, void *buffer);
+      static Tensor *CreateVariable(const std::string &name, Node *parent, llvm::SmallVector<uint64_t, 4> dims);
+      static Tensor *CreateConstant(const std::string &name,
+                                    Node *parent, llvm::SmallVector<uint64_t, 4> dims,
+                                    void *buffer, llvm::Type *type);
 
       // Gets the parent/creator node for this tensor (for a function arg, it would be a Function*, for example)
       Node *GetParent();
@@ -117,9 +147,12 @@ namespace Hobbit {
       uint64_t NDim();
       // Gets a dimension of a tensor
       uint64_t Dim(uint64_t which);
+      // Gets the overall size of a tensor
+      uint64_t Size();
 
       // Get a chip from a tensor (that references the current tensor)
-      Tensor *Chip(llvm::SmallVector<uint64_t, 4> start_idx, llvm::SmallVector<uint64_t, 4> dims);
+      Tensor *Chip(llvm::BasicBlock *BB, llvm::SmallVector<uint64_t, 4> start_idx, llvm::SmallVector<uint64_t, 4> dims);
+      Tensor *Chip(llvm::BasicBlock *BB, llvm::SmallVector<llvm::Value *, 4> start_idx, llvm::SmallVector<uint64_t, 4> dims);
 
       // Collapse all the dimensions of this tensor into a single dimension, returns pointer to this tensor
       Tensor *Flatten();
@@ -127,17 +160,30 @@ namespace Hobbit {
       // ----- Should these not be in an AST?
       // GEP an element of a tensor
       llvm::Value *GEP(llvm::BasicBlock *BB, llvm::SmallVector<uint64_t, 4> idx);
-      llvm::Value *GEP(llvm::SmallVector<llvm::Value *, 4> idx);
+      llvm::Value *GEP(llvm::BasicBlock *BB, llvm::SmallVector<llvm::Value *, 4> idx);
+      // GEP an element as if the tensor was a flat buffer
+      llvm::Value *GEP(llvm::BasicBlock *BB, uint64_t raw_idx);
+      llvm::Value *GEP(llvm::BasicBlock *BB, llvm::Value *raw_idx);
+
 
       // Load an element of a tensor (wraps GEP with a builder.CreateLoad call)
       llvm::Value *Load(llvm::BasicBlock *BB, llvm::SmallVector<uint64_t, 4> idx);
-      llvm::Value *Load(llvm::SmallVector<llvm::Value *, 4> idx);
+      llvm::Value *Load(llvm::BasicBlock *BB, llvm::SmallVector<llvm::Value *, 4> idx);
+      // Load an element as if the tensor was a flat buffer
+      llvm::Value *Load(llvm::BasicBlock *BB, uint64_t raw_idx);
+      llvm::Value *Load(llvm::BasicBlock *BB, llvm::Value *raw_idx);
 
       // elementwise operations?
     private:
-      uint64_t At_(llvm::SmallVector<int64_t, 4> idx); // for calculating the index of a shape
+      Tensor(llvm::Value *ptr, llvm::SmallVector<uint64_t, 4> dims);
+
+      // for calculating the index of an item in a shaped flat buffer
+      uint64_t At_(llvm::SmallVector<uint64_t, 4> idx);
+      llvm::Value *AtVal_(llvm::BasicBlock *BB, llvm::SmallVector<llvm::Value *, 4> idx);
 
     private:
+      const std::string name_;
+
       // can store constant array here
       llvm::Value *llvm_buffer_;
       llvm::SmallVector<uint64_t, 4> dims_;

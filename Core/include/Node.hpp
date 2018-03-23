@@ -44,10 +44,11 @@ namespace Hobbit {
     class Node {
     public:
       Node(const std::initializer_list<Symbol *> &args,
-             const std::string &node_name);
+           const std::string &node_name);
       Node(std::vector<Symbol *> args, const std::string &node_name);
 
-      virtual Tensor *Register(Function *f, std::initializer_list<Tensor *> args) = 0;
+      virtual Tensor *Register(Function *f,
+                               std::initializer_list<Tensor *> args) = 0;
       virtual llvm::Value *Emit(llvm::Function *func) = 0;
 
     protected:

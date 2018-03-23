@@ -23,11 +23,11 @@
 #include "Node.hpp"
 
 Hobbit::core::Node::Node(const std::initializer_list<Symbol *> &args,
-                             const std::string &node_name)
+                         const std::string &node_name)
     : args_(args), name_(node_name) {}
 
 Hobbit::core::Node::Node(std::vector<Symbol *> args,
-                             const std::string &node_name)
+                         const std::string &node_name)
     : args_(std::move(args)), name_(node_name) {}
 
 Hobbit::Tensor *Hobbit::core::Alloca::GetOutput() {
@@ -93,10 +93,10 @@ llvm::Value *Hobbit::core::Sdot::Emit(llvm::Function *func) {
 
   llvm::PHINode *idx_var =
       builder.CreatePHI(builder.getInt64Ty(), 2, "hobbit.sdot.idx");
+  idx_var->addIncoming(builder.getInt64(0), entryBB);
   // from here is the kernel
   llvm::PHINode *accumulator =
       builder.CreatePHI(arg_type, 2, "hobbit.sdot.accumulator");
-  idx_var->addIncoming(builder.getInt64(0), entryBB);
   accumulator->addIncoming(zero, entryBB);
 
   llvm::Value *lhs_elt, *rhs_elt;
@@ -132,9 +132,10 @@ llvm::Value *Hobbit::core::Sdot::Emit(llvm::Function *func) {
   auto TempNode = llvm::MDNode::getTemporary(builder.getContext(), llvm::None);
   Args.push_back(TempNode.get());
 
-  llvm::Metadata *vecMD[] = {llvm::MDString::get(builder.getContext(), "llvm.loop.vectorize.width"),
-                      llvm::ConstantAsMetadata::get(llvm::ConstantInt::get(
-                              llvm::Type::getInt32Ty(builder.getContext()), 8))};
+  llvm::Metadata *vecMD[] = {
+      llvm::MDString::get(builder.getContext(), "llvm.loop.vectorize.width"),
+      llvm::ConstantAsMetadata::get(llvm::ConstantInt::get(
+          llvm::Type::getInt32Ty(builder.getContext()), 8))};
   Args.push_back(llvm::MDNode::get(builder.getContext(), vecMD));
 
   llvm::MDNode *LoopID = llvm::MDNode::get(builder.getContext(), Args);
@@ -150,9 +151,12 @@ llvm::Value *Hobbit::core::Sdot::Emit(llvm::Function *func) {
   return output;
 }
 
-Hobbit::Tensor *Hobbit::core::Sdot::Register(Hobbit::Function *f, std::vector<Tensor *> args) {
+Hobbit::Tensor *Hobbit::core::Sdot::Register(Hobbit::Function *f,
+                                             std::vector<Tensor *> args) {
   // Adds itself to the symbol table on creation
-  Tensor *output = Variable::Create(f, args[0]->GetType(), Shape(1, 1, 1)); // TODO: get rid of the unique ptr crap
-  f->AddNode(this); // add myself to its table
+  Tensor *output =
+      Variable::Create(f, args[0]->GetType(),
+                       Shape(1, 1, 1)); // TODO: get rid of the unique ptr crap
+  f->AddNode(this);                     // add myself to its table
   return output;
 }

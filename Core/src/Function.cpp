@@ -50,37 +50,35 @@ namespace Hobbit {
     symbol_table_.at(sym_addr)->is_arg = true;
   }
 
-  void Function::AddNode(core::Node *node) {
-    op_table_.push_back(node);
-  }
+  void Function::AddNode(core::Node *node) { op_table_.push_back(node); }
 
-//  Tensor *Function::AddOpNode(std::initializer_list<void *> sym_addrs,
-//                              const OpCode &opcode) {
-//
-//    std::vector<core::Symbol *> symbols;
-//    for (auto &addr : sym_addrs) {
-//      symbols.push_back(symbol_table_.at(addr));
-//    }
-//
-//    core::Node *op;
-//    Tensor *output;
-//    switch (opcode) {
-//    case ALLOCA: {
-//      op = new core::Alloca(symbols);
-//      break;
-//    }
-//    case SDOT: {
-//      op = new core::Sdot(symbols);
-//      break;
-//    }
-//    }
-//
-//    output = op->GetOutput();
-//    op_table_.emplace_back(op);
-//    symbol_table_[output] = output->GetSymbol();
-//
-//    return output;
-//  }
+  //  Tensor *Function::AddOpNode(std::initializer_list<void *> sym_addrs,
+  //                              const OpCode &opcode) {
+  //
+  //    std::vector<core::Symbol *> symbols;
+  //    for (auto &addr : sym_addrs) {
+  //      symbols.push_back(symbol_table_.at(addr));
+  //    }
+  //
+  //    core::Node *op;
+  //    Tensor *output;
+  //    switch (opcode) {
+  //    case ALLOCA: {
+  //      op = new core::Alloca(symbols);
+  //      break;
+  //    }
+  //    case SDOT: {
+  //      op = new core::Sdot(symbols);
+  //      break;
+  //    }
+  //    }
+  //
+  //    output = op->GetOutput();
+  //    op_table_.emplace_back(op);
+  //    symbol_table_[output] = output->GetSymbol();
+  //
+  //    return output;
+  //  }
 
   core::Symbol *Function::GetSymbol(void *sym_addr) {
     return symbol_table_.at(sym_addr);
@@ -121,8 +119,10 @@ namespace Hobbit {
 
   const std::string &Function::GetName() { return name_; }
 
-  llvm::Function *Function::GetFunction(std::initializer_list<void *> output_addrs) {
-    std::vector<Tensor *> signature_args = this->GetSignatureArgs(std::move(output_addrs));
+  llvm::Function *
+  Function::GetFunction(std::initializer_list<void *> output_addrs) {
+    std::vector<Tensor *> signature_args =
+        this->GetSignatureArgs(std::move(output_addrs));
     return module_->GetFunction(name_, signature_args);
   }
 }
