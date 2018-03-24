@@ -153,7 +153,6 @@ namespace Hobbit {
       uint64_t range_start_;
       uint64_t range_end_;
       uint64_t dim_idx_;
-      bool redux_;
     };
 
     class HSum : public Loop {
@@ -225,6 +224,13 @@ namespace Hobbit {
       // Load an element as if the tensor was a flat buffer
       llvm::Value *Load(llvm::BasicBlock *BB, uint64_t raw_idx);
       llvm::Value *Load(llvm::BasicBlock *BB, llvm::Value *raw_idx);
+
+      // Store an element of a tensor (wraps GEP with a builder.CreateStore call)
+      void Store(llvm::BasicBlock *BB, llvm::SmallVector<uint64_t, 4> idx, llvm::Value *val);
+      void Store(llvm::BasicBlock *BB, llvm::SmallVector<llvm::Value *, 4> idx, llvm::Value *val);
+      // Store an element as if the tensor was a flat buffer
+      void Store(llvm::BasicBlock *BB, uint64_t raw_idx, llvm::Value *val);
+      void Store(llvm::BasicBlock *BB, llvm::Value *raw_idx, llvm::Value *val);
 
       // elementwise operations?
     private:

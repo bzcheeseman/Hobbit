@@ -9,7 +9,7 @@ file(GLOB HEADERS include/*.hpp)
 llvm_map_components_to_libnames(llvm_libs all)
 
 add_library(HobbitAST SHARED ${SOURCES} ${HEADERS})
-target_link_libraries(HobbitAST c++ ${llvm_libs})
+target_link_libraries(HobbitAST c++ ${llvm_libs} glog::glog)
 target_include_directories(HobbitAST PUBLIC ${LLVM_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 if (BUILD_TESTS)

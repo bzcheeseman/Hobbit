@@ -25,6 +25,8 @@
 
 #include <sstream>
 
+#include <glog/logging.h>
+
 #include <llvm/IR/IRBuilder.h>
 
 Hobbit::ast::Function *Hobbit::ast::Function::Create(const std::string &name) {
@@ -41,14 +43,14 @@ const std::string &Hobbit::ast::Function::GetName() {
 const std::string &Hobbit::ast::Function::GetSignature() {
   std::stringstream out;
   out << "func " + name_ << " (";
-  if (arg_table_.size() > 0) {
+  if (!arg_table_.empty()) {
     for (int i = 0; i < arg_table_.size()-1; i++) {
       out << arg_table_[i]->GetSignature() << ", ";
     }
     out << (*(arg_table_.end()-1))->GetSignature();
   }
   out << ") {\n";
-  if (op_table_.size() > 0) {
+  if (!op_table_.empty()) {
     for (auto &op : op_table_) {
       out << "  " << op->GetSignature();
     }
@@ -96,6 +98,12 @@ llvm::Function *Hobbit::ast::Function::EmitFunction(llvm::Module *module) {
   for (auto &op : op_table_) {
     bb = op->Emit(bb);
   }
+
+  // Take care of the end
+  last_bb = std::move(bb);
+  last_bb->setName("hobbit." + name_ + ".exit");
+  llvm::IRBuilder<> builder(last_bb);
+  builder.CreateRetVoid();
 
   return out;
 }
@@ -228,7 +236,7 @@ Hobbit::ast::Tensor *Hobbit::ast::Tensor::CreateConstant(const std::string &name
     }
   }
   else {
-    throw std::runtime_error("Unsupported type");
+    LOG(FATAL) << "Unsupported type";
   }
 
   llvm::ArrayType *arr_type =
@@ -351,11 +359,39 @@ llvm::Value *Hobbit::ast::Tensor::Load(llvm::BasicBlock *BB, llvm::Value *raw_id
   return builder.CreateAlignedLoad(gep, ALIGNMENT);
 }
 
+void Hobbit::ast::Tensor::Store(llvm::BasicBlock *BB, llvm::SmallVector<uint64_t, 4> idx, llvm::Value *val) {
+  llvm::Value *gep = this->GEP(BB, std::move(idx));
+  llvm::IRBuilder<> builder(BB);
+
+  builder.CreateAlignedStore(val, gep, ALIGNMENT);
+}
+
+void Hobbit::ast::Tensor::Store(llvm::BasicBlock *BB, llvm::SmallVector<llvm::Value *, 4> idx, llvm::Value *val) {
+  llvm::Value *gep = this->GEP(BB, std::move(idx));
+  llvm::IRBuilder<> builder(BB);
+
+  builder.CreateAlignedStore(val, gep, ALIGNMENT);
+}
+
+void Hobbit::ast::Tensor::Store(llvm::BasicBlock *BB, uint64_t raw_idx, llvm::Value *val) {
+  llvm::Value *gep = this->GEP(BB, std::move(raw_idx));
+  llvm::IRBuilder<> builder(BB);
+
+  builder.CreateAlignedStore(val, gep, ALIGNMENT);
+}
+
+void Hobbit::ast::Tensor::Store(llvm::BasicBlock *BB, llvm::Value *raw_idx, llvm::Value *val) {
+  llvm::Value *gep = this->GEP(BB, std::move(raw_idx));
+  llvm::IRBuilder<> builder(BB);
+
+  builder.CreateAlignedStore(val, gep, ALIGNMENT);
+}
+
 Hobbit::ast::Tensor::Tensor(llvm::Value *ptr, llvm::SmallVector<uint64_t, 4> dims, llvm::Type *type)
         : llvm_buffer_(ptr), dims_(std::move(dims)), llvm_type_(type) {}
 
 uint64_t Hobbit::ast::Tensor::At_(llvm::SmallVector<uint64_t, 4> idx) {
-  if (idx.size() != dims_.size()) throw std::runtime_error("Incorrect number of indices");
+  if (idx.size() != dims_.size()) LOG(FATAL) << "Incorrect number of indices";
 
   uint64_t out = 0;
   for (uint64_t i = 0; i < dims_.size()-1; i++) {
@@ -386,7 +422,7 @@ const std::string &Hobbit::ast::Tensor::GetName() {
 
 const std::string &Hobbit::ast::Tensor::GetSignature() {
   std::stringstream out;
-  out << "tensor: " << name_ << " (";
+  out << "%" << name_ << " (";
   for (auto &dim : dims_) {
     out << dim << ", ";
   }
@@ -414,28 +450,36 @@ void Hobbit::ast::HSum::AddKernel(llvm::SmallVector<llvm::PHINode *, 4> idx_vars
 
   Tensor *arg = args_[0];
 
-  llvm::IRBuilder<> builder(bb);
   llvm::Type *accumulator_type = arg->GetType();
   if (accumulator_type->isPointerTy()) {
     accumulator_type = accumulator_type->getPointerElementType();
   }
 
-  llvm::Value *zero = builder.CreateBitCast(builder.getInt64(0), accumulator_type);
+  llvm::IRBuilder<> builder(&bb->getParent()->getEntryBlock());
+  llvm::Value *accumulator = builder.CreateAlloca(accumulator_type);
 
-  llvm::PHINode *accumulator = builder.CreatePHI(accumulator_type, 2, name_ + ".accumulator");
-  accumulator->addIncoming(zero, bb->getSinglePredecessor());
+  llvm::Value *zero = builder.CreateBitCast(builder.getInt64(0), accumulator_type);
+  builder.CreateStore(zero, accumulator);
+  out_[0]->SetBuffer(accumulator);
+
+  builder.SetInsertPoint(bb);
+
+//  llvm::PHINode *accumulator = builder.CreatePHI(accumulator_type, 2, name_ + ".accumulator");
+//  accumulator->addIncoming(zero, bb->getSinglePredecessor());
 
   llvm::Value *accumulator_next;
   if (accumulator_type->isIntegerTy()) {
     accumulator_next =
-            builder.CreateAdd(accumulator, arg->Load(bb, idx));
+            builder.CreateAdd(out_[0]->Load(bb, (uint64_t)0), arg->Load(bb, idx));
   }
   if (accumulator_type->isFloatingPointTy()) {
     accumulator_next =
-            builder.CreateFAdd(accumulator, arg->Load(bb, idx));
+            builder.CreateFAdd(out_[0]->Load(bb, (uint64_t)0), arg->Load(bb, idx));
   }
 
-  accumulator->addIncoming(accumulator_next, bb);
+  out_[0]->Store(bb, (uint64_t)0, accumulator_next);
+
+//  accumulator->addIncoming(accumulator_next, bb);
 }
 
 const std::string &Hobbit::ast::HSum::GetName() {
@@ -445,28 +489,25 @@ const std::string &Hobbit::ast::HSum::GetName() {
 const std::string &Hobbit::ast::HSum::GetSignature() {
   std::stringstream out;
 
-  out << name_ << " (" << args_[0]->GetName() << ") "
-          "redux dim: " << dim_idx_
+  out << out_[0]->GetSignature() << " = " << name_ << " (" << args_[0]->GetSignature() << ") "
+          "redux_dim: " << dim_idx_
       << " range: (" << range_start_ << ", " << range_end_ << ")" << "\n";
   signature_ = out.str();
   return signature_;
 }
 
 Hobbit::ast::Tensor *Hobbit::ast::HSum::SetArgs(llvm::SmallVector<Tensor *, 2> args) {
-  if (args.size() != 1) throw std::runtime_error("Too many arguments passed to "+name_);
+  if (args.size() != 1) LOG(FATAL) << "Too many arguments passed to "+name_;
+  if (args[0]->NDim() != 1) LOG(WARNING) << "Treating input tensor as flat within "+name_;
 
   args_ = std::move(args);
+  args_[0] = args_[0]->Flatten();
 
   uint64_t range = range_end_ - range_start_;
-  dim_idx_ = UINT64_MAX;
-  for (uint64_t i = 0; i < args_[0]->NDim(); i++) {
-    if (range == args_[0]->Dim(i)) {
-      dim_idx_ = i;
-      break;
-    }
-  }
+  if (args_[0]->Dim(0) != range) LOG(FATAL) << "Incorrect size passed in "+name_;
+  dim_idx_ = 0;
 
-  if (dim_idx_ == UINT64_MAX) throw std::runtime_error("No matching dimension to the loop range");
+//  Tensor *output = llvm::dyn_cast<Function>(parent_)->GetNewArg(name_+".output", {1}, args_[0]->GetType());
 
   out_.push_back(Tensor::CreateVariable(name_+".output", this, {1}, args_[0]->GetType()));
 

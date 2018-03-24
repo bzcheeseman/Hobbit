@@ -24,7 +24,21 @@
 
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
+#include <llvm/IR/Verifier.h>
 #include <llvm/Support/raw_ostream.h>
+
+#include <llvm/Bitcode/BitcodeWriter.h>
+#include <llvm/ExecutionEngine/ExecutionEngine.h>
+#include <llvm/ExecutionEngine/MCJIT.h>
+#include <llvm/ExecutionEngine/SectionMemoryManager.h>
+#include <llvm/Support/FileSystem.h>
+#include <llvm/Support/Host.h>
+#include <llvm/Support/TargetRegistry.h>
+#include <llvm/Support/TargetSelect.h>
+#include <llvm/Target/TargetMachine.h>
+#include <llvm/Target/TargetOptions.h>
+#include <llvm/IR/LegacyPassManager.h>
+#include <llvm/Transforms/IPO/PassManagerBuilder.h>
 
 #include "Node.hpp"
 
@@ -35,10 +49,8 @@ namespace {
     llvm::LLVMContext ctx;
 
     Ha::Function *func = Ha::Function::Create("TestFunction");
-    std::cout << "\n" << func->GetSignature() << std::endl;
 
     Ha::Tensor *lhs = func->GetNewArg("lhs", {153}, llvm::Type::getFloatTy(ctx));
-    std::cout << "\n" << func->GetSignature() << std::endl;
 
     Ha::Node *hsum = Ha::HSum::Create("hsum", func, 0, 153);
     llvm::dyn_cast<Ha::HSum>(hsum)->SetArgs({lhs});
