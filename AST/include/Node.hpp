@@ -54,21 +54,26 @@ namespace Hobbit {
         LoopNodeID,
       };
 
-      virtual const std::string &GetName() const { return name_; }
+      virtual const std::string &GetName() = 0;
       virtual const std::string &GetSignature() = 0; // for printing?
+
+      virtual llvm::BasicBlock *Emit(llvm::BasicBlock *prev_bb) = 0;
 
       virtual NodeType GetNodeType() const = 0;
 
-    protected:
-      std::string name_;
     };
 
     class Function : public Node {
     public:
       static Function *Create(const std::string &name);
 
+      const std::string &GetName() override;
+      const std::string &GetSignature() override;
+
       // Add an argument to the function signature and get it so that we can operate on it
       Tensor *GetNewArg(const std::string &name, llvm::SmallVector<uint64_t, 4> dims, llvm::Type *type);
+
+      inline llvm::BasicBlock *Emit(llvm::BasicBlock *prev_bb) override { return last_bb; }
 
       llvm::Function *EmitFunction(llvm::Module *module);
 
@@ -81,9 +86,15 @@ namespace Hobbit {
       }
 
     private:
+      std::string name_;
+      std::string signature_ = "";
+
       // For the function signature
       llvm::SmallVector<Tensor *, 4> arg_table_;
       std::vector<Node *> op_table_;
+
+      // The last block
+      llvm::BasicBlock *last_bb;
     };
 
     class Loop : public Node {
@@ -93,6 +104,8 @@ namespace Hobbit {
       virtual Tensor *SetArgs(llvm::SmallVector<Tensor *, 2> args) = 0;
 
       NodeType GetNodeType() const override { return LoopNodeID; }
+
+      llvm::BasicBlock *Emit(llvm::BasicBlock *prev_bb) override = 0;
 
       // In case we have analytics that want to know if the loop is a reduction
       virtual bool GetIsReduction() = 0;
@@ -112,11 +125,11 @@ namespace Hobbit {
       // Add basic blocks after the branch instance that ended the previous BB
       // Adds the phi node for the loop index
       // Can create many of these blocks for nested for loops
-      llvm::PHINode *AddLoopEntry_(llvm::BranchInst *prev_bb_br);
+      llvm::PHINode *AddLoopEntry_(llvm::BasicBlock *prev_bb);
 
       // Increments the index and adds the BBs correctly.
       // Inserts the end condition and loop metadata as well.
-      void AddLoopExit_(llvm::PHINode *idx_var);
+      llvm::BasicBlock *AddLoopExit_(llvm::PHINode *idx_var);
 
       // br has getContext, getParent (for BB) - convenience function for sub-functions
       // do we want to add a struct for loop options (like clang?)
@@ -124,16 +137,40 @@ namespace Hobbit {
 
 
     protected:
+      std::string name_;
+      std::string signature_ = "";
+
       // Parent node (like containing node) - loop within a loop or loop within a function for example
       Node *parent_;
 
       // The input tensors
       llvm::SmallVector<Tensor *, 2> args_;
 
+      // The output tensors
+      llvm::SmallVector<Tensor *, 1> out_;
+
       // Loop characteristics
       uint64_t range_start_;
       uint64_t range_end_;
+      uint64_t dim_idx_;
       bool redux_;
+    };
+
+    class HSum : public Loop {
+    public:
+      static HSum *Create(const std::string &name, Node *parent, uint64_t range_start, uint64_t range_end);
+
+      Tensor *SetArgs(llvm::SmallVector<Tensor *, 2> args) override ;
+
+      llvm::BasicBlock *Emit(llvm::BasicBlock *prev_bb) override ;
+
+      const std::string &GetName() override;
+      const std::string &GetSignature() override;
+
+      bool GetIsReduction() override { return true; }
+    protected:
+      HSum(const std::string &name, Node *parent, uint64_t range_start, uint64_t range_end);
+      void AddKernel(llvm::SmallVector<llvm::PHINode *, 4> idx_vars) override;
     };
 
     class Tensor : public Node {
@@ -152,8 +189,10 @@ namespace Hobbit {
 
       // Gets the parent/creator node for this tensor (for a function arg, it would be a Function*, for example)
       Node *GetParent();
-
       llvm::Type *GetType();
+      const std::string &GetName() override;
+      const std::string &GetSignature() override;
+      inline llvm::BasicBlock *Emit(llvm::BasicBlock *prev_bb) override { return nullptr; }
 
       void SetBuffer(llvm::Value *val);
 
@@ -197,6 +236,7 @@ namespace Hobbit {
 
     private:
       std::string name_;
+      std::string signature_ = "";
 
       // can store constant array here
       llvm::Value *llvm_buffer_;

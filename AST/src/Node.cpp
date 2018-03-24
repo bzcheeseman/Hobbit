@@ -23,6 +23,8 @@
 
 #include "Node.hpp"
 
+#include <sstream>
+
 #include <llvm/IR/IRBuilder.h>
 
 Hobbit::ast::Function *Hobbit::ast::Function::Create(const std::string &name) {
@@ -30,6 +32,31 @@ Hobbit::ast::Function *Hobbit::ast::Function::Create(const std::string &name) {
   f->name_ = name;
 
   return f;
+}
+
+const std::string &Hobbit::ast::Function::GetName() {
+  return name_;
+}
+
+const std::string &Hobbit::ast::Function::GetSignature() {
+  std::stringstream out;
+  out << "func " + name_ << " (";
+  if (arg_table_.size() > 0) {
+    for (int i = 0; i < arg_table_.size()-1; i++) {
+      out << arg_table_[i]->GetSignature() << ", ";
+    }
+    out << (*(arg_table_.end()-1))->GetSignature();
+  }
+  out << ") {\n";
+  if (op_table_.size() > 0) {
+    for (auto &op : op_table_) {
+      out << "  " << op->GetSignature();
+    }
+  }
+  out << "}";
+
+  signature_ = out.str();
+  return signature_;
 }
 
 Hobbit::ast::Tensor *Hobbit::ast::Function::GetNewArg(const std::string &name, llvm::SmallVector<uint64_t, 4> dims, llvm::Type *type) {
@@ -64,30 +91,36 @@ llvm::Function *Hobbit::ast::Function::EmitFunction(llvm::Module *module) {
   for (auto &arg : arg_table_) {
     arg->SetBuffer(&(*iter++));
   }
+
+  llvm::BasicBlock *bb = entryBB;
+  for (auto &op : op_table_) {
+    bb = op->Emit(bb);
+  }
+
+  return out;
 }
 
 Hobbit::ast::Loop::Loop(const std::string &name, Hobbit::ast::Node *parent, uint64_t range_start, uint64_t range_end)
         : name_(name), parent_(parent), range_start_(range_start), range_end_(range_end) {}
 
-llvm::PHINode *Hobbit::ast::Loop::AddLoopEntry_(llvm::BranchInst *prev_bb_br) {
-  llvm::BasicBlock *prevBB = prev_bb_br->getParent();
-  llvm::LLVMContext &ctx = prev_bb_br->getContext();
-  llvm::Function *parent_func = prev_bb_br->getFunction();
+llvm::PHINode *Hobbit::ast::Loop::AddLoopEntry_(llvm::BasicBlock *prev_bb) {
+  llvm::LLVMContext &ctx = prev_bb->getContext();
+  llvm::Function *parent_func = prev_bb->getParent();
 
   llvm::BasicBlock *loop_body = llvm::BasicBlock::Create(ctx, this->name_+".body", parent_func);
 
-  llvm::IRBuilder<> builder(prevBB);
+  llvm::IRBuilder<> builder(prev_bb);
   builder.CreateBr(loop_body);
 
   builder.SetInsertPoint(loop_body);
   llvm::PHINode *index_var = builder.CreatePHI(builder.getInt64Ty(), 2, this->name_ + ".idx");
-  index_var->addIncoming(builder.getInt64(range_start_), prevBB);
+  index_var->addIncoming(builder.getInt64(range_start_), prev_bb);
 
   return index_var;
 
 }
 
-void Hobbit::ast::Loop::AddLoopExit_(llvm::PHINode *idx_var) {
+llvm::BasicBlock * Hobbit::ast::Loop::AddLoopExit_(llvm::PHINode *idx_var) {
   llvm::BasicBlock *loop_body = idx_var->getParent();
   llvm::LLVMContext &ctx = idx_var->getContext();
   llvm::Function *parent_func = idx_var->getFunction();
@@ -104,7 +137,7 @@ void Hobbit::ast::Loop::AddLoopExit_(llvm::PHINode *idx_var) {
   idx_var->addIncoming(next_idx_var, loop_body);
 
   builder.SetInsertPoint(loop_exit);
-  // store the output?
+  return loop_exit;
 }
 
 void Hobbit::ast::Loop::AddLoopMetadata_(llvm::BranchInst *loop_end_br) {
@@ -130,7 +163,7 @@ void Hobbit::ast::Loop::AddLoopMetadata_(llvm::BranchInst *loop_end_br) {
 Hobbit::ast::Tensor *Hobbit::ast::Tensor::CreateVariable(const std::string &name, Hobbit::ast::Node *parent,
                                                          llvm::SmallVector<uint64_t, 4> dims, llvm::Type *type) {
   Tensor *t = new Tensor(nullptr, std::move(dims), type);
-
+  t->name_ = name;
   t->parent_ = parent;
 
   return t;
@@ -140,6 +173,7 @@ Hobbit::ast::Tensor *Hobbit::ast::Tensor::CreateConstant(const std::string &name
                                                          Node *parent, llvm::SmallVector<uint64_t, 4> dims,
                                                          llvm::Type *type, void *buffer) {
   Tensor *t = CreateVariable(name, parent, std::move(dims), type);
+  t->name_ = name;
 
   uint64_t total_size = t->Size();
 
@@ -344,4 +378,103 @@ llvm::Value *Hobbit::ast::Tensor::AtVal_(llvm::BasicBlock *BB, llvm::SmallVector
   out = builder.CreateAdd(out, *idx.end());
 
   return out;
+}
+
+const std::string &Hobbit::ast::Tensor::GetName() {
+  return name_;
+}
+
+const std::string &Hobbit::ast::Tensor::GetSignature() {
+  std::stringstream out;
+  out << "tensor: " << name_ << " (";
+  for (auto &dim : dims_) {
+    out << dim << ", ";
+  }
+  out << ")";
+
+  signature_ = out.str();
+  return signature_;
+}
+
+Hobbit::ast::HSum *Hobbit::ast::HSum::Create(const std::string &name, Hobbit::ast::Node *parent, uint64_t range_start,
+                                             uint64_t range_end) {
+  HSum *out = new HSum(name, parent, range_start, range_end);
+  return out;
+}
+
+Hobbit::ast::HSum::HSum(const std::string &name, Hobbit::ast::Node *parent, uint64_t range_start, uint64_t range_end)
+        : Loop(name, parent, range_start, range_end) {
+  ;
+}
+
+void Hobbit::ast::HSum::AddKernel(llvm::SmallVector<llvm::PHINode *, 4> idx_vars) {
+  llvm::PHINode *idx = idx_vars[0];
+  llvm::LLVMContext &ctx = idx->getContext();
+  llvm::BasicBlock *bb = idx->getParent();
+
+  Tensor *arg = args_[0];
+
+  llvm::IRBuilder<> builder(bb);
+  llvm::Type *accumulator_type = arg->GetType();
+  if (accumulator_type->isPointerTy()) {
+    accumulator_type = accumulator_type->getPointerElementType();
+  }
+
+  llvm::Value *zero = builder.CreateBitCast(builder.getInt64(0), accumulator_type);
+
+  llvm::PHINode *accumulator = builder.CreatePHI(accumulator_type, 2, name_ + ".accumulator");
+  accumulator->addIncoming(zero, bb->getSinglePredecessor());
+
+  llvm::Value *accumulator_next;
+  if (accumulator_type->isIntegerTy()) {
+    accumulator_next =
+            builder.CreateAdd(accumulator, arg->Load(bb, idx));
+  }
+  if (accumulator_type->isFloatingPointTy()) {
+    accumulator_next =
+            builder.CreateFAdd(accumulator, arg->Load(bb, idx));
+  }
+
+  accumulator->addIncoming(accumulator_next, bb);
+}
+
+const std::string &Hobbit::ast::HSum::GetName() {
+  return name_;
+}
+
+const std::string &Hobbit::ast::HSum::GetSignature() {
+  std::stringstream out;
+
+  out << name_ << " (" << args_[0]->GetName() << ") "
+          "redux dim: " << dim_idx_
+      << " range: (" << range_start_ << ", " << range_end_ << ")" << "\n";
+  signature_ = out.str();
+  return signature_;
+}
+
+Hobbit::ast::Tensor *Hobbit::ast::HSum::SetArgs(llvm::SmallVector<Tensor *, 2> args) {
+  if (args.size() != 1) throw std::runtime_error("Too many arguments passed to "+name_);
+
+  args_ = std::move(args);
+
+  uint64_t range = range_end_ - range_start_;
+  dim_idx_ = UINT64_MAX;
+  for (uint64_t i = 0; i < args_[0]->NDim(); i++) {
+    if (range == args_[0]->Dim(i)) {
+      dim_idx_ = i;
+      break;
+    }
+  }
+
+  if (dim_idx_ == UINT64_MAX) throw std::runtime_error("No matching dimension to the loop range");
+
+  out_.push_back(Tensor::CreateVariable(name_+".output", this, {1}, args_[0]->GetType()));
+
+  return out_[0];
+}
+
+llvm::BasicBlock *Hobbit::ast::HSum::Emit(llvm::BasicBlock *prev_bb)  {
+  llvm::PHINode *idx_var = this->AddLoopEntry_(prev_bb);
+  this->AddKernel({idx_var});
+  return this->AddLoopExit_(idx_var);
 }

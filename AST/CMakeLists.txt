@@ -13,5 +13,5 @@ target_link_libraries(HobbitAST c++ ${llvm_libs})
 target_include_directories(HobbitAST PUBLIC ${LLVM_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 if (BUILD_TESTS)
-#    add_gtest(Core HobbitCore)
+    add_gtest(AST HobbitAST)
 endif (BUILD_TESTS)

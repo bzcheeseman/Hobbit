@@ -22,4 +22,44 @@
 
 #include <gtest/gtest.h>
 
+#include <llvm/IR/LLVMContext.h>
+#include <llvm/IR/Module.h>
+#include <llvm/Support/raw_ostream.h>
+
 #include "Node.hpp"
+
+namespace {
+  namespace Ha = Hobbit::ast;
+
+  TEST(Basic, CreateFunction) {
+    llvm::LLVMContext ctx;
+
+    Ha::Function *func = Ha::Function::Create("TestFunction");
+    std::cout << "\n" << func->GetSignature() << std::endl;
+
+    Ha::Tensor *lhs = func->GetNewArg("lhs", {153}, llvm::Type::getFloatTy(ctx));
+    std::cout << "\n" << func->GetSignature() << std::endl;
+
+    Ha::Node *hsum = Ha::HSum::Create("hsum", func, 0, 153);
+    llvm::dyn_cast<Ha::HSum>(hsum)->SetArgs({lhs});
+    func->PushNode(hsum);
+    std::cout << "\n" << func->GetSignature() << std::endl;
+  }
+
+  TEST(Basic, CreateLLVMFunction) {
+    llvm::LLVMContext ctx;
+
+    std::unique_ptr<llvm::Module> module = llvm::make_unique<llvm::Module>("test_module", ctx);
+
+    Ha::Function *func = Ha::Function::Create("TestFunction");
+
+    Ha::Tensor *lhs = func->GetNewArg("lhs", {153}, llvm::Type::getFloatPtrTy(ctx));
+
+    Ha::Node *hsum = Ha::HSum::Create("hsum", func, 0, 153);
+
+    func->PushNode(hsum);
+    llvm::dyn_cast<Ha::HSum>(hsum)->SetArgs({lhs});
+    llvm::Function *f = func->EmitFunction(module.get());
+    module->print(llvm::outs(), nullptr);
+  }
+}
