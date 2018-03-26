@@ -35,6 +35,7 @@ add_subdirectory(Core)
 file(GLOB_RECURSE
         ALL_CXX_SOURCE_FILES
         Core/**/*.[chi]pp Core/**/*.[chi]
+        AST/**/*.[chi]pp AST/**/*.[chi]
         )
 
 find_program(CLANG_FORMAT "clang-format")

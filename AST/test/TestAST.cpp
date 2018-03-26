@@ -10,9 +10,9 @@
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
     You may obtain a copy of the License at
-    
+
         http://www.apache.org/licenses/LICENSE-2.0
-    
+
     Unless required by applicable law or agreed to in writing, software
     distributed under the License is distributed on an "AS IS" BASIS,
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -31,47 +31,71 @@
 #include <llvm/ExecutionEngine/ExecutionEngine.h>
 #include <llvm/ExecutionEngine/MCJIT.h>
 #include <llvm/ExecutionEngine/SectionMemoryManager.h>
+#include <llvm/IR/LegacyPassManager.h>
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/Host.h>
 #include <llvm/Support/TargetRegistry.h>
 #include <llvm/Support/TargetSelect.h>
 #include <llvm/Target/TargetMachine.h>
 #include <llvm/Target/TargetOptions.h>
-#include <llvm/IR/LegacyPassManager.h>
 #include <llvm/Transforms/IPO/PassManagerBuilder.h>
+#include <random>
 
 #include "Node.hpp"
+#include "Visitor.hpp"
 
 namespace {
   namespace Ha = Hobbit::ast;
 
-  TEST(Basic, CreateFunction) {
-    llvm::LLVMContext ctx;
-
-    Ha::Function *func = Ha::Function::Create("TestFunction");
-
-    Ha::Tensor *lhs = func->GetNewArg("lhs", {153}, llvm::Type::getFloatTy(ctx));
-
-    Ha::Node *hsum = Ha::HSum::Create("hsum", func, 0, 153);
-    llvm::dyn_cast<Ha::HSum>(hsum)->SetArgs({lhs});
-    func->PushNode(hsum);
-    std::cout << "\n" << func->GetSignature() << std::endl;
-  }
+//  TEST(Basic, CreateFunction) {
+//    llvm::LLVMContext ctx;
+//
+//    Ha::Function *func = Ha::Function::Create("TestFunction");
+//
+//    Ha::Tensor *lhs =
+//        func->GetNewArg("lhs", {153}, llvm::Type::getFloatTy(ctx));
+//
+//    Ha::Node *hsum = Ha::HSum::Create("hsum", func, 0, 153);
+//    llvm::dyn_cast<Ha::HSum>(hsum)->SetArgs({lhs});
+//    func->PushNode(hsum);
+//    std::cout << "\n" << func->GetSignature() << std::endl;
+//  }
 
   TEST(Basic, CreateLLVMFunction) {
     llvm::LLVMContext ctx;
 
-    std::unique_ptr<llvm::Module> module = llvm::make_unique<llvm::Module>("test_module", ctx);
+    Ha::Visitor *cgvisitor = Ha::Visitor::Create(&ctx, "test_module");
 
     Ha::Function *func = Ha::Function::Create("TestFunction");
 
-    Ha::Tensor *lhs = func->GetNewArg("lhs", {153}, llvm::Type::getFloatPtrTy(ctx));
+    const int n_elts = 153;
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<float> dis(0.0, 1.0);
+
+    std::vector<float> f1, f2; // why are there a bunch of zeros in the middle...
+    for (int i = 0; i < n_elts; i++) {
+      f1.push_back(dis(gen));
+      f2.push_back(dis(gen));
+    }
+
+
+    Ha::Tensor *constant = Ha::Tensor::CreateConstant("constant", func, {n_elts}, llvm::Type::getFloatPtrTy(ctx), f1.data());
+
+    Ha::Tensor *lhs =
+        func->GetNewArg("lhs", {153}, llvm::Type::getFloatPtrTy(ctx));
 
     Ha::Node *hsum = Ha::HSum::Create("hsum", func, 0, 153);
 
     func->PushNode(hsum);
-    llvm::dyn_cast<Ha::HSum>(hsum)->SetArgs({lhs});
-    llvm::Function *f = func->EmitFunction(module.get());
-    module->print(llvm::outs(), nullptr);
+    Ha::Tensor *out = llvm::dyn_cast<Ha::HSum>(hsum)->SetArgs({constant});
+    func->SetArg(out);
+    func->Emit(cgvisitor);
+
+    cgvisitor->FinalizeFunction(func);
+    cgvisitor->GetModule()->print(llvm::outs(), nullptr);
+    cgvisitor->Finalize(3, llvm::sys::getDefaultTargetTriple(), "corei7-avx", "+avx,+sse");
+    cgvisitor->GetModule()->print(llvm::outs(), nullptr);
   }
 }
