@@ -81,10 +81,10 @@ namespace {
     }
 
 
-    Ha::Tensor *constant = Ha::Tensor::CreateConstant("constant", func, {n_elts}, llvm::Type::getFloatPtrTy(ctx), f1.data());
+    Ha::Tensor *constant = func->GetNewArg("constant", {n_elts}, llvm::Type::getFloatPtrTy(ctx), f1.data());
 
-    Ha::Tensor *lhs =
-        func->GetNewArg("lhs", {153}, llvm::Type::getFloatPtrTy(ctx));
+//    Ha::Tensor *lhs =
+//        func->GetNewArg("lhs", {153}, llvm::Type::getFloatPtrTy(ctx));
 
     Ha::Node *hsum = Ha::HSum::Create("hsum", func, 0, 153);
 

@@ -74,6 +74,9 @@ namespace Hobbit {
       Tensor *GetNewArg(const std::string &name,
                         llvm::SmallVector<uint64_t, 4> dims, llvm::Type *type);
 
+      Tensor *GetNewArg(const std::string &name,
+                        llvm::SmallVector<uint64_t, 4> dims, llvm::Type *type, void *buffer);
+
       void SetArg(Tensor *t);
 
       void Emit(Visitor *CG) override;
@@ -88,7 +91,6 @@ namespace Hobbit {
 
     private:
       std::string name_;
-      std::string signature_ = "";
 
       // For the function signature
       llvm::SmallVector<Tensor *, 4> arg_table_;
@@ -144,7 +146,6 @@ namespace Hobbit {
 
     protected:
       std::string name_;
-      std::string signature_ = "";
 
       // Parent node (like containing node) - loop within a loop or loop within
       // a function for example
@@ -207,6 +208,7 @@ namespace Hobbit {
       }
 
       void SetBuffer(llvm::Value *val);
+      llvm::Value *GetBuffer();
 
       // Gets the number of dimensions for a tensor
       uint64_t NDim();
@@ -268,7 +270,6 @@ namespace Hobbit {
 
     private:
       std::string name_;
-      std::string signature_ = "";
 
       // can store constant array here
       llvm::Value *llvm_buffer_;

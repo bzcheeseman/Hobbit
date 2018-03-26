@@ -51,6 +51,16 @@ Hobbit::ast::Function::GetNewArg(const std::string &name,
   return arg;
 }
 
+Hobbit::ast::Tensor *
+Hobbit::ast::Function::GetNewArg(const std::string &name, llvm::SmallVector<uint64_t, 4> dims, llvm::Type *type,
+                                 void *buffer) {
+  // Create a new Tensor
+  Tensor *arg = Tensor::CreateConstant(name, this, std::move(dims), type, buffer);
+  // Add the tensor to the arg table
+  arg_table_.push_back(arg);
+  return arg;
+}
+
 void Hobbit::ast::Function::SetArg(Hobbit::ast::Tensor *t) {
   arg_table_.push_back(t);
 }
@@ -74,10 +84,18 @@ void Hobbit::ast::Function::Emit(Hobbit::ast::Visitor *CG) {
   llvm::Function *out =
       llvm::cast<llvm::Function>(module->getOrInsertFunction(name_, ft));
   // Create entry block, do nothing with it
-  llvm::BasicBlock::Create(*ctx, name_ + ".entry", out);
+  llvm::BasicBlock *entry_bb = llvm::BasicBlock::Create(*ctx, name_ + ".entry", out);
+  llvm::IRBuilder<> builder(entry_bb);
 
   llvm::Function::arg_iterator iter = out->arg_begin();
   for (auto &arg : arg_table_) {
+    if (arg->GetType()->isArrayTy()) { // it's a constant
+      llvm::Value *const_array_alloca = builder.CreateAlloca(arg->GetType());
+      builder.CreateStore(arg->GetBuffer(), const_array_alloca);
+      llvm::Value *first_elt = builder.CreateInBoundsGEP(const_array_alloca, {builder.getInt64(0), builder.getInt64(0)});
+      arg->SetBuffer(first_elt);
+      continue;
+    }
     arg->SetBuffer(&(*iter++));
   }
 
@@ -91,11 +109,11 @@ void Hobbit::ast::Function::Emit(Hobbit::ast::Visitor *CG) {
 
   // Create a return for the exit BB
   llvm::BasicBlock *exit_bb = &*(--out->end());
-  llvm::IRBuilder<> builder(exit_bb);
+  builder.SetInsertPoint(exit_bb);
   builder.CreateRetVoid();
 
   // Finalize the entry BB if that hasn't already happened
-  llvm::BasicBlock *entry_bb = &out->getEntryBlock();
+  entry_bb = &out->getEntryBlock();
   llvm::BranchInst *br;
 //  bool has_branch = false;
 //  bool branch_is_last = false;
@@ -230,6 +248,7 @@ Hobbit::ast::HSum::HSum(const std::string &name, Hobbit::ast::Node *parent,
   ;
 }
 
+// TODO: Move the actual llvm codegen to the visitor
 void Hobbit::ast::HSum::AddKernel(
     llvm::SmallVector<llvm::PHINode *, 4> idx_vars) {
   llvm::PHINode *idx = idx_vars[0];
@@ -241,6 +260,9 @@ void Hobbit::ast::HSum::AddKernel(
   llvm::Type *accumulator_type = arg->GetType();
   if (accumulator_type->isPointerTy()) {
     accumulator_type = accumulator_type->getPointerElementType();
+  }
+  if (accumulator_type->isArrayTy()) {
+    accumulator_type = accumulator_type->getArrayElementType();
   }
 
   llvm::IRBuilder<> builder(&bb->getParent()->getEntryBlock());
@@ -288,12 +310,17 @@ Hobbit::ast::HSum::SetArgs(llvm::SmallVector<Tensor *, 2> args) {
     LOG(FATAL) << "Incorrect size passed in " + name_;
   dim_idx_ = 0;
 
+  llvm::Type *output_type = args_[0]->GetType();
+  if (output_type->isArrayTy()) {
+    output_type = output_type->getArrayElementType()->getPointerTo(0);
+  }
+
   //  Tensor *output =
   //  llvm::dyn_cast<Function>(parent_)->GetNewArg(name_+".output", {1},
   //  args_[0]->GetType());
 
   out_.push_back(Tensor::CreateVariable(name_ + ".output", this, {1},
-                                        args_[0]->GetType()));
+                                        output_type));
 
   return out_[0];
 }
@@ -312,12 +339,6 @@ void Hobbit::ast::HSum::Emit(Hobbit::ast::Visitor *CG) {
   this->AddKernel({idx_var});
   this->AddLoopExit_(idx_var);
 }
-
-// llvm::BasicBlock *Hobbit::ast::HSum::Emit(llvm::BasicBlock *prev_bb)  {
-//  llvm::PHINode *idx_var = this->AddLoopEntry_(prev_bb);
-//  this->AddKernel({idx_var});
-//  return this->AddLoopExit_(idx_var);
-//}
 
 Hobbit::ast::Tensor *Hobbit::ast::Tensor::CreateVariable(
     const std::string &name, Hobbit::ast::Node *parent,
@@ -414,6 +435,10 @@ void Hobbit::ast::Tensor::SetBuffer(llvm::Value *val) {
   this->llvm_buffer_->setName(this->name_);
 }
 
+llvm::Value *Hobbit::ast::Tensor::GetBuffer() {
+  return llvm_buffer_;
+}
+
 uint64_t Hobbit::ast::Tensor::NDim() { return dims_.size(); }
 
 uint64_t Hobbit::ast::Tensor::Dim(uint64_t which) { return dims_[which]; }
@@ -459,10 +484,6 @@ llvm::Value *Hobbit::ast::Tensor::GEP(llvm::BasicBlock *BB,
   llvm::IRBuilder<> builder(BB);
   llvm::Value *idx_val = builder.getInt64(this->At_(std::move(idx)));
 
-  if (llvm_type_->isArrayTy()) {
-    return builder.CreateInBoundsGEP(llvm_buffer_, {builder.getInt64(0), idx_val});
-  }
-
   return builder.CreateInBoundsGEP(llvm_buffer_, idx_val);
 }
 
@@ -471,10 +492,6 @@ llvm::Value *Hobbit::ast::Tensor::GEP(llvm::BasicBlock *BB,
   llvm::IRBuilder<> builder(BB);
   llvm::Value *idx_val = this->AtVal_(BB, idx);
 
-  if (llvm_type_->isArrayTy()) {
-    return builder.CreateInBoundsGEP(llvm_buffer_, {builder.getInt64(0), idx_val});
-  }
-
   return builder.CreateInBoundsGEP(llvm_buffer_, idx_val);
 }
 
@@ -482,20 +499,12 @@ llvm::Value *Hobbit::ast::Tensor::GEP(llvm::BasicBlock *BB, uint64_t raw_idx) {
   llvm::IRBuilder<> builder(BB);
   llvm::Value *idx_val = builder.getInt64(raw_idx);
 
-  if (llvm_type_->isArrayTy()) {
-    return builder.CreateInBoundsGEP(llvm_buffer_, {builder.getInt64(0), idx_val});
-  }
-
   return builder.CreateInBoundsGEP(llvm_buffer_, idx_val);
 }
 
 llvm::Value *Hobbit::ast::Tensor::GEP(llvm::BasicBlock *BB,
                                       llvm::Value *raw_idx) {
   llvm::IRBuilder<> builder(BB);
-
-  if (llvm_type_->isArrayTy()) {
-    return builder.CreateInBoundsGEP(llvm_buffer_, {builder.getInt64(0), raw_idx});
-  }
 
   return builder.CreateInBoundsGEP(llvm_buffer_, raw_idx);
 }
