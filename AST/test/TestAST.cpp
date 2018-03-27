@@ -91,6 +91,7 @@ namespace {
     func->PushNode(noop);
     Ha::Tensor *noop_out = llvm::dyn_cast<Ha::HSum>(noop)->SetArgs({out});
     func->SetArg(noop_out);
+
     func->Emit(cgvisitor);
 
     cgvisitor->FinalizeFunction(func);

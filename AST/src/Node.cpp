@@ -51,6 +51,15 @@ Hobbit::ast::Function::GetNewArg(const std::string &name,
   return arg;
 }
 
+Hobbit::ast::Tensor *
+Hobbit::ast::Function::GetNewAlloca(const std::string &name, llvm::SmallVector<uint64_t, 4> dims, llvm::Type *type) {
+  // Create a new Tensor
+  Tensor *arg = Tensor::CreateVariable(name, this, std::move(dims), type);
+  // Add the tensor to the arg table
+  alloca_table_.push_back(arg);
+  return arg;
+}
+
 //Hobbit::ast::Tensor *
 //Hobbit::ast::Function::GetNewArg(const std::string &name, llvm::SmallVector<uint64_t, 4> dims, llvm::Type *type,
 //                                 void *buffer) {
@@ -62,6 +71,10 @@ Hobbit::ast::Function::GetNewArg(const std::string &name,
 //}
 
 void Hobbit::ast::Function::SetArg(Hobbit::ast::Tensor *t) {
+  // If we've already added this arg to the alloca table then erase it - it should be an arg
+  for (auto &alloca : alloca_table_) {
+    if (t == alloca) alloca_table_.erase(&alloca);
+  }
   arg_table_.push_back(t);
 }
 
@@ -100,6 +113,13 @@ void Hobbit::ast::Function::Emit(Hobbit::ast::Visitor *CG) {
   llvm::Function::arg_iterator iter = out->arg_begin();
   for (auto &arg : arg_table_) {
     arg->SetBuffer(&(*iter++));
+  }
+
+  for (auto &alloca : alloca_table_) {
+    llvm::Type *alloca_type = alloca->GetType();
+    if (alloca_type->isPointerTy()) alloca_type = alloca_type->getPointerElementType();
+    llvm::Value *a = builder.CreateAlloca(alloca_type, builder.getInt64(alloca->Size()));
+    alloca->SetBuffer(a);
   }
 
   CG->PushFunction(this, out); // keyed on AST function
@@ -320,13 +340,10 @@ Hobbit::ast::HSum::SetArgs(llvm::SmallVector<Tensor *, 2> args) {
     output_type = output_type->getArrayElementType()->getPointerTo(0);
   }
 
-  //  Tensor *output =
-  //  llvm::dyn_cast<Function>(parent_)->GetNewArg(name_+".output", {1},
-  //  args_[0]->GetType());
+  Tensor *output = llvm::dyn_cast<Function>(parent_)->GetNewAlloca(name_+".output", {1}, args_[0]->GetType());
 
   // TODO: need to set the llvm_buffer_ otherwise multiple nodes will fail
-  out_.push_back(Tensor::CreateVariable(name_ + ".output", this, {1},
-                                        output_type));
+  out_.push_back(output);
 
   return out_[0];
 }

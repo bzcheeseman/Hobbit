@@ -77,6 +77,8 @@ namespace Hobbit {
       // operate on it
       Tensor *GetNewArg(const std::string &name,
                         llvm::SmallVector<uint64_t, 4> dims, llvm::Type *type);
+      Tensor *GetNewAlloca(const std::string &name,
+                           llvm::SmallVector<uint64_t, 4> dims, llvm::Type *type);
 
 //      Tensor *GetNewArg(const std::string &name,
 //                        llvm::SmallVector<uint64_t, 4> dims, llvm::Type *type, void *buffer);
@@ -98,6 +100,7 @@ namespace Hobbit {
 
       // For the function signature
       llvm::SmallVector<Tensor *, 4> arg_table_;
+      llvm::SmallVector<Tensor *, 8> alloca_table_;
 
       Node *child_;
       Node *last_node_;
