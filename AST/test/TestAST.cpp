@@ -80,22 +80,22 @@ namespace {
       f2.push_back(dis(gen));
     }
 
-
-    Ha::Tensor *constant = func->GetNewArg("constant", {n_elts}, llvm::Type::getFloatPtrTy(ctx), f1.data());
-
-//    Ha::Tensor *lhs =
-//        func->GetNewArg("lhs", {153}, llvm::Type::getFloatPtrTy(ctx));
+    Ha::Tensor *lhs =
+        func->GetNewArg("lhs", {n_elts}, llvm::Type::getFloatPtrTy(ctx));
 
     Ha::Node *hsum = Ha::HSum::Create("hsum", func, 0, 153);
+    Ha::Node *noop = Ha::HSum::Create("hsum", func, 0, 1);
 
     func->PushNode(hsum);
-    Ha::Tensor *out = llvm::dyn_cast<Ha::HSum>(hsum)->SetArgs({constant});
-    func->SetArg(out);
+    Ha::Tensor *out = llvm::dyn_cast<Ha::HSum>(hsum)->SetArgs({lhs});
+    func->PushNode(noop);
+    Ha::Tensor *noop_out = llvm::dyn_cast<Ha::HSum>(noop)->SetArgs({out});
+    func->SetArg(noop_out);
     func->Emit(cgvisitor);
 
     cgvisitor->FinalizeFunction(func);
     cgvisitor->GetModule()->print(llvm::outs(), nullptr);
-    cgvisitor->Finalize(3, llvm::sys::getDefaultTargetTriple(), "corei7-avx", "+avx,+sse");
+    cgvisitor->Finalize(3, llvm::sys::getDefaultTargetTriple(), "corei7-avx", "+avx,+sse,+x87");
     cgvisitor->GetModule()->print(llvm::outs(), nullptr);
   }
 }

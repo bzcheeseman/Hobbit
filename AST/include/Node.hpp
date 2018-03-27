@@ -56,6 +56,8 @@ namespace Hobbit {
 
       virtual const std::string &GetName() = 0;
       virtual Node *GetParent() = 0;
+      virtual Node *GetChild() = 0;
+      virtual void SetChild(Node *node) = 0;
 
       virtual void Emit(Visitor *CG) = 0;
 
@@ -68,14 +70,16 @@ namespace Hobbit {
 
       const std::string &GetName() override;
       Node *GetParent() override { return nullptr; }
+      Node *GetChild() override { return child_; }
+      void SetChild(Node *node) override { child_ = node; }
 
       // Add an argument to the function signature and get it so that we can
       // operate on it
       Tensor *GetNewArg(const std::string &name,
                         llvm::SmallVector<uint64_t, 4> dims, llvm::Type *type);
 
-      Tensor *GetNewArg(const std::string &name,
-                        llvm::SmallVector<uint64_t, 4> dims, llvm::Type *type, void *buffer);
+//      Tensor *GetNewArg(const std::string &name,
+//                        llvm::SmallVector<uint64_t, 4> dims, llvm::Type *type, void *buffer);
 
       void SetArg(Tensor *t);
 
@@ -94,10 +98,9 @@ namespace Hobbit {
 
       // For the function signature
       llvm::SmallVector<Tensor *, 4> arg_table_;
-      std::vector<Node *> op_table_;
 
-      // The last block
-      llvm::BasicBlock *last_bb;
+      Node *child_;
+      Node *last_node_;
     };
 
     class Loop : public Node {
@@ -150,6 +153,7 @@ namespace Hobbit {
       // Parent node (like containing node) - loop within a loop or loop within
       // a function for example
       Node *parent_;
+      Node *child_;
 
       // The input tensors
       llvm::SmallVector<Tensor *, 2> args_;
@@ -174,6 +178,8 @@ namespace Hobbit {
 
       const std::string &GetName() override;
       Node *GetParent() override { return parent_; }
+      Node *GetChild() override { return child_; }
+      void SetChild(Node *node) override { child_ = node; }
 
       bool GetIsReduction() override { return true; }
 
@@ -188,9 +194,9 @@ namespace Hobbit {
       static Tensor *CreateVariable(const std::string &name, Node *parent,
                                     llvm::SmallVector<uint64_t, 4> dims,
                                     llvm::Type *type);
-      static Tensor *CreateConstant(const std::string &name, Node *parent,
-                                    llvm::SmallVector<uint64_t, 4> dims,
-                                    llvm::Type *type, void *buffer);
+//      static Tensor *CreateConstant(const std::string &name, Node *parent,
+//                                    llvm::SmallVector<uint64_t, 4> dims,
+//                                    llvm::Type *type, void *buffer);
 
       NodeType GetNodeType() const override { return TensorID; }
 
@@ -203,6 +209,9 @@ namespace Hobbit {
       Node *GetParent() override;
       llvm::Type *GetType();
       const std::string &GetName() override;
+      Node *GetChild() override { return child_; }
+      void SetChild(Node *node) override { child_ = node; }
+
       inline void Emit(Visitor *CG) override {
         ;
       }
@@ -278,6 +287,7 @@ namespace Hobbit {
 
       // not sure if this is necessary?
       Node *parent_;
+      Node *child_;
     };
   }
 }

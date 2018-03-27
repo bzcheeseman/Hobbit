@@ -24,7 +24,6 @@
 #include "Visitor.hpp"
 
 #include <sstream>
-#include <utility>
 
 #include <glog/logging.h>
 
@@ -34,6 +33,7 @@
 Hobbit::ast::Function *Hobbit::ast::Function::Create(const std::string &name) {
   Function *f = new Function;
   f->name_ = "hobbit."+name;
+  f->child_ = nullptr;
 
   return f;
 }
@@ -51,22 +51,32 @@ Hobbit::ast::Function::GetNewArg(const std::string &name,
   return arg;
 }
 
-Hobbit::ast::Tensor *
-Hobbit::ast::Function::GetNewArg(const std::string &name, llvm::SmallVector<uint64_t, 4> dims, llvm::Type *type,
-                                 void *buffer) {
-  // Create a new Tensor
-  Tensor *arg = Tensor::CreateConstant(name, this, std::move(dims), type, buffer);
-  // Add the tensor to the arg table
-  arg_table_.push_back(arg);
-  return arg;
-}
+//Hobbit::ast::Tensor *
+//Hobbit::ast::Function::GetNewArg(const std::string &name, llvm::SmallVector<uint64_t, 4> dims, llvm::Type *type,
+//                                 void *buffer) {
+//  // Create a new Tensor
+//  Tensor *arg = Tensor::CreateConstant(name, this, std::move(dims), type, buffer);
+//  // Add the tensor to the arg table
+//  arg_table_.push_back(arg);
+//  return arg;
+//}
 
 void Hobbit::ast::Function::SetArg(Hobbit::ast::Tensor *t) {
   arg_table_.push_back(t);
 }
 
 void Hobbit::ast::Function::PushNode(Hobbit::ast::Node *node) {
-  this->op_table_.push_back(node);
+  if (child_ == nullptr) {
+    child_ = std::move(node);
+    last_node_ = child_;
+    return;
+  }
+
+  // Update the child of the last node
+  last_node_->SetChild(node);
+  // Update the last node
+  last_node_ = last_node_->GetChild();
+
 }
 
 void Hobbit::ast::Function::Emit(Hobbit::ast::Visitor *CG) {
@@ -89,20 +99,15 @@ void Hobbit::ast::Function::Emit(Hobbit::ast::Visitor *CG) {
 
   llvm::Function::arg_iterator iter = out->arg_begin();
   for (auto &arg : arg_table_) {
-    if (arg->GetType()->isArrayTy()) { // it's a constant
-      llvm::Value *const_array_alloca = builder.CreateAlloca(arg->GetType());
-      builder.CreateStore(arg->GetBuffer(), const_array_alloca);
-      llvm::Value *first_elt = builder.CreateInBoundsGEP(const_array_alloca, {builder.getInt64(0), builder.getInt64(0)});
-      arg->SetBuffer(first_elt);
-      continue;
-    }
     arg->SetBuffer(&(*iter++));
   }
 
   CG->PushFunction(this, out); // keyed on AST function
 
-  for (auto &op : op_table_) {
-    op->Emit(CG);
+  Node *n = child_;
+  while (n != nullptr) {
+    n->Emit(CG);
+    n = n->GetChild();
   }
 
   out = CG->GetFunction(this);
@@ -172,7 +177,7 @@ void Hobbit::ast::Function::Emit(Hobbit::ast::Visitor *CG) {
 Hobbit::ast::Loop::Loop(const std::string &name, Hobbit::ast::Node *parent,
                         uint64_t range_start, uint64_t range_end)
     : name_(name), parent_(parent), range_start_(range_start),
-      range_end_(range_end) {}
+      range_end_(range_end), child_(nullptr) {}
 
 llvm::PHINode *Hobbit::ast::Loop::AddLoopEntry_(llvm::BasicBlock *prev_bb) {
   llvm::LLVMContext &ctx = prev_bb->getContext();
@@ -319,6 +324,7 @@ Hobbit::ast::HSum::SetArgs(llvm::SmallVector<Tensor *, 2> args) {
   //  llvm::dyn_cast<Function>(parent_)->GetNewArg(name_+".output", {1},
   //  args_[0]->GetType());
 
+  // TODO: need to set the llvm_buffer_ otherwise multiple nodes will fail
   out_.push_back(Tensor::CreateVariable(name_ + ".output", this, {1},
                                         output_type));
 
@@ -350,78 +356,78 @@ Hobbit::ast::Tensor *Hobbit::ast::Tensor::CreateVariable(
   return t;
 }
 
-Hobbit::ast::Tensor *
-Hobbit::ast::Tensor::CreateConstant(const std::string &name, Node *parent,
-                                    llvm::SmallVector<uint64_t, 4> dims,
-                                    llvm::Type *type, void *buffer) {
-  Tensor *t = CreateVariable(name, parent, std::move(dims), type);
-  t->name_ = name;
-
-  uint64_t total_size = t->Size();
-
-  std::vector<llvm::Constant *> buffer_constants;
-  if (type->isPointerTy()) {
-    type = type->getPointerElementType();
-  }
-
-  if (type->isFloatingPointTy()) {
-    if (type->isFloatTy()) {
-      float *buf = (float *)buffer;
-      for (uint64_t i = 0; i < total_size; i++) {
-        buffer_constants.push_back(llvm::ConstantFP::get(type, (double)buf[i]));
-      }
-    }
-    if (type->isDoubleTy()) {
-      double *buf = (double *)buffer;
-      for (uint64_t i = 0; i < total_size; i++) {
-        buffer_constants.push_back(llvm::ConstantFP::get(type, buf[i]));
-      }
-    }
-  } else if (type->isIntegerTy(64)) {
-    uint64_t *buf = (uint64_t *)buffer;
-    for (uint64_t i = 0; i < total_size; i++) {
-      buffer_constants.push_back(llvm::ConstantInt::get(type, buf[i], true));
-    }
-  } else if (type->isIntegerTy(32)) {
-    uint32_t *buf = (uint32_t *)buffer;
-    for (uint64_t i = 0; i < total_size; i++) {
-      buffer_constants.push_back(
-          llvm::ConstantInt::get(type, (uint64_t)buf[i], true));
-    }
-  } else if (type->isIntegerTy(16)) {
-    uint16_t *buf = (uint16_t *)buffer;
-    for (uint64_t i = 0; i < total_size; i++) {
-      buffer_constants.push_back(
-          llvm::ConstantInt::get(type, (uint64_t)buf[i], true));
-    }
-  } else if (type->isIntegerTy(8)) {
-    uint8_t *buf = (uint8_t *)buffer;
-    for (uint64_t i = 0; i < total_size; i++) {
-      buffer_constants.push_back(
-          llvm::ConstantInt::get(type, (uint64_t)buf[i], true));
-    }
-  } else if (type->isIntegerTy(1)) {
-    bool *buf = (bool *)buffer;
-    for (uint64_t i = 0; i < total_size; i++) {
-      buffer_constants.push_back(
-          llvm::ConstantInt::get(type, (uint64_t)buf[i], true));
-    }
-  } else {
-    LOG(FATAL) << "Unsupported type";
-  }
-
-  llvm::ArrayType *arr_type =
-      llvm::ArrayType::get(type, buffer_constants.size());
-
-  // TODO: Add a pass that will put an alloca for this into the entry block
-  //  %3 = getelementptr inbounds [6 x float], [6 x float]* %0, i64 0, i64 0
-  //  %4 = getelementptr inbounds [6 x float], [6 x float]* %1, i64 0, i64 0
-  t->llvm_buffer_ = llvm::ConstantArray::get(arr_type, buffer_constants);
-  t->llvm_type_ = t->llvm_buffer_->getType();
-  buffer_constants.clear();
-
-  return t;
-}
+//Hobbit::ast::Tensor *
+//Hobbit::ast::Tensor::CreateConstant(const std::string &name, Node *parent,
+//                                    llvm::SmallVector<uint64_t, 4> dims,
+//                                    llvm::Type *type, void *buffer) {
+//  Tensor *t = CreateVariable(name, parent, std::move(dims), type);
+//  t->name_ = name;
+//
+//  uint64_t total_size = t->Size();
+//
+//  std::vector<llvm::Constant *> buffer_constants;
+//  if (type->isPointerTy()) {
+//    type = type->getPointerElementType();
+//  }
+//
+//  if (type->isFloatingPointTy()) {
+//    if (type->isFloatTy()) {
+//      float *buf = (float *)buffer;
+//      for (uint64_t i = 0; i < total_size; i++) {
+//        buffer_constants.push_back(llvm::ConstantFP::get(type, (double)buf[i]));
+//      }
+//    }
+//    if (type->isDoubleTy()) {
+//      double *buf = (double *)buffer;
+//      for (uint64_t i = 0; i < total_size; i++) {
+//        buffer_constants.push_back(llvm::ConstantFP::get(type, buf[i]));
+//      }
+//    }
+//  } else if (type->isIntegerTy(64)) {
+//    uint64_t *buf = (uint64_t *)buffer;
+//    for (uint64_t i = 0; i < total_size; i++) {
+//      buffer_constants.push_back(llvm::ConstantInt::get(type, buf[i], true));
+//    }
+//  } else if (type->isIntegerTy(32)) {
+//    uint32_t *buf = (uint32_t *)buffer;
+//    for (uint64_t i = 0; i < total_size; i++) {
+//      buffer_constants.push_back(
+//          llvm::ConstantInt::get(type, (uint64_t)buf[i], true));
+//    }
+//  } else if (type->isIntegerTy(16)) {
+//    uint16_t *buf = (uint16_t *)buffer;
+//    for (uint64_t i = 0; i < total_size; i++) {
+//      buffer_constants.push_back(
+//          llvm::ConstantInt::get(type, (uint64_t)buf[i], true));
+//    }
+//  } else if (type->isIntegerTy(8)) {
+//    uint8_t *buf = (uint8_t *)buffer;
+//    for (uint64_t i = 0; i < total_size; i++) {
+//      buffer_constants.push_back(
+//          llvm::ConstantInt::get(type, (uint64_t)buf[i], true));
+//    }
+//  } else if (type->isIntegerTy(1)) {
+//    bool *buf = (bool *)buffer;
+//    for (uint64_t i = 0; i < total_size; i++) {
+//      buffer_constants.push_back(
+//          llvm::ConstantInt::get(type, (uint64_t)buf[i], true));
+//    }
+//  } else {
+//    LOG(FATAL) << "Unsupported type";
+//  }
+//
+//  llvm::ArrayType *arr_type =
+//      llvm::ArrayType::get(type, buffer_constants.size());
+//
+//  // TODO: Add a pass that will put an alloca for this into the entry block
+//  //  %3 = getelementptr inbounds [6 x float], [6 x float]* %0, i64 0, i64 0
+//  //  %4 = getelementptr inbounds [6 x float], [6 x float]* %1, i64 0, i64 0
+//  t->llvm_buffer_ = llvm::ConstantArray::get(arr_type, buffer_constants);
+//  t->llvm_type_ = t->llvm_buffer_->getType();
+//  buffer_constants.clear();
+//
+//  return t;
+//}
 
 Hobbit::ast::Node *Hobbit::ast::Tensor::GetParent() { return parent_; }
 
@@ -459,6 +465,7 @@ Hobbit::ast::Tensor::Chip(llvm::BasicBlock *BB,
   Tensor *chip = new Tensor(this->GEP(BB, std::move(start_idx)),
                             std::move(dims), this->llvm_type_);
   chip->parent_ = this;
+  this->child_ = chip;
 
   return chip;
 }
@@ -469,7 +476,8 @@ Hobbit::ast::Tensor::Chip(llvm::BasicBlock *BB,
                           llvm::SmallVector<uint64_t, 4> dims) {
   // create a new tensor that aliases this
   Tensor *chip = new Tensor(this->GEP(BB, start_idx), dims, this->llvm_type_);
-  chip->parent_ = this->parent_;
+  chip->parent_ = this;
+  this->child_ = chip;
 
   return chip;
 }

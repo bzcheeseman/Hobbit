@@ -103,7 +103,7 @@ void Hobbit::ast::Visitor::Finalize(unsigned int opt_level,
   PMBuilder.populateModulePassManager(pm);
   target_machine->adjustPassManager(PMBuilder);
 
-  pm.run(*module_); // why does this segfault?
+  pm.run(*module_);
 
   llvm::verifyModule(*module_, &llvm::errs());
 }
