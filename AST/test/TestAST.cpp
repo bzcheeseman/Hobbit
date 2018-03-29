@@ -45,28 +45,13 @@
 #include "Visitor.hpp"
 
 namespace {
-  namespace Ha = Hobbit::ast;
-
-//  TEST(Basic, CreateFunction) {
-//    llvm::LLVMContext ctx;
-//
-//    Ha::Function *func = Ha::Function::Create("TestFunction");
-//
-//    Ha::Tensor *lhs =
-//        func->GetNewArg("lhs", {153}, llvm::Type::getFloatTy(ctx));
-//
-//    Ha::Node *hsum = Ha::HSum::Create("hsum", func, 0, 153);
-//    llvm::dyn_cast<Ha::HSum>(hsum)->SetArgs({lhs});
-//    func->PushNode(hsum);
-//    std::cout << "\n" << func->GetSignature() << std::endl;
-//  }
 
   TEST(Basic, CreateLLVMFunction) {
     llvm::LLVMContext ctx;
 
-    Ha::Visitor *cgvisitor = Ha::Visitor::Create(&ctx, "test_module");
+    Hobbit::Visitor *cgvisitor = Hobbit::Visitor::Create(&ctx, "test_module");
 
-    Ha::Function *func = Ha::Function::Create("TestFunction");
+    Hobbit::Function *func = Hobbit::Function::Create("TestFunction");
 
     const int n_elts = 153;
 
@@ -74,29 +59,32 @@ namespace {
     std::mt19937 gen(rd());
     std::uniform_real_distribution<float> dis(0.0, 1.0);
 
-    std::vector<float> f1, f2; // why are there a bunch of zeros in the middle...
+    std::vector<float> f1,
+        f2; // why are there a bunch of zeros in the middle...
     for (int i = 0; i < n_elts; i++) {
       f1.push_back(dis(gen));
       f2.push_back(dis(gen));
     }
 
-    Ha::Tensor *lhs =
+    Hobbit::Tensor *lhs =
         func->GetNewArg("lhs", {n_elts}, llvm::Type::getFloatPtrTy(ctx));
 
-    Ha::Node *hsum = Ha::HSum::Create("hsum", func, 0, 153);
-    Ha::Node *noop = Ha::HSum::Create("hsum", func, 0, 1);
+    Hobbit::ast::Node *hsum = Hobbit::HSum::Create("hsum", func, 0, 153);
+    Hobbit::ast::Node *noop = Hobbit::HSum::Create("hsum", func, 0, 1);
 
     func->PushNode(hsum);
-    Ha::Tensor *out = llvm::dyn_cast<Ha::HSum>(hsum)->SetArgs({lhs});
+    Hobbit::Tensor *out = llvm::dyn_cast<Hobbit::HSum>(hsum)->SetArgs({lhs});
     func->PushNode(noop);
-    Ha::Tensor *noop_out = llvm::dyn_cast<Ha::HSum>(noop)->SetArgs({out});
+    Hobbit::Tensor *noop_out =
+        llvm::dyn_cast<Hobbit::HSum>(noop)->SetArgs({out});
     func->SetArg(noop_out);
 
     func->Emit(cgvisitor);
 
     cgvisitor->FinalizeFunction(func);
     cgvisitor->GetModule()->print(llvm::outs(), nullptr);
-    cgvisitor->Finalize(3, llvm::sys::getDefaultTargetTriple(), "corei7-avx", "+avx,+sse,+x87,+cx16");
+    cgvisitor->Finalize(3, llvm::sys::getDefaultTargetTriple(), "corei7-avx",
+                        "+avx,+sse,+x87,+cx16");
     cgvisitor->GetModule()->print(llvm::outs(), nullptr);
   }
 }

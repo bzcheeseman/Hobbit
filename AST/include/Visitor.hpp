@@ -32,38 +32,34 @@ namespace llvm {
 }
 
 namespace Hobbit {
-  namespace ast {
-    class Function;
+  class Function;
 
-    class Visitor {
-    public:
-      static Visitor *Create(llvm::LLVMContext *ctx,
-                             const std::string &module_name);
+  class Visitor {
+  public:
+    static Visitor *Create(llvm::LLVMContext *ctx,
+                           const std::string &module_name);
 
-      llvm::LLVMContext *GetContext();
+    llvm::LLVMContext *GetContext();
 
-      llvm::Module *GetModule();
+    llvm::Module *GetModule();
 
-      llvm::Function *GetFunction(Function *key);
+    llvm::Function *GetFunction(Function *key);
 
-      void PushFunction(Function *key, llvm::Function *val);
+    void PushFunction(Function *key, llvm::Function *val);
 
-      void FinalizeFunction(Function *key);
+    void FinalizeFunction(Function *key);
 
-      void Finalize(unsigned int opt_level,
-                    const std::string &target_triple,
-                    const std::string &cpu,
-                    const std::string &features);
+    void Finalize(unsigned int opt_level, const std::string &target_triple,
+                  const std::string &cpu, const std::string &features);
 
-    protected:
-      Visitor(llvm::LLVMContext *ctx, const std::string &module_name);
+  protected:
+    Visitor(llvm::LLVMContext *ctx, const std::string &module_name);
 
-    private:
-      llvm::LLVMContext *ctx_;
-      std::unique_ptr<llvm::Module> module_;
-      std::map<Function *, llvm::Function *> func_table_;
-    };
-  }
+  private:
+    llvm::LLVMContext *ctx_;
+    std::unique_ptr<llvm::Module> module_;
+    std::map<Function *, llvm::Function *> func_table_;
+  };
 }
 
 #endif // HOBBIT_VISITOR_HPP

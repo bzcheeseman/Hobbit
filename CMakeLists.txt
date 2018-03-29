@@ -30,7 +30,7 @@ if (BUILD_TESTS)
 endif (BUILD_TESTS)
 
 add_subdirectory(AST)
-add_subdirectory(Core)
+#add_subdirectory(Core)
 
 file(GLOB_RECURSE
         ALL_CXX_SOURCE_FILES

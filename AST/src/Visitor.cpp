@@ -25,54 +25,49 @@
 #include <glog/logging.h>
 
 #include <llvm/ADT/STLExtras.h>
+#include <llvm/IR/LegacyPassManager.h>
 #include <llvm/IR/Module.h>
-#include <llvm/Support/TargetSelect.h>
+#include <llvm/IR/Verifier.h>
 #include <llvm/Support/TargetRegistry.h>
-#include <llvm/Target/TargetOptions.h>
+#include <llvm/Support/TargetSelect.h>
 #include <llvm/Target/TargetMachine.h>
 #include <llvm/Target/TargetOptions.h>
-#include <llvm/IR/LegacyPassManager.h>
 #include <llvm/Transforms/IPO/PassManagerBuilder.h>
-#include <llvm/IR/Verifier.h>
 
-
-Hobbit::ast::Visitor *
-Hobbit::ast::Visitor::Create(llvm::LLVMContext *ctx,
-                             const std::string &module_name) {
+Hobbit::Visitor *Hobbit::Visitor::Create(llvm::LLVMContext *ctx,
+                                         const std::string &module_name) {
   return new Visitor(ctx, module_name);
 }
 
-llvm::LLVMContext *Hobbit::ast::Visitor::GetContext() { return ctx_; }
+llvm::LLVMContext *Hobbit::Visitor::GetContext() { return ctx_; }
 
-llvm::Module *Hobbit::ast::Visitor::GetModule() { return module_.get(); }
+llvm::Module *Hobbit::Visitor::GetModule() { return module_.get(); }
 
-llvm::Function *Hobbit::ast::Visitor::GetFunction(Hobbit::ast::Function *key) {
+llvm::Function *Hobbit::Visitor::GetFunction(Hobbit::Function *key) {
   return func_table_.at(key);
 }
 
-void Hobbit::ast::Visitor::PushFunction(Hobbit::ast::Function *key,
-                                        llvm::Function *val) {
+void Hobbit::Visitor::PushFunction(Hobbit::Function *key, llvm::Function *val) {
   if (func_table_.find(key) != func_table_.end())
     LOG(FATAL) << "Function already exists in the table!";
 
   func_table_[key] = val;
 }
 
-Hobbit::ast::Visitor::Visitor(llvm::LLVMContext *ctx,
-                              const std::string &module_name)
+Hobbit::Visitor::Visitor(llvm::LLVMContext *ctx, const std::string &module_name)
     : ctx_(std::move(ctx)),
       module_(llvm::make_unique<llvm::Module>(module_name, *ctx_)) {
   ;
 }
 
-void Hobbit::ast::Visitor::FinalizeFunction(Hobbit::ast::Function *key) {
+void Hobbit::Visitor::FinalizeFunction(Hobbit::Function *key) {
   llvm::verifyFunction(*func_table_.at(key), &llvm::errs());
 }
 
-void Hobbit::ast::Visitor::Finalize(unsigned int opt_level,
-                                    const std::string &target_triple,
-                                    const std::string &cpu,
-                                    const std::string &features) {
+void Hobbit::Visitor::Finalize(unsigned int opt_level,
+                               const std::string &target_triple,
+                               const std::string &cpu,
+                               const std::string &features) {
   llvm::InitializeAllTargetInfos();
   llvm::InitializeAllTargets();
   llvm::InitializeAllTargetMCs();
@@ -88,7 +83,7 @@ void Hobbit::ast::Visitor::Finalize(unsigned int opt_level,
   auto RM = llvm::Optional<llvm::Reloc::Model>();
 
   llvm::TargetMachine *target_machine =
-          target->createTargetMachine(target_triple, cpu, features, options, RM);
+      target->createTargetMachine(target_triple, cpu, features, options, RM);
 
   module_->setDataLayout(target_machine->createDataLayout());
   module_->setTargetTriple(target_triple);

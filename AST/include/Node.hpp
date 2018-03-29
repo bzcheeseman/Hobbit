@@ -27,6 +27,8 @@
 #include <vector>
 
 #include <llvm/ADT/SmallVector.h>
+#include <llvm/IR/Instruction.h>
+#include <llvm/IR/IRBuilder.h>
 
 namespace llvm {
   class BasicBlock;
@@ -39,12 +41,12 @@ namespace llvm {
 }
 
 namespace Hobbit {
+
+  class Tensor;
+  class Visitor;
+  const uint8_t ALIGNMENT = 32;
+
   namespace ast {
-
-    const uint8_t ALIGNMENT = 32;
-
-    class Tensor;
-    class Visitor;
 
     class Node {
     public:
@@ -54,248 +56,248 @@ namespace Hobbit {
         LoopNodeID,
       };
 
-      virtual const std::string &GetName() = 0;
-      virtual Node *GetParent() = 0;
-      virtual Node *GetChild() = 0;
-      virtual void SetChild(Node *node) = 0;
+      virtual const std::string &GetName() { return name_; }
+      virtual Node *GetParent() { return parent_; }
+      virtual Node *GetChild() { return child_; }
+      virtual void SetChild(Node *node) {
 
-      virtual void Emit(Visitor *CG) = 0;
-
-      virtual NodeType GetNodeType() const = 0;
-    };
-
-    class Function : public Node {
-    public:
-      static Function *Create(const std::string &name);
-
-      const std::string &GetName() override;
-      Node *GetParent() override { return nullptr; }
-      Node *GetChild() override { return child_; }
-      void SetChild(Node *node) override { node->SetChild(child_); child_ = node; }
-
-      // Add an argument to the function signature and get it so that we can
-      // operate on it
-      Tensor *GetNewArg(const std::string &name,
-                        llvm::SmallVector<uint64_t, 4> dims, llvm::Type *type);
-      Tensor *GetNewAlloca(const std::string &name,
-                           llvm::SmallVector<uint64_t, 4> dims, llvm::Type *type);
-
-//      Tensor *GetNewArg(const std::string &name,
-//                        llvm::SmallVector<uint64_t, 4> dims, llvm::Type *type, void *buffer);
-
-      void SetArg(Tensor *t);
-
-      void Emit(Visitor *CG) override;
-
-      void PushNode(Node *node);
-
-      NodeType GetNodeType() const override { return FunctionNodeID; }
-
-      static inline bool classof(const Node *node) {
-        return node->GetNodeType() == FunctionNodeID;
-      }
-
-    private:
-      std::string name_;
-
-      // For the function signature
-      llvm::SmallVector<Tensor *, 4> arg_table_;
-      llvm::SmallVector<Tensor *, 8> alloca_table_;
-
-      Node *child_;
-      Node *last_node_;
-    };
-
-    class Loop : public Node {
-    public:
-      // Computes the output size and creates a new Tensor that is returned when
-      // the args are set.
-      // Throws an error if none of the dimensions of the input tensors match
-      // the range start and end.
-      virtual Tensor *SetArgs(llvm::SmallVector<Tensor *, 2> args) = 0;
-
-      NodeType GetNodeType() const override { return LoopNodeID; }
-
-      void Emit(Visitor *CG) override = 0;
-
-      // In case we have analytics that want to know if the loop is a reduction
-      virtual bool GetIsReduction() = 0;
-
-      static inline bool classof(const Node *node) {
-        return node->GetNodeType() == LoopNodeID;
-      }
-
-    protected:
-      Loop(const std::string &name, Node *parent, uint64_t range_start,
-           uint64_t range_end);
-
-      // where to put the IR for the actual loop
-      // GEMM will be a bunch of nested DOTs (for example)
-      // Elementwise operations can treat a Tensor as a flat buffer and iterate
-      // over everything
-      virtual void
-      AddKernel(llvm::SmallVector<llvm::PHINode *, 4> idx_vars) = 0;
-
-      // Add basic blocks after the branch instance that ended the previous BB
-      // Adds the phi node for the loop index
-      // Can create many of these blocks for nested for loops
-      llvm::PHINode *AddLoopEntry_(llvm::BasicBlock *prev_bb);
-
-      // Increments the index and adds the BBs correctly.
-      // Inserts the end condition and loop metadata as well.
-      llvm::BasicBlock *AddLoopExit_(llvm::PHINode *idx_var);
-
-      // br has getContext, getParent (for BB) - convenience function for
-      // sub-functions
-      // do we want to add a struct for loop options (like clang?)
-      void AddLoopMetadata_(llvm::BranchInst *loop_end_br);
-
-    protected:
-      std::string name_;
-
-      // Parent node (like containing node) - loop within a loop or loop within
-      // a function for example
-      Node *parent_;
-      Node *child_;
-
-      // The input tensors
-      llvm::SmallVector<Tensor *, 2> args_;
-
-      // The output tensors
-      llvm::SmallVector<Tensor *, 1> out_;
-
-      // Loop characteristics
-      uint64_t range_start_;
-      uint64_t range_end_;
-      uint64_t dim_idx_;
-    };
-
-    class HSum : public Loop {
-    public:
-      static HSum *Create(const std::string &name, Node *parent,
-                          uint64_t range_start, uint64_t range_end);
-
-      Tensor *SetArgs(llvm::SmallVector<Tensor *, 2> args) override;
-
-      void Emit(Visitor *CG) override;
-
-      const std::string &GetName() override;
-      Node *GetParent() override { return parent_; }
-      Node *GetChild() override { return child_; }
-      void SetChild(Node *node) override {
         if (child_) node->SetChild(child_);
         child_ = node;
       }
 
-      bool GetIsReduction() override { return true; }
+      virtual void Emit(Visitor *CG) = 0;
+
+      virtual NodeType GetNodeType() const = 0;
 
     protected:
-      HSum(const std::string &name, Node *parent, uint64_t range_start,
-           uint64_t range_end);
-      void AddKernel(llvm::SmallVector<llvm::PHINode *, 4> idx_vars) override;
-    };
+      Node(Node *parent = nullptr, Node *child = nullptr) : parent_(parent), child_(child) {}
 
-    class Tensor : public Node {
-    public:
-      static Tensor *CreateVariable(const std::string &name, Node *parent,
-                                    llvm::SmallVector<uint64_t, 4> dims,
-                                    llvm::Type *type);
-//      static Tensor *CreateConstant(const std::string &name, Node *parent,
-//                                    llvm::SmallVector<uint64_t, 4> dims,
-//                                    llvm::Type *type, void *buffer);
-
-      NodeType GetNodeType() const override { return TensorID; }
-
-      static inline bool classof(const Node *node) {
-        return node->GetNodeType() == TensorID;
-      }
-
-      // Gets the parent/creator node for this tensor (for a function arg, it
-      // would be a Function*, for example)
-      Node *GetParent() override;
-      llvm::Type *GetType();
-      const std::string &GetName() override;
-      Node *GetChild() override { return child_; }
-      void SetChild(Node *node) override { node->SetChild(child_); child_ = node; }
-
-      inline void Emit(Visitor *CG) override {
-        ;
-      }
-
-      void SetBuffer(llvm::Value *val);
-      llvm::Value *GetBuffer();
-
-      // Gets the number of dimensions for a tensor
-      uint64_t NDim();
-      // Gets a dimension of a tensor
-      uint64_t Dim(uint64_t which);
-      // Gets the overall size of a tensor
-      uint64_t Size();
-
-      // Get a chip from a tensor (that references the current tensor)
-      Tensor *Chip(llvm::BasicBlock *BB,
-                   llvm::SmallVector<uint64_t, 4> start_idx,
-                   llvm::SmallVector<uint64_t, 4> dims);
-      Tensor *Chip(llvm::BasicBlock *BB,
-                   llvm::SmallVector<llvm::Value *, 4> start_idx,
-                   llvm::SmallVector<uint64_t, 4> dims);
-
-      // Collapse all the dimensions of this tensor into a single dimension,
-      // returns pointer to this tensor
-      Tensor *Flatten();
-
-      // ----- Should these not be in an AST?
-      // GEP an element of a tensor
-      llvm::Value *GEP(llvm::BasicBlock *BB,
-                       llvm::SmallVector<uint64_t, 4> idx);
-      llvm::Value *GEP(llvm::BasicBlock *BB,
-                       llvm::SmallVector<llvm::Value *, 4> idx);
-      // GEP an element as if the tensor was a flat buffer
-      llvm::Value *GEP(llvm::BasicBlock *BB, uint64_t raw_idx);
-      llvm::Value *GEP(llvm::BasicBlock *BB, llvm::Value *raw_idx);
-
-      // Load an element of a tensor (wraps GEP with a builder.CreateLoad call)
-      llvm::Value *Load(llvm::BasicBlock *BB,
-                        llvm::SmallVector<uint64_t, 4> idx);
-      llvm::Value *Load(llvm::BasicBlock *BB,
-                        llvm::SmallVector<llvm::Value *, 4> idx);
-      // Load an element as if the tensor was a flat buffer
-      llvm::Value *Load(llvm::BasicBlock *BB, uint64_t raw_idx);
-      llvm::Value *Load(llvm::BasicBlock *BB, llvm::Value *raw_idx);
-
-      // Store an element of a tensor (wraps GEP with a builder.CreateStore
-      // call)
-      void Store(llvm::BasicBlock *BB, llvm::SmallVector<uint64_t, 4> idx,
-                 llvm::Value *val);
-      void Store(llvm::BasicBlock *BB, llvm::SmallVector<llvm::Value *, 4> idx,
-                 llvm::Value *val);
-      // Store an element as if the tensor was a flat buffer
-      void Store(llvm::BasicBlock *BB, uint64_t raw_idx, llvm::Value *val);
-      void Store(llvm::BasicBlock *BB, llvm::Value *raw_idx, llvm::Value *val);
-
-      // elementwise operations?
-    private:
-      Tensor(llvm::Value *ptr, llvm::SmallVector<uint64_t, 4> dims,
-             llvm::Type *type);
-
-      // for calculating the index of an item in a shaped flat buffer
-      uint64_t At_(llvm::SmallVector<uint64_t, 4> idx);
-      llvm::Value *AtVal_(llvm::BasicBlock *BB,
-                          llvm::SmallVector<llvm::Value *, 4> idx);
-
-    private:
       std::string name_;
 
-      // can store constant array here
-      llvm::Value *llvm_buffer_;
-      llvm::Type *llvm_type_;
-      llvm::SmallVector<uint64_t, 4> dims_;
-
-      // not sure if this is necessary?
       Node *parent_;
       Node *child_;
     };
   }
+
+  class Function : public ast::Node {
+  public:
+    static Function *Create(const std::string &name);
+
+    // Add an argument to the function signature and get it so that we can
+    // operate on it
+    Tensor *GetNewArg(const std::string &name,
+                      llvm::SmallVector<uint64_t, 4> dims, llvm::Type *type);
+    Tensor *GetNewAlloca(const std::string &name,
+                         llvm::SmallVector<uint64_t, 4> dims, llvm::Type *type);
+
+    Tensor *GetNewArg(const std::string &name,
+                      llvm::SmallVector<uint64_t, 4> dims, llvm::Type
+                      *type, void *buffer);
+
+    void SetArg(Tensor *t);
+
+    void Emit(Visitor *CG) override;
+
+    void PushNode(Node *node);
+
+    void SetChild(Node *node) override {
+      this->PushNode(node);
+    }
+
+    NodeType GetNodeType() const override { return FunctionNodeID; }
+
+    static inline bool classof(const Node *node) {
+      return node->GetNodeType() == FunctionNodeID;
+    }
+
+  private:
+    std::string name_;
+
+    // For the function signature
+    llvm::SmallVector<Tensor *, 4> arg_table_;
+    llvm::SmallVector<Tensor *, 8> alloca_table_;
+
+    Node *last_node_;
+  };
+
+
+  class TensorInstr : public ast::Node {
+  public:
+    llvm::SmallVector<Tensor *, 4> &GetArgs() { return args_; }
+    Tensor *GetArg(int which) { return args_[which]; }
+
+    virtual llvm::Value *GetInstr(llvm::BasicBlock *BB) = 0;
+
+  protected:
+    explicit TensorInstr(llvm::SmallVector<Tensor *, 4> args) : args_(std::move(args)) {}
+
+    llvm::SmallVector<Tensor *, 4> args_;
+    llvm::Value *instr_;
+  };
+
+  class Loop : public ast::Node {
+  public:
+    struct LoopInfo {
+      uint64_t start = 0;
+      uint64_t end;
+
+      llvm::PHINode *phi = nullptr;
+      llvm::Value *increment = nullptr;
+    };
+
+    // Computes the output size and creates a new Tensor that is returned when
+    // the args are set.
+    // Throws an error if none of the dimensions of the input tensors match
+    // the range start and end.
+    virtual Tensor *SetArgs(llvm::SmallVector<Tensor *, 2> args) = 0;
+
+    NodeType GetNodeType() const override { return LoopNodeID; }
+
+    void Emit(Visitor *CG) override = 0;
+
+    // In case we have analytics that want to know if the loop is a reduction
+    virtual bool GetIsReduction() = 0;
+
+    static inline bool classof(const Node *node) {
+      return node->GetNodeType() == LoopNodeID;
+    }
+
+  protected:
+    Loop(const std::string &name, Node *parent, uint64_t range_start,
+         uint64_t range_end, uint64_t stride=8, uint64_t chunk_size=100);
+
+    // Add basic blocks after the branch instance that ended the previous BB
+    // Adds the phi node for the loop index
+    // Can create many of these blocks for nested for loops
+    void AddLoopEntry_(llvm::BasicBlock *prev_bb);
+
+    // Increments the index and adds the BBs correctly.
+    // Inserts the end condition and loop metadata as well.
+    llvm::BasicBlock *AddLoopExit_();
+
+    // br has getContext, getParent (for BB) - convenience function for
+    // sub-functions
+    // do we want to add a struct for loop options (like clang?)
+    void AddLoopMetadata_(llvm::BranchInst *loop_end_br);
+
+  protected:
+    std::string name_;
+
+    // The input tensors
+    llvm::SmallVector<Tensor *, 2> args_;
+
+    // The output tensors
+    llvm::SmallVector<Tensor *, 1> out_;
+
+    // Loop characteristics
+    uint64_t range_start_;
+    uint64_t range_end_;
+    uint64_t stride_;
+    uint64_t chunk_size_;
+    std::map<std::string, LoopInfo> loop_phi_incr_;
+  };
+
+  class HSum : public Loop {
+  public:
+    static HSum *Create(const std::string &name, Node *parent,
+                        uint64_t range_start, uint64_t range_end);
+
+    Tensor *SetArgs(llvm::SmallVector<Tensor *, 2> args) override;
+
+    void Emit(Visitor *CG) override;
+
+    bool GetIsReduction() override { return true; }
+
+  protected:
+    HSum(const std::string &name, Node *parent, uint64_t range_start,
+         uint64_t range_end);
+  };
+
+  class Tensor : public ast::Node {
+  public:
+    static Tensor *CreateVariable(const std::string &name, Node *parent,
+                                  llvm::SmallVector<uint64_t, 4> dims,
+                                  llvm::Type *type);
+    static Tensor *CreateConstant(const std::string &name, Node *parent,
+                                  llvm::SmallVector<uint64_t, 4> dims,
+                                  llvm::Type *type, void *buffer);
+
+    NodeType GetNodeType() const override { return TensorID; }
+
+    static inline bool classof(const Node *node) {
+      return node->GetNodeType() == TensorID;
+    }
+
+    llvm::Type *GetType();
+
+    inline void Emit(Visitor *CG) override { ; }
+
+    void SetBuffer(llvm::Value *val);
+    llvm::Value *GetBuffer();
+
+    // Gets the number of dimensions for a tensor
+    uint64_t NDim();
+    // Gets a dimension of a tensor
+    uint64_t Dim(uint64_t which);
+    // Gets the overall size of a tensor
+    uint64_t Size();
+
+    // Get a chip from a tensor (that references the current tensor)
+    Tensor *Chip(llvm::BasicBlock *BB, llvm::SmallVector<uint64_t, 4> start_idx,
+                 llvm::SmallVector<uint64_t, 4> dims);
+    Tensor *Chip(llvm::BasicBlock *BB,
+                 llvm::SmallVector<llvm::Value *, 4> start_idx,
+                 llvm::SmallVector<uint64_t, 4> dims);
+
+    // Collapse all the dimensions of this tensor into a single dimension,
+    // returns pointer to this tensor
+    Tensor *Flatten();
+
+    // ----- Should these not be in an AST?
+    // GEP an element of a tensor
+    llvm::Value *GEP(llvm::BasicBlock *BB, llvm::SmallVector<uint64_t, 4> idx);
+    llvm::Value *GEP(llvm::BasicBlock *BB,
+                     llvm::SmallVector<llvm::Value *, 4> idx);
+    // GEP an element as if the tensor was a flat buffer
+    llvm::Value *GEP(llvm::BasicBlock *BB, uint64_t raw_idx);
+    llvm::Value *GEP(llvm::BasicBlock *BB, llvm::Value *raw_idx);
+
+    // Load an element of a tensor (wraps GEP with a builder.CreateLoad call)
+    llvm::Value *Load(llvm::BasicBlock *BB, llvm::SmallVector<uint64_t, 4> idx);
+    llvm::Value *Load(llvm::BasicBlock *BB,
+                      llvm::SmallVector<llvm::Value *, 4> idx);
+    // Load an element as if the tensor was a flat buffer
+    llvm::Value *Load(llvm::BasicBlock *BB, uint64_t raw_idx);
+    llvm::Value *Load(llvm::BasicBlock *BB, llvm::Value *raw_idx);
+
+    // Store an element of a tensor (wraps GEP with a builder.CreateStore
+    // call)
+    void Store(llvm::BasicBlock *BB, llvm::SmallVector<uint64_t, 4> idx,
+               llvm::Value *val);
+    void Store(llvm::BasicBlock *BB, llvm::SmallVector<llvm::Value *, 4> idx,
+               llvm::Value *val);
+    // Store an element as if the tensor was a flat buffer
+    void Store(llvm::BasicBlock *BB, uint64_t raw_idx, llvm::Value *val);
+    void Store(llvm::BasicBlock *BB, llvm::Value *raw_idx, llvm::Value *val);
+
+    // elementwise operations?
+  private:
+    Tensor(llvm::Value *ptr, llvm::SmallVector<uint64_t, 4> dims,
+           llvm::Type *type);
+
+    // for calculating the index of an item in a shaped flat buffer
+    uint64_t At_(llvm::SmallVector<uint64_t, 4> idx);
+    llvm::Value *AtVal_(llvm::BasicBlock *BB,
+                        llvm::SmallVector<llvm::Value *, 4> idx);
+
+  private:
+    std::string name_;
+
+    // can store constant array here
+    llvm::Value *llvm_buffer_;
+    llvm::Type *llvm_type_;
+    llvm::SmallVector<uint64_t, 4> dims_;
+  };
 }
 
 #endif // HOBBIT_NODE_HPP
