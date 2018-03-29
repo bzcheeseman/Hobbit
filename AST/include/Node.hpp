@@ -71,7 +71,7 @@ namespace Hobbit {
       const std::string &GetName() override;
       Node *GetParent() override { return nullptr; }
       Node *GetChild() override { return child_; }
-      void SetChild(Node *node) override { child_ = node; }
+      void SetChild(Node *node) override { node->SetChild(child_); child_ = node; }
 
       // Add an argument to the function signature and get it so that we can
       // operate on it
@@ -182,7 +182,10 @@ namespace Hobbit {
       const std::string &GetName() override;
       Node *GetParent() override { return parent_; }
       Node *GetChild() override { return child_; }
-      void SetChild(Node *node) override { child_ = node; }
+      void SetChild(Node *node) override {
+        if (child_) node->SetChild(child_);
+        child_ = node;
+      }
 
       bool GetIsReduction() override { return true; }
 
@@ -213,7 +216,7 @@ namespace Hobbit {
       llvm::Type *GetType();
       const std::string &GetName() override;
       Node *GetChild() override { return child_; }
-      void SetChild(Node *node) override { child_ = node; }
+      void SetChild(Node *node) override { node->SetChild(child_); child_ = node; }
 
       inline void Emit(Visitor *CG) override {
         ;

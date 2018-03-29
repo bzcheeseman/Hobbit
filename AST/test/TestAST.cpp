@@ -96,7 +96,7 @@ namespace {
 
     cgvisitor->FinalizeFunction(func);
     cgvisitor->GetModule()->print(llvm::outs(), nullptr);
-    cgvisitor->Finalize(3, llvm::sys::getDefaultTargetTriple(), "corei7-avx", "+avx,+sse,+x87");
+    cgvisitor->Finalize(3, llvm::sys::getDefaultTargetTriple(), "corei7-avx", "+avx,+sse,+x87,+cx16");
     cgvisitor->GetModule()->print(llvm::outs(), nullptr);
   }
 }

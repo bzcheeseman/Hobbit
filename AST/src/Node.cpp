@@ -251,7 +251,12 @@ void Hobbit::ast::Loop::AddLoopMetadata_(llvm::BranchInst *loop_end_br) {
       llvm::MDString::get(ctx, "llvm.loop.vectorize.width"),
       llvm::ConstantAsMetadata::get(
           llvm::ConstantInt::get(llvm::Type::getInt32Ty(ctx), 8))};
+  llvm::Metadata *unrollMD[] = {
+          llvm::MDString::get(ctx, "llvm.loop.unroll.count"),
+          llvm::ConstantAsMetadata::get(
+                  llvm::ConstantInt::get(llvm::Type::getInt32Ty(ctx), 8))};
   args.push_back(llvm::MDNode::get(ctx, vecMD));
+  args.push_back(llvm::MDNode::get(ctx, unrollMD));
 
   llvm::MDNode *LoopID = llvm::MDNode::get(ctx, args);
   LoopID->replaceOperandWith(0, LoopID);
@@ -273,7 +278,7 @@ Hobbit::ast::HSum::HSum(const std::string &name, Hobbit::ast::Node *parent,
   ;
 }
 
-// TODO: Move the actual llvm codegen to the visitor
+// TODO: Move the actual llvm codegen to the visitor (add Instruction node backed by llvm::Instruction *)
 void Hobbit::ast::HSum::AddKernel(
     llvm::SmallVector<llvm::PHINode *, 4> idx_vars) {
   llvm::PHINode *idx = idx_vars[0];
@@ -342,7 +347,6 @@ Hobbit::ast::HSum::SetArgs(llvm::SmallVector<Tensor *, 2> args) {
 
   Tensor *output = llvm::dyn_cast<Function>(parent_)->GetNewAlloca(name_+".output", {1}, args_[0]->GetType());
 
-  // TODO: need to set the llvm_buffer_ otherwise multiple nodes will fail
   out_.push_back(output);
 
   return out_[0];
@@ -435,8 +439,7 @@ Hobbit::ast::Tensor *Hobbit::ast::Tensor::CreateVariable(
 //
 //  llvm::ArrayType *arr_type =
 //      llvm::ArrayType::get(type, buffer_constants.size());
-//
-//  // TODO: Add a pass that will put an alloca for this into the entry block
+//  // should work to use the GetAlloca in function now...
 //  //  %3 = getelementptr inbounds [6 x float], [6 x float]* %0, i64 0, i64 0
 //  //  %4 = getelementptr inbounds [6 x float], [6 x float]* %1, i64 0, i64 0
 //  t->llvm_buffer_ = llvm::ConstantArray::get(arr_type, buffer_constants);
@@ -603,7 +606,7 @@ void Hobbit::ast::Tensor::Store(llvm::BasicBlock *BB, llvm::Value *raw_idx,
 Hobbit::ast::Tensor::Tensor(llvm::Value *ptr,
                             llvm::SmallVector<uint64_t, 4> dims,
                             llvm::Type *type)
-    : llvm_buffer_(ptr), dims_(std::move(dims)), llvm_type_(type) {}
+    : llvm_buffer_(ptr), dims_(std::move(dims)), llvm_type_(type), child_(nullptr) {}
 
 uint64_t Hobbit::ast::Tensor::At_(llvm::SmallVector<uint64_t, 4> idx) {
   if (idx.size() != dims_.size())
