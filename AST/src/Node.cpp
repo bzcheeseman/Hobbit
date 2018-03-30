@@ -117,15 +117,20 @@ void Hobbit::Function::Emit(Hobbit::Visitor *CG) {
   llvm::Function::arg_iterator iter = out->arg_begin();
   for (auto &arg : arg_table_) {
     arg->SetBuffer(&(*iter++));
+    // TODO: Store a zero in arg
   }
 
   for (auto &alloca : alloca_table_) {
     llvm::Type *alloca_type = alloca->GetType();
     if (alloca_type->isPointerTy())
       alloca_type = alloca_type->getPointerElementType();
-    llvm::Value *a =
-        builder.CreateAlloca(alloca_type, builder.getInt64(alloca->Size()));
-    alloca->SetBuffer(a);
+    alloca_type = llvm::ArrayType::get(alloca_type, alloca->Size());
+    llvm::Value *a = builder.CreateAlloca(alloca_type);
+    builder.CreateStore(
+            llvm::ConstantAggregateZero::get(alloca_type), a
+    );
+    llvm::Value *ptr = builder.CreateInBoundsGEP(a, {builder.getInt64(0), builder.getInt64(0)});
+    alloca->SetBuffer(ptr);
   }
 
   CG->PushFunction(this, out); // keyed on AST function
@@ -145,163 +150,102 @@ void Hobbit::Function::Emit(Hobbit::Visitor *CG) {
 
   // Finalize the entry BB if that hasn't already happened
   entry_bb = &out->getEntryBlock();
+  if (entry_bb->empty()) {
+    llvm::outs() << "Entry BB empty\n";
+    builder.SetInsertPoint(entry_bb);
+    builder.CreateBr(&*(++out->begin()));
+  }
+
   llvm::BranchInst *br;
   for (auto &instr : *entry_bb) {
     br = llvm::dyn_cast<llvm::BranchInst>(&instr);
     if (br)
       break;
   }
-  if (br) {
-    llvm::outs() << "Branch inst found\n";
-    br->moveAfter(&*--entry_bb->end());
-    return;
+  if (!br) {
+    llvm::outs() << "No branch inst found\n";
+    builder.SetInsertPoint(entry_bb);
+    builder.CreateBr(&*(++out->begin()));
   }
-  llvm::outs() << "No branch inst found\n";
-  builder.SetInsertPoint(entry_bb);
-  builder.CreateBr(&*(++out->begin()));
+  llvm::outs() << "Branch inst found\n";
+  br->moveAfter(&(*(--entry_bb->end())));
+  return;
+
 }
 
 Hobbit::Loop::Loop(const std::string &name, Hobbit::ast::Node *parent,
-                   uint64_t range_start, uint64_t range_end, uint64_t stride, uint64_t chunk_size)
-    : name_(name), Node(parent, nullptr), range_start_(range_start),
-      range_end_(range_end), stride_(stride), chunk_size_(chunk_size) {}
-
-void Hobbit::Loop::AddLoopEntry_(llvm::BasicBlock *prev_bb) {
-  llvm::LLVMContext &ctx = prev_bb->getContext();
-  llvm::Function *parent_func = prev_bb->getParent();
-
-  llvm::BasicBlock *loop_body =
-      llvm::BasicBlock::Create(ctx, this->name_ + ".body", parent_func);
-  llvm::BasicBlock *chunked_body = nullptr;
-  llvm::BasicBlock *strided_body = nullptr;
-
-  llvm::IRBuilder<> builder(prev_bb);
-  builder.CreateBr(loop_body);
-
-  builder.SetInsertPoint(loop_body);
-  loop_phi_incr_["base"].phi =
-      builder.CreatePHI(builder.getInt64Ty(), 2, this->name_ + ".idx");
-  loop_phi_incr_["base"].phi->addIncoming(builder.getInt64(range_start_), prev_bb);
-  loop_phi_incr_["base"].increment = builder.getInt64(1);
-  loop_phi_incr_["base"].start = range_start_;
-  loop_phi_incr_["base"].end = range_end_;
-
-  if (stride_ > 1) strided_body = llvm::BasicBlock::Create(ctx, this->name_ + ".body.strided", parent_func);
-  if (chunk_size_ > 1) chunked_body = llvm::BasicBlock::Create(ctx, this->name_ + ".body.chunked", parent_func);
-
-  if (stride_ > 1) {
-    if (!chunked_body) builder.SetInsertPoint(loop_body);
-    if (chunked_body) builder.SetInsertPoint(chunked_body);
-    builder.CreateBr(strided_body);
-    builder.SetInsertPoint(strided_body);
-
-    loop_phi_incr_["strided"].phi = builder.CreatePHI(builder.getInt64Ty(), 2, this->name_ + ".stride.idx");
-    loop_phi_incr_["strided"].phi->addIncoming(builder.getInt64(0), loop_body);
-    loop_phi_incr_["strided"].increment = builder.getInt64(1);
-    loop_phi_incr_["strided"].start = 0;
-    loop_phi_incr_["strided"].end = stride_;
-
-    builder.SetInsertPoint(loop_body);
-    loop_phi_incr_["base"].increment = builder.getInt64(stride_);
-  }
-
-  if (chunk_size_ > 1) {
-    builder.SetInsertPoint(loop_body);
-    builder.CreateBr(chunked_body);
-    builder.SetInsertPoint(chunked_body);
-
-    loop_phi_incr_["chunked"].phi = builder.CreatePHI(builder.getInt64Ty(), 2, this->name_ + ".chunk.idx");
-    loop_phi_incr_["chunked"].phi->addIncoming(builder.getInt64(0), loop_body);
-    loop_phi_incr_["chunked"].increment = builder.getInt64(stride_);
-    loop_phi_incr_["chunked"].start = 0;
-    loop_phi_incr_["chunked"].end = chunk_size_*stride_;
-
-    builder.SetInsertPoint(loop_body);
-    loop_phi_incr_["base"].increment = builder.getInt64(stride_*chunk_size_);
-  }
+                   uint64_t range_start, uint64_t range_end)
+    : name_(name), Node(parent, nullptr) {
+  loop_info_.start = range_start;
+  loop_info_.end = range_end;
+  inner_ = nullptr;
+  outer_ = nullptr;
 }
 
-llvm::BasicBlock *Hobbit::Loop::AddLoopExit_() {
-
-  llvm::PHINode *base = loop_phi_incr_["base"].phi;
-  llvm::Value *base_incr = loop_phi_incr_["base"].increment;
-
-  llvm::BasicBlock *base_body = base->getParent();
-  llvm::LLVMContext &ctx = base->getContext();
-  llvm::Function *parent_func = base->getFunction();
-
-  llvm::BasicBlock *base_exit = llvm::BasicBlock::Create(ctx, this->name_ + ".exit", parent_func);
-  llvm::BasicBlock *chunk_exit = nullptr;
-  llvm::BasicBlock *stride_exit = nullptr;
-
-  llvm::IRBuilder<> builder(base_body);
-
-  if (chunk_size_ > 1) {
-    llvm::PHINode *chunked = loop_phi_incr_["chunked"].phi;
-    llvm::Value *chunked_incr = loop_phi_incr_["chunked"].increment;
-
-    llvm::BasicBlock *chunked_body = chunked->getParent();
-    builder.CreateBr(chunked_body);
-
-    chunk_exit = llvm::BasicBlock::Create(ctx, this->name_ + ".chunk.exit", parent_func);
-
-    llvm::IRBuilder<> builder(chunked_body);
-    llvm::Value *next_idx_var = builder.CreateAdd(chunked, chunked_incr);
-    llvm::Value *end_cond =
-            builder.CreateICmpEQ(next_idx_var, builder.getInt64(loop_phi_incr_["chunked"].end));
-    llvm::BranchInst *br = builder.CreateCondBr(end_cond, chunk_exit, chunked_body);
-    this->AddLoopMetadata_(br);
-
-    chunked->addIncoming(next_idx_var, chunked_body);
-
+void Hobbit::Loop::Emit(Hobbit::Visitor *CG) {
+  llvm::Function *f;
+  Node *n = parent_;
+  Function *parent;
+  while (!(parent = llvm::dyn_cast<Function>(n))) {
+    n = n->GetParent();
   }
+  f = CG->GetFunction(parent); // takes the parent function of this node
 
-  if (stride_ > 1) {
-    llvm::PHINode *strided = loop_phi_incr_["strided"].phi;
-    llvm::Value *strided_incr = loop_phi_incr_["strided"].increment;
+  llvm::BasicBlock *pre_loop = &*--f->end();
 
-    llvm::BasicBlock *strided_body = strided->getParent();
-    builder.CreateBr(strided_body);
+  llvm::IRBuilder<> builder(pre_loop);
 
-    stride_exit = llvm::BasicBlock::Create(ctx, this->name_ + ".stride.exit", parent_func);
+  llvm::BasicBlock *loop_entry =
+          llvm::BasicBlock::Create(f->getContext(), name_ + ".loop.entry", f);
+  builder.CreateBr(loop_entry);
 
-    llvm::IRBuilder<> builder(strided_body);
-    llvm::Value *next_idx_var = builder.CreateAdd(strided, strided_incr);
-    llvm::Value *end_cond =
-      builder.CreateICmpEQ(next_idx_var, builder.getInt64(loop_phi_incr_["strided"].end));
-    llvm::BranchInst *br = builder.CreateCondBr(end_cond, stride_exit, strided_body);
-    this->AddLoopMetadata_(br);
+  llvm::BasicBlock *body_bb = this->AddLoopEntry_(loop_entry);
+  this->AddKernel_(body_bb);
+  llvm::BasicBlock *after_exit = this->AddLoopExit_(body_bb);
+}
 
-    strided->addIncoming(next_idx_var, strided_body);
-  }
+llvm::BasicBlock *Hobbit::Loop::AddLoopEntry_(llvm::BasicBlock *phi_bb) {
+  llvm::LLVMContext &ctx = phi_bb->getContext();
+  llvm::Function *parent_func = phi_bb->getParent();
 
-  llvm::Value *next_idx_var = builder.CreateAdd(base, base_incr);
+  llvm::BasicBlock *entry = phi_bb->getSinglePredecessor();
+
+  llvm::IRBuilder<> builder(phi_bb);
+
+  loop_info_.phi = builder.CreatePHI(builder.getInt64Ty(), 2, name_ + ".idx");
+  loop_info_.phi->addIncoming(builder.getInt64(loop_info_.start), entry);
+  loop_info_.increment = builder.getInt64(1);
+  loop_info_.cumulative_idx = loop_info_.phi;
+
+  llvm::BasicBlock *loop_body = llvm::BasicBlock::Create(ctx, name_ + ".loop.body", parent_func);
+  builder.CreateBr(loop_body);
+  builder.SetInsertPoint(loop_body);
+  return loop_body;
+}
+
+llvm::BasicBlock *Hobbit::Loop::AddLoopExit_(llvm::BasicBlock *body_bb) {
+  llvm::PHINode *phi = loop_info_.phi;
+  llvm::BasicBlock *phi_block = phi->getParent();
+  llvm::LLVMContext &ctx = phi->getContext();
+  llvm::Function *parent_func = phi->getFunction();
+
+  llvm::BasicBlock *exit_bb = llvm::BasicBlock::Create(ctx, this->name_ + ".loop.exit", parent_func);
+  llvm::BasicBlock *after_exit = llvm::BasicBlock::Create(ctx, this->name_ + ".exit", parent_func);
+
+  llvm::IRBuilder<> builder(body_bb);
+  builder.CreateBr(exit_bb);
+  builder.SetInsertPoint(exit_bb);
+
+  llvm::Value *next_idx_var = builder.CreateAdd(phi, loop_info_.increment);
   llvm::Value *end_cond =
-          builder.CreateICmpEQ(next_idx_var, builder.getInt64(loop_phi_incr_["base"].end));
-  llvm::BranchInst *br = builder.CreateCondBr(end_cond, base_exit, base_body);
+          builder.CreateICmpEQ(next_idx_var, builder.getInt64(loop_info_.end));
+  llvm::BranchInst *br = builder.CreateCondBr(end_cond, after_exit, phi_block);
   this->AddLoopMetadata_(br);
-  base->addIncoming(next_idx_var, base_body);
+  phi->addIncoming(next_idx_var, exit_bb);
 
-//  llvm::BasicBlock *loop_body = idx->getParent();
-//  llvm::LLVMContext &ctx = idx->getContext();
-//  llvm::Function *parent_func = idx->getFunction();
-//
-//  llvm::BasicBlock *loop_exit =
-//          llvm::BasicBlock::Create(ctx, this->name_ + ".exit", parent_func);
-//
-//  llvm::IRBuilder<> builder(loop_body);
-//
-//
-//  llvm::Value *next_idx_var = builder.CreateAdd(idx, incr);
-//  llvm::Value *end_cond =
-//      builder.CreateICmpEQ(next_idx_var, builder.getInt64(chunk_size_));
-//  llvm::BranchInst *br = builder.CreateCondBr(end_cond, loop_exit, loop_body);
-//  this->AddLoopMetadata_(br);
-//
-//  loop_phi_incr_["chunked"].first->addIncoming(next_idx_var, loop_body);
+  builder.SetInsertPoint(after_exit);
 
-  builder.SetInsertPoint(base_exit);
-  return base_exit;
+  return after_exit;
 }
 
 void Hobbit::Loop::AddLoopMetadata_(llvm::BranchInst *loop_end_br) {
@@ -336,12 +280,6 @@ Hobbit::HSum *Hobbit::HSum::Create(const std::string &name,
   return out;
 }
 
-Hobbit::HSum::HSum(const std::string &name, Hobbit::ast::Node *parent,
-                   uint64_t range_start, uint64_t range_end)
-    : Loop(name, parent, range_start, range_end) {
-  ;
-}
-
 Hobbit::Tensor *Hobbit::HSum::SetArgs(llvm::SmallVector<Tensor *, 2> args) {
   if (args.size() != 1)
     LOG(FATAL) << "Too many arguments passed to " + name_;
@@ -351,7 +289,7 @@ Hobbit::Tensor *Hobbit::HSum::SetArgs(llvm::SmallVector<Tensor *, 2> args) {
   args_ = std::move(args);
   args_[0] = args_[0]->Flatten();
 
-  uint64_t range = range_end_ - range_start_;
+  uint64_t range = loop_info_.end - loop_info_.start;
   if (args_[0]->Dim(0) != range)
     LOG(FATAL) << "Incorrect size passed in " + name_;
 
@@ -361,60 +299,47 @@ Hobbit::Tensor *Hobbit::HSum::SetArgs(llvm::SmallVector<Tensor *, 2> args) {
   }
 
   Tensor *output = llvm::dyn_cast<Function>(parent_)->GetNewAlloca(
-      name_ + ".output", {1}, output_type);
+          name_ + ".output", {1}, output_type);
 
-  out_.push_back(output);
+  out_.push_back(std::move(output));
 
   return out_[0];
 }
 
-void Hobbit::HSum::Emit(Hobbit::Visitor *CG) {
-  llvm::Function *f;
-  Node *n = parent_;
-  Function *parent;
-  while (!(parent = llvm::dyn_cast<Function>(n))) {
-    n = n->GetParent();
+void Hobbit::HSum::AddKernel_(llvm::BasicBlock *body_bb) {
+  llvm::LLVMContext &ctx = body_bb->getContext();
+
+  Tensor *arg = args_[0];
+
+  llvm::Type *accumulator_type = arg->GetType();
+  if (accumulator_type->isPointerTy()) {
+    accumulator_type = accumulator_type->getPointerElementType();
   }
-  f = CG->GetFunction(parent); // takes the parent function of this node
+  if (accumulator_type->isArrayTy()) {
+    accumulator_type = accumulator_type->getArrayElementType();
+  }
 
-  llvm::BasicBlock *prev_bb = &(*(--f->end()));
-  this->AddLoopEntry_(prev_bb);
+  llvm::IRBuilder<> builder(&body_bb->getParent()->getEntryBlock());
 
-//  llvm::LLVMContext &ctx = loop_phi_incr_["base"].phi->getContext();
-//  llvm::BasicBlock *bb = loop_phi_incr_["base"].phi->getParent();
-//
-//  Tensor *arg = args_[0];
-//
-//  llvm::Type *accumulator_type = arg->GetType();
-//  if (accumulator_type->isPointerTy()) {
-//    accumulator_type = accumulator_type->getPointerElementType();
-//  }
-//  if (accumulator_type->isArrayTy()) {
-//    accumulator_type = accumulator_type->getArrayElementType();
-//  }
-//
-//  llvm::IRBuilder<> builder(&bb->getParent()->getEntryBlock());
-//
-//  llvm::Value *zero =
-//          builder.CreateBitCast(builder.getInt64(0), accumulator_type);
-//
-//  out_[0]->Store(builder.GetInsertBlock(), (uint64_t)0, zero);
-//
-//  builder.SetInsertPoint(bb);
-//
-//  llvm::Value *accumulator_next;
-//  if (accumulator_type->isIntegerTy()) {
-//    accumulator_next =
-//            builder.CreateAdd(out_[0]->Load(bb, (uint64_t)0), arg->Load(bb, loop_phi_incr_["base"].phi));
-//  }
-//  if (accumulator_type->isFloatingPointTy()) {
-//    accumulator_next =
-//            builder.CreateFAdd(out_[0]->Load(bb, (uint64_t)0), arg->Load(bb, loop_phi_incr_["base"].phi));
-//  }
-//
-//  out_[0]->Store(bb, (uint64_t)0, accumulator_next);
+  builder.SetInsertPoint(body_bb);
 
-  this->AddLoopExit_();
+  llvm::Value *accumulator_next;
+  if (accumulator_type->isIntegerTy()) {
+    accumulator_next =
+            builder.CreateAdd(
+                    out_[0]->Load(body_bb, (uint64_t)0),
+                    arg->Load(body_bb, this->loop_info_.cumulative_idx)
+            );
+  }
+  if (accumulator_type->isFloatingPointTy()) {
+    accumulator_next =
+            builder.CreateFAdd(
+                    out_[0]->Load(body_bb, (uint64_t)0),
+                    arg->Load(body_bb, this->loop_info_.cumulative_idx)
+            );
+  }
+
+  out_[0]->Store(body_bb, (uint64_t)0, accumulator_next);
 }
 
 Hobbit::Tensor *Hobbit::Tensor::CreateVariable(

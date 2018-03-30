@@ -18,6 +18,6 @@ On macOS simply run `brew install llvm`
 
 TODO
 ----
-- Use dot basis to build up gemm/conv
-- Finalize buffer sub-indexing and explore other options
+- Get GEMM working
+- Emit for nvptx
  

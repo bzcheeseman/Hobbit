@@ -22,7 +22,7 @@ if (BUILD_TESTS)
 
     function(add_gtest test_name lib)
         add_executable(Test${test_name} EXCLUDE_FROM_ALL ${CMAKE_CURRENT_SOURCE_DIR}/test/Test${test_name}.cpp)
-        target_link_libraries(Test${test_name} gtest_main ${lib})
+        target_link_libraries(Test${test_name} gtest ${lib})
         add_test(NAME Test${test_name} COMMAND ${CMAKE_CURRENT_BINARY_DIR}/Test${test_name})
         add_dependencies(check Test${test_name})
     endfunction()
@@ -30,7 +30,6 @@ if (BUILD_TESTS)
 endif (BUILD_TESTS)
 
 add_subdirectory(AST)
-#add_subdirectory(Core)
 
 file(GLOB_RECURSE
         ALL_CXX_SOURCE_FILES

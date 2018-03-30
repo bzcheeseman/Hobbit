@@ -21,6 +21,7 @@
  */
 
 #include <gtest/gtest.h>
+#include <glog/logging.h>
 
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
@@ -70,14 +71,10 @@ namespace {
         func->GetNewArg("lhs", {n_elts}, llvm::Type::getFloatPtrTy(ctx));
 
     Hobbit::ast::Node *hsum = Hobbit::HSum::Create("hsum", func, 0, 153);
-    Hobbit::ast::Node *noop = Hobbit::HSum::Create("hsum", func, 0, 1);
 
     func->PushNode(hsum);
     Hobbit::Tensor *out = llvm::dyn_cast<Hobbit::HSum>(hsum)->SetArgs({lhs});
-    func->PushNode(noop);
-    Hobbit::Tensor *noop_out =
-        llvm::dyn_cast<Hobbit::HSum>(noop)->SetArgs({out});
-    func->SetArg(noop_out);
+    func->SetArg(out);
 
     func->Emit(cgvisitor);
 
@@ -87,4 +84,10 @@ namespace {
                         "+avx,+sse,+x87,+cx16");
     cgvisitor->GetModule()->print(llvm::outs(), nullptr);
   }
+}
+
+int main(int argc, char *argv[]) {
+  ::testing::InitGoogleTest(&argc, argv);
+  google::InitGoogleLogging(argv[0]);
+  return RUN_ALL_TESTS();
 }

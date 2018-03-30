@@ -60,7 +60,6 @@ namespace Hobbit {
       virtual Node *GetParent() { return parent_; }
       virtual Node *GetChild() { return child_; }
       virtual void SetChild(Node *node) {
-
         if (child_) node->SetChild(child_);
         child_ = node;
       }
@@ -70,7 +69,7 @@ namespace Hobbit {
       virtual NodeType GetNodeType() const = 0;
 
     protected:
-      Node(Node *parent = nullptr, Node *child = nullptr) : parent_(parent), child_(child) {}
+      explicit Node(Node *parent = nullptr, Node *child = nullptr) : parent_(parent), child_(child) {}
 
       std::string name_;
 
@@ -121,39 +120,17 @@ namespace Hobbit {
   };
 
 
-  class TensorInstr : public ast::Node {
-  public:
-    llvm::SmallVector<Tensor *, 4> &GetArgs() { return args_; }
-    Tensor *GetArg(int which) { return args_[which]; }
-
-    virtual llvm::Value *GetInstr(llvm::BasicBlock *BB) = 0;
-
-  protected:
-    explicit TensorInstr(llvm::SmallVector<Tensor *, 4> args) : args_(std::move(args)) {}
-
-    llvm::SmallVector<Tensor *, 4> args_;
-    llvm::Value *instr_;
-  };
-
   class Loop : public ast::Node {
   public:
-    struct LoopInfo {
-      uint64_t start = 0;
-      uint64_t end;
 
-      llvm::PHINode *phi = nullptr;
-      llvm::Value *increment = nullptr;
-    };
+    NodeType GetNodeType() const override { return LoopNodeID; }
 
     // Computes the output size and creates a new Tensor that is returned when
     // the args are set.
     // Throws an error if none of the dimensions of the input tensors match
     // the range start and end.
     virtual Tensor *SetArgs(llvm::SmallVector<Tensor *, 2> args) = 0;
-
-    NodeType GetNodeType() const override { return LoopNodeID; }
-
-    void Emit(Visitor *CG) override = 0;
+    void Emit(Visitor *CG) override;
 
     // In case we have analytics that want to know if the loop is a reduction
     virtual bool GetIsReduction() = 0;
@@ -164,16 +141,37 @@ namespace Hobbit {
 
   protected:
     Loop(const std::string &name, Node *parent, uint64_t range_start,
-         uint64_t range_end, uint64_t stride=8, uint64_t chunk_size=100);
+         uint64_t range_end);
+
+    // Splits the loop according to the chunk size (like this)
+    /*
+     * GEMM:
+     * for (int m = 0; m < M_SIZE; m += M_TILE) {
+     *  for (int n = 0; n < N_SIZE; n += N_TILE) {
+     *   for (int k = 0; k < K_SIZE; k++) {
+     *    for (int M = 0; M < M_TILE; M++) {
+     *     for (int N = 0; N < N_TILE; N++) {
+     *      C[M + m][N + n] = A[M + m][k] * B[k][N + n];
+     *     }
+     *    }
+     *   }
+     *  }
+     * }
+     */
+//    void ChunkLoop_(uint64_t chunk_size);
+
+    // TODO: still need to nest independent loops
 
     // Add basic blocks after the branch instance that ended the previous BB
     // Adds the phi node for the loop index
     // Can create many of these blocks for nested for loops
-    void AddLoopEntry_(llvm::BasicBlock *prev_bb);
+    llvm::BasicBlock * AddLoopEntry_(llvm::BasicBlock *phi_bb);
+
+    virtual void AddKernel_(llvm::BasicBlock *body_bb) = 0;
 
     // Increments the index and adds the BBs correctly.
     // Inserts the end condition and loop metadata as well.
-    llvm::BasicBlock *AddLoopExit_();
+    llvm::BasicBlock *AddLoopExit_(llvm::BasicBlock *body_bb);
 
     // br has getContext, getParent (for BB) - convenience function for
     // sub-functions
@@ -181,6 +179,15 @@ namespace Hobbit {
     void AddLoopMetadata_(llvm::BranchInst *loop_end_br);
 
   protected:
+    struct LoopInfo {
+      uint64_t start = 0;
+      uint64_t end = 0;
+
+      llvm::PHINode *phi = nullptr;
+      llvm::Value *increment = nullptr;
+      llvm::Value *cumulative_idx = nullptr;
+    };
+
     std::string name_;
 
     // The input tensors
@@ -189,12 +196,10 @@ namespace Hobbit {
     // The output tensors
     llvm::SmallVector<Tensor *, 1> out_;
 
+    Loop *dependent_ = nullptr;
+
     // Loop characteristics
-    uint64_t range_start_;
-    uint64_t range_end_;
-    uint64_t stride_;
-    uint64_t chunk_size_;
-    std::map<std::string, LoopInfo> loop_phi_incr_;
+    LoopInfo loop_info_;
   };
 
   class HSum : public Loop {
@@ -204,13 +209,12 @@ namespace Hobbit {
 
     Tensor *SetArgs(llvm::SmallVector<Tensor *, 2> args) override;
 
-    void Emit(Visitor *CG) override;
-
     bool GetIsReduction() override { return true; }
 
   protected:
     HSum(const std::string &name, Node *parent, uint64_t range_start,
-         uint64_t range_end);
+         uint64_t range_end) : Loop(name, parent, range_start, range_end) {}
+    void AddKernel_(llvm::BasicBlock *body_bb) override;
   };
 
   class Tensor : public ast::Node {
