@@ -161,6 +161,7 @@ namespace Hobbit {
 //    void ChunkLoop_(uint64_t chunk_size);
 
     // TODO: still need to nest independent loops
+    // TODO: mark reduction axis
 
     // Add basic blocks after the branch instance that ended the previous BB
     // Adds the phi node for the loop index
