@@ -31,6 +31,7 @@ endif (BUILD_TESTS)
 
 add_subdirectory(AST)
 add_subdirectory(CodeGen)
+add_subdirectory(SplitLoop)
 
 file(GLOB_RECURSE
         ALL_CXX_SOURCE_FILES
