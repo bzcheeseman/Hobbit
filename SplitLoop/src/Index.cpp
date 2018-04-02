@@ -33,11 +33,11 @@ Hobbit::Index &Hobbit::Index::operator=(uint64_t i) {
   return *this;
 }
 
-uint64_t Hobbit::Index::Get() {
-  return i_;
-}
-
 Hobbit::Index &Hobbit::Index::operator=(int i) {
   i_ = (uint64_t)i;
   return *this;
+}
+
+Hobbit::Index::operator uint64_t() const {
+  return 0;
 }

@@ -152,6 +152,8 @@ namespace Hobbit {
   public:
     explicit Kernel(llvm::SmallVector<Tensor *, 2> args) : args_(std::move(args)) {}
 
+    // maybe we use regular C to express the kernel...
+
     // How to represent kernels...elementwise is fine, just store Tensor1 + Tensor2
     // I guess we can just have special sumreduce/prodreduce?
 
