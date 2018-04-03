@@ -38,35 +38,13 @@ namespace Hobbit {
     Index &operator=(uint64_t i);
     Index &operator=(int i);
 
-    // Implicit conversions to common numeric iterator types
-    operator uint64_t () const { return i_; }
-    operator uint32_t () const { return (uint32_t)i_; }
-    operator unsigned int () const { return (unsigned int)i_; }
-    operator size_t () const { return (size_t)i_; }
+    inline friend bool operator<(Index &lhs, Index &rhs) {
+      return lhs.i_ < rhs.i_;
+    }
 
-//    inline friend bool operator<(Index::iterator &lhs, Index::iterator &rhs) {
-//      return lhs < rhs;
-//    }
-//
-//    inline friend bool operator<(Index::iterator &lhs, const uint64_t &rhs) {
-//      return lhs < rhs;
-//    }
-//
-//    inline friend bool operator<(Index::const_iterator &lhs, Index::const_iterator &rhs) {
-//      return lhs < rhs;
-//    }
-//
-//    inline friend bool operator<(Index::iterator &lhs, Index::const_iterator &rhs) {
-//      return lhs < rhs;
-//    }
-//
-//    inline friend bool operator<(Index::const_iterator &lhs, Index::iterator &rhs) {
-//      return lhs < rhs;
-//    }
-//
-//    inline friend bool operator<(Index::const_iterator &lhs, const uint64_t &rhs) {
-//      return lhs < rhs;
-//    }
+    inline friend bool operator<(Index &lhs, const uint64_t &rhs) {
+      return lhs.i_ < rhs;
+    }
 
   private:
     uint64_t i_;

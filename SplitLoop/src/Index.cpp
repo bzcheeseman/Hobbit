@@ -37,7 +37,3 @@ Hobbit::Index &Hobbit::Index::operator=(int i) {
   i_ = (uint64_t)i;
   return *this;
 }
-
-Hobbit::Index::operator uint64_t() const {
-  return 0;
-}
