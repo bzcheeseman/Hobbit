@@ -25,6 +25,7 @@
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/Transforms/IPO/PassManagerBuilder.h>
 #include <cxxabi.h>
+#include <llvm/IR/IRBuilder.h>
 
 namespace {
   inline std::string demangle(llvm::SmallString<1028> name)
@@ -44,36 +45,48 @@ namespace {
 
   using namespace llvm;
 
-  class SplitLoopPass : public LoopPass {
+  class SplitLoop : public LoopPass {
   public:
     static char ID; // Pass ID, replacement for typeid
-    SplitLoopPass() : LoopPass(ID) {}
+    SplitLoop() : LoopPass(ID) {}
+
+    void getAnalysisUsage(AnalysisUsage &Info) const override {
+      Info.addRequired<LoopInfoWrapperPass>();
+//      Info.addRequiredID(PromoteMemoryToRegister::ID);
+    }
 
     bool runOnLoop(Loop *L, LPPassManager &) override {
-      for (auto &BB : L->blocks()) {
-        for (auto instr = BB->begin(); instr != BB->end(); instr++) {
-//          errs() << instr->getName() << "\n";
-          CallInst *call = dyn_cast<CallInst>(instr);
-//          SmallString<1028> name;
-          if (call) {
-            L->print(outs());
-            outs() << "\n";
-            call->getArgOperand(0)->print(outs());
-            outs() << "\n";
-            call->print(outs());
-            outs() << "\n";
-//            errs() << call->getName() << "\n";
-//            name.assign(call->getName());
-//            name = demangle(name);
-//            outs() << name << "\n";
-          }
-        }
-      }
+      PHINode *phi = L->getCanonicalInductionVariable();
+
+      if (!phi) return false;
+
+      LLVMContext &ctx = phi->getContext();
+      Function *parent_func = phi->getFunction();
+      BasicBlock *current_phi_block = phi->getParent();
+
+      Value *loop_range_begin = phi->getIncomingValueForBlock(L->getLoopPredecessor());
+
+      Value *loop_increment = phi->getIncomingValueForBlock(current_phi_block);
+      loop_increment = dyn_cast<BinaryOperator>(loop_increment)->getOperand(1);
+      loop_increment->print(outs());
+
+      BranchInst *end_br = dyn_cast<BranchInst>(&*(--phi->getParent()->end()));
+      Value *loop_range_end = dyn_cast<ICmpInst>(end_br->getOperand(0))->getOperand(1);
+
+      LoopInfo &LI = getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
+      BasicBlock *inner_bb = BasicBlock::Create(ctx, current_phi_block->getName()+".inner", parent_func);
+
+      IRBuilder<> builder(inner_bb);
+      builder.CreateBr(current_phi_block);
+
+      Loop *new_inner = LI.getLoopFor(inner_bb);
+
+      parent_func->print(outs());
 
       return false;
     }
   };
 }
 
-char SplitLoopPass::ID = 0;
-static RegisterPass<SplitLoopPass> X("split-loop", "Split Loop");
+char SplitLoop::ID = 0;
+static RegisterPass<SplitLoop> X("split-loop", "Split Loop");

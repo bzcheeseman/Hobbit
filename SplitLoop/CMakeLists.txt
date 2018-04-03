@@ -29,6 +29,6 @@ if(APPLE)
             )
 endif(APPLE)
 
-add_custom_target(emit-llvm COMMAND clang -S -emit-llvm ${CMAKE_CURRENT_SOURCE_DIR}/test.cpp -O2 -o test.ll)
+add_custom_target(emit-llvm COMMAND clang -S -emit-llvm ${CMAKE_CURRENT_SOURCE_DIR}/test.cpp -o test.ll)
 add_custom_target(run-opt COMMAND opt -load ${CMAKE_CURRENT_BINARY_DIR}/libSplitLoopPass.so -split-loop < test.ll > /dev/null)
 add_dependencies(run-opt emit-llvm SplitLoopPass)
