@@ -61,47 +61,49 @@ namespace {
 
     bool doInitialization(Loop *L, LPPassManager &LPM) override {
       // set the Value * to be the chunk increment of the loop
+      return false;
     }
 
     bool runOnLoop(Loop *L, LPPassManager &) override {
       PHINode *phi = L->getCanonicalInductionVariable();
-
       if (!phi) return false;
 
       LLVMContext &ctx = phi->getContext();
       Function *parent_func = phi->getFunction();
-      BasicBlock *current_phi_start = phi->getParent();
 
-      Value *loop_range_begin = phi->getIncomingValueForBlock(L->getLoopPredecessor());
+      // Loop BBs
+      BasicBlock *loop_phi = phi->getParent();
+      BasicBlock *loop_exit = L->getLoopLatch();
+      bool single_block_loop = L->isLoopLatch(loop_phi);
 
-      Value *loop_increment = phi->getIncomingValueForBlock(current_phi_start);
-      loop_increment = dyn_cast<BinaryOperator>(loop_increment)->getOperand(1);
-      loop_increment->print(outs());
+      // Loop information
+      TerminatorInst *loop_exit_instr = dyn_cast<TerminatorInst>(&*--(loop_exit->end()));
+      BinaryOperator *loop_increment_instr = dyn_cast<BinaryOperator>(
+              dyn_cast<ICmpInst>(loop_exit_instr->getOperand(0))->getOperand(0)
+      );
+      Value *loop_range_begin = phi->getIncomingValue(0);
 
-      BranchInst *end_br = dyn_cast<BranchInst>(&*(--phi->getParent()->end()));
-      Value *loop_range_end = dyn_cast<ICmpInst>(end_br->getOperand(0))->getOperand(1);
-
+      // LLVM loop information
       LoopInfo &LI = getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
       DominatorTree &DT = getAnalysis<DominatorTreeWrapperPass>().getDomTree();
 
-      ICmpInst *cmp_inst = dyn_cast<ICmpInst>(&*--end_br->getIterator());
-      if (!cmp_inst) return false;
+      phi->print(outs());
+      loop_exit_instr->print(outs());
+      loop_increment_instr->print(outs());
 
-      BasicBlock *kernel = SplitBlock(current_phi_start, phi, &DT, &LI);
-      // Now edit the inner part to be within a loop itself, and find the usages of the phi node
-      // to replace them with the sum of the original and the new phi node
+      outs() << "\n";
 
-      // Reformulate the end of the loop
-      BasicBlock *current_phi_end = SplitBlock(kernel, cmp_inst, &DT, &LI);
-      IRBuilder<> builder(current_phi_end);
-      Value *add_chunk = builder.CreateAdd(phi, builder.getInt64(8));
-      dyn_cast<BinaryOperator>(add_chunk)->moveBefore(cmp_inst);
-      cmp_inst->setOperand(0, add_chunk);
-
-      parent_func->print(outs());
+      // Add function to split single block loops
+      /*
+       * Add function to split multi block loops
+       *  - insert new BB with new phi
+       *  - reset branch after initial phi
+       */
 
       return false;
     }
+
+
 
   private:
     Value *chunk_increment;

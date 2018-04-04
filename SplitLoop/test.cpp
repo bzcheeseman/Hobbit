@@ -51,14 +51,27 @@ const size_t STRIDE = 8;
 //  return result;
 //}
 
-float simpledot(float *lhs, float *rhs) {
-  float out  = 0.f;
+//float simpledot(float *lhs, float *rhs) {
+//  float out  = 0.f;
+//
+//  for (size_t i = 0; i < SIZE; i++) {
+//    out += lhs[i] * rhs[i];
+//  }
+//
+//  return out;
+//}
 
-  for (size_t i = 0; i < SIZE; i++) {
-    out += lhs[i] * rhs[i];
+const size_t M = 1024;
+const size_t N = 512;
+const size_t M_TILE = 32;
+//const size_t STRIDE = 8;
+
+void simplegemv(float **lhs, float *rhs, float *out) {
+  for (size_t i = 0; i < M; i++) {
+    for (size_t j = 0; j < N; j++) {
+      out[i] += lhs[i][j] * rhs[j];
+    }
   }
-
-  return out;
 }
 
 //float indexdot(float *lhs, float *rhs) {

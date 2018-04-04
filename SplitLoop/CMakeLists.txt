@@ -29,6 +29,6 @@ if(APPLE)
             )
 endif(APPLE)
 
-add_custom_target(emit-llvm COMMAND clang -S -emit-llvm ${CMAKE_CURRENT_SOURCE_DIR}/test.cpp -O1 -o test.ll)
-add_custom_target(run-opt COMMAND opt -load ${CMAKE_CURRENT_BINARY_DIR}/libSplitLoopPass.so -split-loop < test.ll > /dev/null)
+add_custom_target(emit-llvm COMMAND ${CMAKE_CXX_COMPILER} -emit-llvm -c ${CMAKE_CURRENT_SOURCE_DIR}/test.cpp -o test.bc)
+add_custom_target(run-opt COMMAND opt -load ${CMAKE_CURRENT_BINARY_DIR}/libSplitLoopPass.so -loop-simplify -loop-idiom -mem2reg -simplifycfg -loop-rotate -split-loop test.bc)
 add_dependencies(run-opt emit-llvm SplitLoopPass)
