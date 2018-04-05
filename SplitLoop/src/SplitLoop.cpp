@@ -127,6 +127,7 @@ namespace {
       new_inner_block->print(outs());
       new_exit_block->print(outs());
 
+      // this is done, just commented
 //      // modify loop increment to increase by chunk_size
 //      loop_increment->setOperand(1, ConstantInt::get(phi_type, chunk_size));
 //
