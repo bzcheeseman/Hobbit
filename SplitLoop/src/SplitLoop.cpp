@@ -93,6 +93,10 @@ namespace {
 
       outs() << "\n";
 
+      if (single_block_loop) {
+        return SplitSingleBlockLoop(phi, loop_increment_instr, LI, DT);
+      }
+
       // Add function to split single block loops
       /*
        * Add function to split multi block loops
@@ -103,10 +107,54 @@ namespace {
       return false;
     }
 
+  private:
+    bool SplitSingleBlockLoop(PHINode *phi, BinaryOperator *loop_increment, LoopInfo &LI, DominatorTree &DT) {
+      LLVMContext &ctx = phi->getContext();
+      Function *parent_func = phi->getFunction();
+      Type *phi_type = phi->getType();
 
+      BasicBlock *old_phi_block = phi->getParent();
+      old_phi_block->setName("hobbit.loop.entry"+std::to_string(ID));
+
+      BasicBlock *new_inner_block = SplitBlock(old_phi_block, phi, &DT, &LI);
+      new_inner_block->setName("hobbit.loop.body"+std::to_string(ID));
+
+      // This may be incorrect...
+      BasicBlock *new_exit_block = SplitBlock(new_inner_block, (&*--loop_increment->getIterator()), &DT, &LI);
+      new_exit_block->setName("hobbit.loop.exit"+std::to_string(ID));
+
+      old_phi_block->print(outs());
+      new_inner_block->print(outs());
+      new_exit_block->print(outs());
+
+//      // modify loop increment to increase by chunk_size
+//      loop_increment->setOperand(1, ConstantInt::get(phi_type, chunk_size));
+//
+//      Value *zero = ConstantInt::get(phi_type, 0);
+//
+//      // Wrap the inner block with loop code
+//      PHINode *new_phi = PHINode::Create(phi_type, 2, "hobbit.inner.idx"+std::to_string(ID), &*new_inner_block->begin());
+//      new_phi->addIncoming(zero, old_phi_block);
+//
+//      llvm::IRBuilder<> builder(new_inner_block);
+//      Value *next_idx = builder.CreateAdd(new_phi, builder.CreateBitCast(builder.getInt64(1), phi_type));
+//      Value *exit_cmp = builder.CreateICmpULT(next_idx, builder.getInt64(chunk_size));
+//      builder.CreateCondBr(exit_cmp, new_inner_block, new_exit_block);
+//      new_phi->addIncoming(next_idx, new_inner_block);
+//
+//      // replace uses of phi with phi + new_phi
+//      phi->replaceAllUsesWith(builder.CreateAdd(phi, new_phi));
+//
+//      old_phi_block->print(outs());
+//      new_inner_block->print(outs());
+//      new_exit_block->print(outs());
+
+      return false;
+    }
 
   private:
-    Value *chunk_increment;
+    uint64_t chunk_size = 32;
+    uint64_t incr = 0;
   };
 }
 
