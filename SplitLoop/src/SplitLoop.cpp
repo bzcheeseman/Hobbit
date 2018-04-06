@@ -27,25 +27,9 @@
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/Transforms/Utils/BasicBlockUtils.h>
 #include <llvm/IR/Dominators.h>
-
-
-#include <cxxabi.h>
+#include <llvm/IR/Instruction.h>
 
 namespace {
-  inline std::string demangle(llvm::SmallString<1028> name)
-  {
-    int status = -1;
-
-    size_t len = 0;
-
-    llvm::outs() << name.c_str() << "\n";
-
-    char *demangled = abi::__cxa_demangle(name.c_str(), nullptr, &len, &status);
-
-    llvm::outs() << status << "\n";
-
-    return std::string(demangled);
-  }
 
   using namespace llvm;
 
@@ -87,17 +71,10 @@ namespace {
       LoopInfo &LI = getAnalysis<LoopInfoWrapperPass>().getLoopInfo();
       DominatorTree &DT = getAnalysis<DominatorTreeWrapperPass>().getDomTree();
 
-      phi->print(outs());
-      loop_exit_instr->print(outs());
-      loop_increment_instr->print(outs());
-
-      outs() << "\n";
-
       if (single_block_loop) {
         return SplitSingleBlockLoop(phi, loop_increment_instr, LI, DT);
       }
 
-      // Add function to split single block loops
       /*
        * Add function to split multi block loops
        *  - insert new BB with new phi
@@ -119,43 +96,46 @@ namespace {
       BasicBlock *new_inner_block = SplitBlock(old_phi_block, phi, &DT, &LI);
       new_inner_block->setName("hobbit.loop.body"+std::to_string(ID));
 
-      // This may be incorrect...
-      BasicBlock *new_exit_block = SplitBlock(new_inner_block, (&*--loop_increment->getIterator()), &DT, &LI);
+      BasicBlock *new_exit_block = SplitBlock(new_inner_block, loop_increment, &DT, &LI);
       new_exit_block->setName("hobbit.loop.exit"+std::to_string(ID));
 
-      old_phi_block->print(outs());
-      new_inner_block->print(outs());
-      new_exit_block->print(outs());
+      TerminatorInst *term = new_inner_block->getTerminator();
+      term->removeFromParent();
 
-      // this is done, just commented
-//      // modify loop increment to increase by chunk_size
-//      loop_increment->setOperand(1, ConstantInt::get(phi_type, chunk_size));
-//
-//      Value *zero = ConstantInt::get(phi_type, 0);
-//
-//      // Wrap the inner block with loop code
-//      PHINode *new_phi = PHINode::Create(phi_type, 2, "hobbit.inner.idx"+std::to_string(ID), &*new_inner_block->begin());
-//      new_phi->addIncoming(zero, old_phi_block);
-//
-//      llvm::IRBuilder<> builder(new_inner_block);
-//      Value *next_idx = builder.CreateAdd(new_phi, builder.CreateBitCast(builder.getInt64(1), phi_type));
-//      Value *exit_cmp = builder.CreateICmpULT(next_idx, builder.getInt64(chunk_size));
-//      builder.CreateCondBr(exit_cmp, new_inner_block, new_exit_block);
-//      new_phi->addIncoming(next_idx, new_inner_block);
-//
-//      // replace uses of phi with phi + new_phi
-//      phi->replaceAllUsesWith(builder.CreateAdd(phi, new_phi));
-//
-//      old_phi_block->print(outs());
-//      new_inner_block->print(outs());
-//      new_exit_block->print(outs());
+      // modify loop increment to increase by chunk_size
+      loop_increment->setOperand(1, ConstantInt::get(phi_type, chunk_size));
 
-      return false;
+      Value *zero = ConstantInt::get(phi_type, 0);
+
+      // Wrap the inner block with loop code
+      PHINode *new_phi = PHINode::Create(phi_type, 2, "hobbit.inner.idx"+std::to_string(ID), &*new_inner_block->begin());
+      new_phi->addIncoming(zero, old_phi_block);
+
+      llvm::IRBuilder<> builder(new_inner_block);
+      Value *new_idx = builder.CreateNUWAdd(phi, new_phi);
+      dyn_cast<BinaryOperator>(new_idx)->moveAfter(new_phi);
+
+      // replace uses of phi with phi + new_phi
+      SmallVector<User *, 8> phi_users (phi->user_begin(), phi->user_end());
+      for (auto user : phi_users) {
+        GetElementPtrInst *gep_instr = dyn_cast<GetElementPtrInst>(user);
+        if (!gep_instr) continue;
+        gep_instr->replaceUsesOfWith(phi, new_idx);
+      }
+
+      // Increment the new phi properly
+      Value *next_idx = builder.CreateAdd(new_phi, builder.CreateBitCast(builder.getInt64(1), phi_type));
+      Value *exit_cmp = builder.CreateICmpULT(next_idx, builder.getInt64(chunk_size));
+      builder.CreateCondBr(exit_cmp, new_inner_block, new_exit_block);
+      new_phi->addIncoming(next_idx, new_inner_block);
+
+      // TODO: inside the new exit block we *must* clean up the leftovers after looping through chunks
+
+      return true;
     }
 
   private:
     uint64_t chunk_size = 32;
-    uint64_t incr = 0;
   };
 }
 
