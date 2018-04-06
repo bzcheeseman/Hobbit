@@ -30,6 +30,8 @@
 #include <llvm/IR/Instruction.h>
 #include <llvm/IR/IRBuilder.h>
 
+#include <glog/logging.h>
+
 namespace llvm {
   class BasicBlock;
   class PHINode;

@@ -30,6 +30,7 @@ if (BUILD_TESTS)
 endif (BUILD_TESTS)
 
 add_subdirectory(AST)
+add_subdirectory(Operators)
 add_subdirectory(KernelFusion)
 
 file(GLOB_RECURSE
