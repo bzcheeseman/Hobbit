@@ -15,9 +15,9 @@ llvm >= 6.0
 
 On macOS simply run `brew install llvm`
 
-
-TODO
+Roadmap
 ----
-- Get GEMM working
-- Emit for nvptx
+- Operator registry
+- Read TF/ONNX files
+- Polly kernel fusion pass
  

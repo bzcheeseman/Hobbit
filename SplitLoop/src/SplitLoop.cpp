@@ -28,11 +28,14 @@
 #include <llvm/Transforms/Utils/BasicBlockUtils.h>
 #include <llvm/IR/Dominators.h>
 #include <llvm/IR/Instruction.h>
+#include <llvm/IR/InstrTypes.h>
 
 namespace {
 
   using namespace llvm;
 
+
+  // LOL polly does this already...should instead be working with ScopPass
   class SplitLoop : public LoopPass {
   public:
     static char ID; // Pass ID, replacement for typeid
@@ -101,6 +104,7 @@ namespace {
 
       TerminatorInst *term = new_inner_block->getTerminator();
       term->removeFromParent();
+      delete term;
 
       // modify loop increment to increase by chunk_size
       loop_increment->setOperand(1, ConstantInt::get(phi_type, chunk_size));
@@ -128,6 +132,11 @@ namespace {
       Value *exit_cmp = builder.CreateICmpULT(next_idx, builder.getInt64(chunk_size));
       builder.CreateCondBr(exit_cmp, new_inner_block, new_exit_block);
       new_phi->addIncoming(next_idx, new_inner_block);
+
+//      CmpInst *final_cmp = dyn_cast<CmpInst>(&*--new_exit_block->end());
+//      final_cmp->setPredicate(CmpInst::ICMP_ULE);
+
+      parent_func->print(errs());
 
       // TODO: inside the new exit block we *must* clean up the leftovers after looping through chunks
 
