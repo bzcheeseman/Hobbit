@@ -30,8 +30,7 @@ if (BUILD_TESTS)
 endif (BUILD_TESTS)
 
 add_subdirectory(AST)
-add_subdirectory(CodeGen)
-add_subdirectory(SplitLoop)
+add_subdirectory(KernelFusion)
 
 file(GLOB_RECURSE
         ALL_CXX_SOURCE_FILES

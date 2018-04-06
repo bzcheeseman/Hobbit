@@ -2,11 +2,14 @@ include(AddLLVM)
 
 link_directories(${LLVM_LIBRARY_DIRS})
 
+llvm_map_components_to_libnames(polly_lib polly)
+
 add_library(KernelFusionPass MODULE
         # List your source files here.
         src/KernelFusion.cpp
         )
-target_link_libraries(KernelFusionPass PUBLIC polly)  # link against polly lib
+
+target_link_libraries(KernelFusionPass PUBLIC ${polly_lib})  # link against polly lib
 target_include_directories(KernelFusionPass PUBLIC ${LLVM_INCLUDE_DIRS})
 
 # Use C++11 to compile our pass (i.e., supply -std=c++11).

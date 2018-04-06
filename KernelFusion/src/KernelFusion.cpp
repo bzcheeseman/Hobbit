@@ -24,6 +24,8 @@
 #include <polly/ScopPass.h>
 #include <polly/Support/ISLOStream.h>
 
+#define DEBUG_TYPE "kernel-fusion"
+
 using namespace polly;
 using namespace llvm;
 
@@ -41,15 +43,15 @@ namespace {
 
   class KernelFusion : public ScopPass {
   private:
-    KernelFusion(const FlattenSchedule &) = delete;
-    const KernelFusion &operator=(const FlattenSchedule &) = delete;
+    KernelFusion(const KernelFusion &) = delete;
+    const KernelFusion &operator=(const KernelFusion &) = delete;
 
     std::shared_ptr<isl_ctx> IslCtx;
     isl::union_map OldSchedule;
 
   public:
     static char ID;
-    explicit DLScopPass() : ScopPass(ID) {}
+    explicit KernelFusion() : ScopPass(ID) {}
 
     virtual void getAnalysisUsage(AnalysisUsage &AU) const override {
       AU.addRequiredTransitive<ScopInfoRegionPass>();
