@@ -24,14 +24,14 @@
 #define HOBBIT_OPERATOR_HPP
 
 namespace llvm {
-  class Function;
+class Function;
 }
 
 namespace Hobbit {
-  class Operator {
-  public:
-    virtual void InsertIntoFunction(llvm::Function *) = 0;
-  };
+class Operator {
+public:
+  virtual void InsertIntoFunction(llvm::Function *) = 0;
+};
 } // namespace Hobbit
 
 #endif // HOBBIT_OPERATOR_HPP

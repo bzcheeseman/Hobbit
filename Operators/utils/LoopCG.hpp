@@ -27,32 +27,32 @@
 #include <string>
 
 namespace llvm {
-  class PHINode;
-  class BasicBlock;
-  class Value;
+class PHINode;
+class BasicBlock;
+class Value;
 } // namespace llvm
 
 namespace Hobbit {
-  namespace util {
-    struct LoopMD {
-      uint32_t vector_width = 4;
-      uint32_t unroll_count = 32;
-    };
+namespace util {
+struct LoopMD {
+  uint32_t vector_width = 4;
+  uint32_t unroll_count = 32;
+};
 
-    struct LoopInfo {
-      llvm::PHINode *ind_var;
-      llvm::BasicBlock *head_bb;
-      llvm::BasicBlock *body_bb;
-      llvm::BasicBlock *tail_bb;
-      llvm::BranchInst *cond;
-    };
+struct LoopInfo {
+  llvm::PHINode *ind_var;
+  llvm::BasicBlock *head_bb;
+  llvm::BasicBlock *body_bb;
+  llvm::BasicBlock *tail_bb;
+  llvm::BranchInst *cond;
+};
 
-    LoopInfo EmitLoop(const std::string &name, llvm::BasicBlock *loop_prehead,
-                      llvm::BasicBlock *loop_posttail, llvm::Value *loop_start,
-                      llvm::Value *loop_end, llvm::Value *loop_increment);
+LoopInfo EmitLoop(const std::string &name, llvm::BasicBlock *loop_prehead,
+                  llvm::BasicBlock *loop_posttail, llvm::Value *loop_start,
+                  llvm::Value *loop_end, llvm::Value *loop_increment);
 
-    void AddLoopMetadata(llvm::BranchInst *loop_end_br, LoopMD loopMD);
-  } // namespace util
+void AddLoopMetadata(llvm::BranchInst *loop_end_br, LoopMD loopMD);
+} // namespace util
 } // namespace Hobbit
 
 #endif // HOBBIT_LOOPCG_HPP

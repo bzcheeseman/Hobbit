@@ -33,113 +33,111 @@
 #include <glog/logging.h>
 
 namespace llvm {
-  class BasicBlock;
-  class PHINode;
-  class BranchInst;
-  class Value;
-  class Type;
-  class Module;
-  class Function;
+class BasicBlock;
+class PHINode;
+class BranchInst;
+class Value;
+class Type;
+class Module;
+class Function;
 } // namespace llvm
 
 namespace Hobbit {
-  class Visitor;
+class Visitor;
 
-  const uint8_t ALIGNMENT = 32;
+const uint8_t ALIGNMENT = 32;
 
-  namespace ast {
-    class Tensor;
+namespace ast {
+class Tensor;
 
-    class Node {
-    public:
-      enum NodeType {
+class Node {
+public:
+  enum NodeType {
 #include "NodeTypes.def"
-      };
+  };
 
-      virtual const std::string &GetName() { return name_; }
+  virtual const std::string &GetName() { return name_; }
 
-      virtual Node *AddInput(Node *n) {
-        inputs_.push_back(n);
-        return this;
-      }
+  virtual Node *AddInput(Node *n) {
+    inputs_.push_back(n);
+    return this;
+  }
 
-      virtual Node *GetInput(int which) { return inputs_[which]; }
+  virtual Node *GetInput(int which) { return inputs_[which]; }
 
-      virtual Node *SetInputs(llvm::ArrayRef<Node *> nodes) {
-        inputs_ = llvm::SmallVector<Node *, 3>(nodes.begin(), nodes.end());
-        return this;
-      }
+  virtual Node *SetInputs(llvm::ArrayRef<Node *> nodes) {
+    inputs_ = llvm::SmallVector<Node *, 3>(nodes.begin(), nodes.end());
+    return this;
+  }
 
-      virtual llvm::ArrayRef<Node *> GetInputs() { return inputs_; }
+  virtual llvm::ArrayRef<Node *> GetInputs() { return inputs_; }
 
-      virtual NodeType GetNodeType() const = 0;
+  virtual NodeType GetNodeType() const = 0;
 
-      virtual void AcceptVisitor(
-          Visitor *) = 0; // provides codegen function/info for this node
+  virtual void
+  AcceptVisitor(Visitor *) = 0; // provides codegen function/info for this node
 
-    protected:
-      std::string name_;
+protected:
+  std::string name_;
 
-      llvm::SmallVector<Node *, 3> inputs_; // Tensors are nodes
-    };
+  llvm::SmallVector<Node *, 3> inputs_; // Tensors are nodes
+};
 
-    class Tensor : public Node {
-    public:
-      static Tensor *Create(const std::string &name, Tensor *parent,
-                            llvm::ArrayRef<uint64_t> dims, llvm::Type *type);
+class Tensor : public Node {
+public:
+  static Tensor *Create(const std::string &name, Tensor *parent,
+                        llvm::ArrayRef<uint64_t> dims, llvm::Type *type);
 
-      NodeType GetNodeType() const override { return VariableID; }
+  NodeType GetNodeType() const override { return VariableID; }
 
-      static inline bool classof(const Node *node) {
-        return node->GetNodeType() == VariableID;
-      }
+  static inline bool classof(const Node *node) {
+    return node->GetNodeType() == VariableID;
+  }
 
-      llvm::Type *GetType();
+  llvm::Type *GetType();
 
-      llvm::Value *GetValue();
-      void SetValue(llvm::Value *value);
+  llvm::Value *GetValue();
+  void SetValue(llvm::Value *value);
 
-      // Gets the number of dimensions for a tensor
-      uint64_t NDim();
+  // Gets the number of dimensions for a tensor
+  uint64_t NDim();
 
-      // Gets a dimension of a tensor
-      uint64_t Dim(uint64_t which);
+  // Gets a dimension of a tensor
+  uint64_t Dim(uint64_t which);
 
-      // Gets the overall size of a tensor
-      uint64_t Size();
+  // Gets the overall size of a tensor
+  uint64_t Size();
 
-      // for calculating the index of an item in a shaped flat buffer
-      uint64_t At(llvm::ArrayRef<uint64_t> idx);
+  // for calculating the index of an item in a shaped flat buffer
+  uint64_t At(llvm::ArrayRef<uint64_t> idx);
 
-      llvm::Value *At(llvm::ArrayRef<llvm::Value *> idx, llvm::BasicBlock *BB);
+  llvm::Value *At(llvm::ArrayRef<llvm::Value *> idx, llvm::BasicBlock *BB);
 
-      void AcceptVisitor(Visitor *) override {
-        ;
-      } // codegen visitors do nothing
+  void AcceptVisitor(Visitor *) override { ; } // codegen visitors do nothing
 
-      // Collapse all the dimensions of this tensor into a single dimension,
-      // returns pointer to this tensor
-      Tensor *Flatten();
+  // Collapse all the dimensions of this tensor into a single dimension,
+  // returns pointer to this tensor
+  Tensor *Flatten();
 
-    private:
-      Tensor(llvm::Type *type, llvm::ArrayRef<uint64_t> dims,
-             llvm::ArrayRef<uint64_t> start_idx = {0});
-      virtual ~Tensor();
+private:
+  Tensor(llvm::Type *type, llvm::ArrayRef<uint64_t> dims,
+         llvm::ArrayRef<uint64_t> start_idx = {0});
+  virtual ~Tensor();
 
-    private:
-      llvm::Value *llvm_value_;
-      llvm::Type *llvm_type_;
-      llvm::SmallVector<uint64_t, 4> dims_;
-      llvm::SmallVector<llvm::ConstantInt *, 4> value_dims_;
-      llvm::SmallVector<uint64_t, 4> start_idx_;
+private:
+  llvm::Value *llvm_value_;
+  llvm::Type *llvm_type_;
+  llvm::SmallVector<uint64_t, 4> dims_;
+  llvm::SmallVector<llvm::ConstantInt *, 4> value_dims_;
+  llvm::SmallVector<uint64_t, 4> start_idx_;
 
-      std::vector<Tensor *> children_;
+  std::vector<Tensor *> children_;
 
-      Tensor *parent_;
-    };
+  Tensor *parent_;
+};
 
-    // TODO (Aman): class Constant : public Tensor
-  } // namespace ast
+// TODO (Aman): class Constant : public Tensor
+} // namespace ast
 } // namespace Hobbit
 
 #endif // HOBBIT_NODE_HPP

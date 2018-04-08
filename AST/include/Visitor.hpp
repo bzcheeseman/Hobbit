@@ -27,76 +27,75 @@
 #include <map>
 
 namespace llvm {
-  class LLVMContext;
-  class Module;
-  class Function;
-  class Type;
+class LLVMContext;
+class Module;
+class Function;
+class Type;
 } // namespace llvm
 
 // TODO (Aman): refactor the visitors to use the new Operators
 namespace Hobbit {
-  namespace ast {
-    class Tensor;
-    class Node;
-  } // namespace ast
+namespace ast {
+class Tensor;
+class Node;
+} // namespace ast
 
-  class Function {
-  public:
-    static Function *Create(const std::string &name);
+class Function {
+public:
+  static Function *Create(const std::string &name);
 
-    // Add an argument to the function signature and get it so that we can
-    // operate on it
-    ast::Tensor *GetNewArg(const std::string &name,
-                           llvm::SmallVector<uint64_t, 4> dims,
-                           llvm::Type *type);
-    ast::Tensor *GetNewAlloca(const std::string &name,
-                              llvm::SmallVector<uint64_t, 4> dims,
-                              llvm::Type *type);
+  // Add an argument to the function signature and get it so that we can
+  // operate on it
+  ast::Tensor *GetNewArg(const std::string &name,
+                         llvm::SmallVector<uint64_t, 4> dims, llvm::Type *type);
+  ast::Tensor *GetNewAlloca(const std::string &name,
+                            llvm::SmallVector<uint64_t, 4> dims,
+                            llvm::Type *type);
 
-    void SetArg(ast::Tensor *t);
+  void SetArg(ast::Tensor *t);
 
-    void PushNode(ast::Node *node);
+  void PushNode(ast::Node *node);
 
-  private:
-    friend class FunctionCG;
+private:
+  friend class FunctionCG;
 
-    std::string name_;
+  std::string name_;
 
-    // For the function signature
-    llvm::SmallVector<ast::Tensor *, 4> arg_table_;
-    llvm::SmallVector<ast::Tensor *, 8> alloca_table_;
+  // For the function signature
+  llvm::SmallVector<ast::Tensor *, 4> arg_table_;
+  llvm::SmallVector<ast::Tensor *, 8> alloca_table_;
 
-    // Holds the graph in memory
-    ast::Node *child_;
-    ast::Node *last_node_;
-  };
+  // Holds the graph in memory
+  ast::Node *child_;
+  ast::Node *last_node_;
+};
 
-  class Visitor {
-  public:
-    static Visitor *Create(llvm::LLVMContext *ctx,
-                           const std::string &module_name);
+class Visitor {
+public:
+  static Visitor *Create(llvm::LLVMContext *ctx,
+                         const std::string &module_name);
 
-    llvm::LLVMContext *GetContext();
+  llvm::LLVMContext *GetContext();
 
-    llvm::Module *GetModule();
+  llvm::Module *GetModule();
 
-    llvm::Function *GetFunction(Function *key);
+  llvm::Function *GetFunction(Function *key);
 
-    void PushFunction(Function *key, llvm::Function *val);
+  void PushFunction(Function *key, llvm::Function *val);
 
-    void FinalizeFunction(Function *key);
+  void FinalizeFunction(Function *key);
 
-    void Finalize(unsigned int opt_level, const std::string &target_triple,
-                  const std::string &cpu, const std::string &features);
+  void Finalize(unsigned int opt_level, const std::string &target_triple,
+                const std::string &cpu, const std::string &features);
 
-  protected:
-    Visitor(llvm::LLVMContext *ctx, const std::string &module_name);
+protected:
+  Visitor(llvm::LLVMContext *ctx, const std::string &module_name);
 
-  private:
-    llvm::LLVMContext *ctx_;
-    std::unique_ptr<llvm::Module> module_;
-    std::map<Function *, llvm::Function *> func_table_;
-  };
+private:
+  llvm::LLVMContext *ctx_;
+  std::unique_ptr<llvm::Module> module_;
+  std::map<Function *, llvm::Function *> func_table_;
+};
 } // namespace Hobbit
 
 #endif // HOBBIT_VISITOR_HPP
