@@ -24,33 +24,30 @@
 #include <stdbool.h>
 
 #ifndef HOBBIT_INDEX_TYPE
-#define HOBBIT_INDEX_TYPE uint64_t
+#define HOBBIT_INDEX_TYPE int
 #endif
 
-void sgemm(float **C, float **A, float **B,
-           HOBBIT_INDEX_TYPE M, HOBBIT_INDEX_TYPE N, HOBBIT_INDEX_TYPE K,
-           bool transa, bool transb) {
-  for (HOBBIT_INDEX_TYPE k = 0; k < K; k++) {
-    for (HOBBIT_INDEX_TYPE i = 0; i < M; i++) {
-      for (HOBBIT_INDEX_TYPE j = 0; j < N; j++) {
-        float a_elt = transa ? A[i][k] : A[k][i];
-        float b_elt = transb ? B[k][j] : B[j][k];
-        C[i][j] += a_elt * b_elt;
+void sgemm(float C[1024][1024], float A[1024][1024], float B[1024][1024]) {
+  for (HOBBIT_INDEX_TYPE i = 0; i < 1024; i++) {
+    for (HOBBIT_INDEX_TYPE j = 0; j < 1024; j++) {
+//      C[i][j] = 0.f;
+      for (HOBBIT_INDEX_TYPE k = 0; k < 1024; k++) {
+        C[i][j] = C[i][j] + A[i][k] * B[k][j];
       }
     }
   }
 }
 
-void dgemm(double **C, double **A, double **B,
-           HOBBIT_INDEX_TYPE M, HOBBIT_INDEX_TYPE N, HOBBIT_INDEX_TYPE K,
-           bool transa, bool transb) {
-  for (HOBBIT_INDEX_TYPE k = 0; k < K; k++) {
-    for (HOBBIT_INDEX_TYPE i = 0; i < M; i++) {
-      for (HOBBIT_INDEX_TYPE j = 0; j < N; j++) {
-        double a_elt = transa ? A[i][k] : A[k][i];
-        double b_elt = transb ? B[k][j] : B[j][k];
-        C[i][j] += a_elt * b_elt;
-      }
-    }
-  }
-}
+//void dgemm(double **C, double **A, double **B,
+////           HOBBIT_INDEX_TYPE M, HOBBIT_INDEX_TYPE N, HOBBIT_INDEX_TYPE K,
+//           bool transa, bool transb) {
+//  for (HOBBIT_INDEX_TYPE k = 0; k < 1024; k++) {
+//    for (HOBBIT_INDEX_TYPE i = 0; i < 1024; i++) {
+//      for (HOBBIT_INDEX_TYPE j = 0; j < 1024; j++) {
+//        double a_elt = transa ? A[i][k] : A[k][i];
+//        double b_elt = transb ? B[k][j] : B[j][k];
+//        C[i][j] += a_elt * b_elt;
+//      }
+//    }
+//  }
+//}

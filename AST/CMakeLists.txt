@@ -1,10 +1,8 @@
 cmake_minimum_required(VERSION 3.5)
 project(Hobbit)
 
-include(AddLLVM)
-
-file(GLOB SOURCES src/*.cpp)
-file(GLOB HEADERS include/*.hpp)
+file(GLOB SOURCES src/*.c*)
+file(GLOB HEADERS include/*.h*)
 
 llvm_map_components_to_libnames(llvm_libs all)
 

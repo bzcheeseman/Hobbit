@@ -21,6 +21,7 @@
  */
 
 #include "Visitor.hpp"
+#include "Node.hpp"
 
 #include <glog/logging.h>
 
@@ -33,6 +34,52 @@
 #include <llvm/Target/TargetMachine.h>
 #include <llvm/Target/TargetOptions.h>
 #include <llvm/Transforms/IPO/PassManagerBuilder.h>
+
+Hobbit::Function *Hobbit::Function::Create(const std::string &name) {
+  Function *f = new Function;
+  f->name_ = "hobbit." + name;
+  return f;
+}
+
+Hobbit::ast::Tensor *
+Hobbit::Function::GetNewArg(const std::string &name,
+                            llvm::SmallVector<uint64_t, 4> dims,
+                            llvm::Type *type) {
+  // Create a new ast::Tensor
+  ast::Tensor *arg = ast::Tensor::Create(name, nullptr, std::move(dims), type);
+  // Add the tensor to the arg table
+  arg_table_.push_back(arg);
+  return arg;
+}
+
+Hobbit::ast::Tensor *
+Hobbit::Function::GetNewAlloca(const std::string &name,
+                               llvm::SmallVector<uint64_t, 4> dims,
+                               llvm::Type *type) {
+  // Create a new ast::Tensor
+  ast::Tensor *arg = ast::Tensor::Create(name, nullptr, std::move(dims), type);
+  // Add the tensor to the arg table
+  alloca_table_.push_back(arg);
+  return arg;
+}
+
+void Hobbit::Function::SetArg(Hobbit::ast::Tensor *t) {
+  // If we've already added this arg to the alloca table then erase it - it
+  // should be an arg
+  for (auto &alloca : alloca_table_) {
+    if (t == alloca)
+      alloca_table_.erase(&alloca);
+  }
+  arg_table_.push_back(t);
+}
+
+void Hobbit::Function::PushNode(Hobbit::ast::Node *node) {
+  if (child_ == nullptr) {
+    child_ = std::move(node);
+    last_node_ = child_;
+    return;
+  }
+}
 
 Hobbit::Visitor *Hobbit::Visitor::Create(llvm::LLVMContext *ctx,
                                          const std::string &module_name) {

@@ -10,9 +10,9 @@
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
     You may obtain a copy of the License at
-    
+
         http://www.apache.org/licenses/LICENSE-2.0
-    
+
     Unless required by applicable law or agreed to in writing, software
     distributed under the License is distributed on an "AS IS" BASIS,
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -20,11 +20,12 @@
     limitations under the License.
  */
 
+#include <polly/DependenceInfo.h>
 #include <polly/ScopInfo.h>
 #include <polly/ScopPass.h>
 #include <polly/Support/ISLOStream.h>
 
-#define DEBUG_TYPE "kernel-fusion"
+#define DEBUG_TYPE "hobbit-kernel-fusion"
 
 using namespace polly;
 using namespace llvm;
@@ -53,53 +54,59 @@ namespace {
     static char ID;
     explicit KernelFusion() : ScopPass(ID) {}
 
-    virtual void getAnalysisUsage(AnalysisUsage &AU) const override {
+    void getAnalysisUsage(AnalysisUsage &AU) const override {
       AU.addRequiredTransitive<ScopInfoRegionPass>();
+      AU.addRequiredTransitive<DependenceInfo>();
       AU.setPreservesAll();
     }
 
-    virtual bool runOnScop(Scop &S) override {
-      // Keep a reference to isl_ctx to ensure that it is not freed before we free
-      // OldSchedule.
+    bool runOnScop(Scop &S) override {
+      // Keep a reference to isl_ctx to ensure that it is not freed before we
+      // free OldSchedule.
       IslCtx = S.getSharedIslCtx();
 
-      DEBUG(dbgs() << "Going to flatten old schedule:\n");
+      // dbgs()
+      //      DEBUG(outs() << "Going to flatten old schedule:\n");
       OldSchedule = S.getSchedule();
-      DEBUG(printSchedule(dbgs(), OldSchedule, 2));
+      printSchedule(outs(), OldSchedule, 2);
+      //      DEBUG(printSchedule(outs(), OldSchedule, 2));
 
-//      auto Domains = S.getDomains();
-//      auto RestrictedOldSchedule = OldSchedule.intersect_domain(Domains);
-//      DEBUG(dbgs() << "Old schedule with domains:\n");
-//      DEBUG(printSchedule(dbgs(), RestrictedOldSchedule, 2));
-//
-//      auto NewSchedule = flattenSchedule(RestrictedOldSchedule);
-//
-//      DEBUG(dbgs() << "Flattened new schedule:\n");
-//      DEBUG(printSchedule(dbgs(), NewSchedule, 2));
-//
-//      NewSchedule = NewSchedule.gist_domain(Domains);
-//      DEBUG(dbgs() << "Gisted, flattened new schedule:\n");
-//      DEBUG(printSchedule(dbgs(), NewSchedule, 2));
-//
-//      S.setSchedule(NewSchedule);
+      //      auto Domains = S.getDomains();
+      //      auto RestrictedOldSchedule =
+      //      OldSchedule.intersect_domain(Domains); DEBUG(dbgs() << "Old
+      //      schedule with domains:\n"); DEBUG(printSchedule(dbgs(),
+      //      RestrictedOldSchedule, 2));
+      //
+      //      auto NewSchedule = flattenSchedule(RestrictedOldSchedule);
+      //
+      //      DEBUG(dbgs() << "Flattened new schedule:\n");
+      //      DEBUG(printSchedule(dbgs(), NewSchedule, 2));
+      //
+      //      NewSchedule = NewSchedule.gist_domain(Domains);
+      //      DEBUG(dbgs() << "Gisted, flattened new schedule:\n");
+      //      DEBUG(printSchedule(dbgs(), NewSchedule, 2));
+      //
+      //      S.setSchedule(NewSchedule);
       return false;
     }
 
-    virtual void printScop(raw_ostream &OS, Scop &S) const override {
-//      OS << "Schedule before flattening {\n";
-//      printSchedule(OS, OldSchedule, 4);
-//      OS << "}\n\n";
-//
-//      OS << "Schedule after flattening {\n";
-//      printSchedule(OS, S.getSchedule(), 4);
-//      OS << "}\n";
+    void printScop(raw_ostream &OS, Scop &S) const override {
+      //      OS << "Schedule before flattening {\n";
+      //      printSchedule(OS, OldSchedule, 4);
+      //      OS << "}\n\n";
+      //
+      //      OS << "Schedule after flattening {\n";
+      //      printSchedule(OS, S.getSchedule(), 4);
+      //      OS << "}\n";
     }
 
-    virtual void releaseMemory() override {
+    void releaseMemory() override {
       OldSchedule = nullptr;
       IslCtx.reset();
     }
   };
+} // namespace
 
-  char KernelFusion::ID;
-}
+char KernelFusion::ID = 0;
+static RegisterPass<KernelFusion> X("hobbit-kernel-fusion",
+                                    "Hobbit - Kernel Fusion");

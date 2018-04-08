@@ -23,16 +23,53 @@
 #ifndef HOBBIT_VISITOR_HPP
 #define HOBBIT_VISITOR_HPP
 
+#include <llvm/ADT/SmallVector.h>
 #include <map>
 
 namespace llvm {
   class LLVMContext;
   class Module;
   class Function;
-}
+  class Type;
+} // namespace llvm
 
+// TODO (Aman): refactor the visitors to use the new Operators
 namespace Hobbit {
-  class Function;
+  namespace ast {
+    class Tensor;
+    class Node;
+  } // namespace ast
+
+  class Function {
+  public:
+    static Function *Create(const std::string &name);
+
+    // Add an argument to the function signature and get it so that we can
+    // operate on it
+    ast::Tensor *GetNewArg(const std::string &name,
+                           llvm::SmallVector<uint64_t, 4> dims,
+                           llvm::Type *type);
+    ast::Tensor *GetNewAlloca(const std::string &name,
+                              llvm::SmallVector<uint64_t, 4> dims,
+                              llvm::Type *type);
+
+    void SetArg(ast::Tensor *t);
+
+    void PushNode(ast::Node *node);
+
+  private:
+    friend class FunctionCG;
+
+    std::string name_;
+
+    // For the function signature
+    llvm::SmallVector<ast::Tensor *, 4> arg_table_;
+    llvm::SmallVector<ast::Tensor *, 8> alloca_table_;
+
+    // Holds the graph in memory
+    ast::Node *child_;
+    ast::Node *last_node_;
+  };
 
   class Visitor {
   public:
@@ -60,6 +97,6 @@ namespace Hobbit {
     std::unique_ptr<llvm::Module> module_;
     std::map<Function *, llvm::Function *> func_table_;
   };
-}
+} // namespace Hobbit
 
 #endif // HOBBIT_VISITOR_HPP

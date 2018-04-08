@@ -1,16 +1,10 @@
-include(AddLLVM)
-
-link_directories(${LLVM_LIBRARY_DIRS})
-
-llvm_map_components_to_libnames(polly_lib polly)
-
 add_library(KernelFusionPass MODULE
-        # List your source files here.
         src/KernelFusion.cpp
-        )
-
-target_link_libraries(KernelFusionPass PUBLIC ${polly_lib})  # link against polly lib
-target_include_directories(KernelFusionPass PUBLIC ${LLVM_INCLUDE_DIRS})
+)
+target_include_directories(KernelFusionPass
+        PUBLIC ${LLVM_INCLUDE_DIRS}
+        PUBLIC ${LLVM_INCLUDE_DIRS}/polly
+)
 
 # Use C++11 to compile our pass (i.e., supply -std=c++11).
 target_compile_features(KernelFusionPass PRIVATE cxx_range_for cxx_auto_type)
@@ -19,7 +13,7 @@ target_compile_features(KernelFusionPass PRIVATE cxx_range_for cxx_auto_type)
 # otherwise, we'll get linker errors about missing RTTI data.
 set_target_properties(KernelFusionPass PROPERTIES
         COMPILE_FLAGS "-fno-rtti"
-        )
+)
 
 # Get proper shared-library behavior (where symbols are not necessarily
 # resolved when the shared library is linked) on OS X.

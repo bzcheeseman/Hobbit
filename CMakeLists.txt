@@ -2,32 +2,31 @@ cmake_minimum_required(VERSION 3.5)
 project(Hobbit)
 
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
+
 set(CMAKE_EXPORT_COMPILE_COMMANDS 1)
 
 set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O0 -g")
 
 find_package(glog REQUIRED)
+include(AddLLVM)
 
 option(BUILD_TESTS "Whether or not to build the tests" ON)
 
-if (BUILD_TESTS)
-    set(GTEST_CFG ${CMAKE_MODULE_PATH})
-    set(GTEST_PREFIX ${CMAKE_CURRENT_BINARY_DIR})
-    include(AddGTest)
+set(GTEST_CFG ${CMAKE_MODULE_PATH})
+set(GTEST_PREFIX ${CMAKE_CURRENT_BINARY_DIR})
+include(AddGTest)
 
-    enable_testing()
+enable_testing()
 
-    add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} -V)
+add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} -V)
 
-    function(add_gtest test_name lib)
-        add_executable(Test${test_name} EXCLUDE_FROM_ALL ${CMAKE_CURRENT_SOURCE_DIR}/test/Test${test_name}.cpp)
-        target_link_libraries(Test${test_name} gtest ${lib})
-        add_test(NAME Test${test_name} COMMAND ${CMAKE_CURRENT_BINARY_DIR}/Test${test_name})
-        add_dependencies(check Test${test_name})
-    endfunction()
-
-endif (BUILD_TESTS)
+function(add_gtest test_name lib)
+    add_executable(Test${test_name} EXCLUDE_FROM_ALL ${CMAKE_CURRENT_SOURCE_DIR}/test/Test${test_name}.cpp)
+    target_link_libraries(Test${test_name} gtest ${lib})
+    add_test(NAME Test${test_name} COMMAND ${CMAKE_CURRENT_BINARY_DIR}/Test${test_name})
+    add_dependencies(check Test${test_name})
+endfunction()
 
 add_subdirectory(AST)
 add_subdirectory(Operators)
@@ -35,8 +34,9 @@ add_subdirectory(KernelFusion)
 
 file(GLOB_RECURSE
         ALL_CXX_SOURCE_FILES
-        Core/**/*.[chi]pp Core/**/*.[chi]
         AST/**/*.[chi]pp AST/**/*.[chi]
+        Operators/**/*.[chi]pp Operators/**/*.[chi]
+        KernelFusion/**/*.[chi]pp KernelFusion/**/*.[chi]
         )
 
 find_program(CLANG_FORMAT "clang-format")

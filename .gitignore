@@ -89,3 +89,6 @@ testing/
 sourcetrail/*.*bm
 sourcetrail/*.*db
 archive/
+
+Operators/*.ll
+Operators/*.c

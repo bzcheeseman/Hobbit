@@ -20,8 +20,8 @@
     limitations under the License.
  */
 
-#include <gtest/gtest.h>
 #include <glog/logging.h>
+#include <gtest/gtest.h>
 
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Module.h>
@@ -84,7 +84,7 @@ namespace {
                         "+avx,+sse,+x87,+cx16");
     cgvisitor->GetModule()->print(llvm::outs(), nullptr);
   }
-}
+} // namespace
 
 int main(int argc, char *argv[]) {
   ::testing::InitGoogleTest(&argc, argv);

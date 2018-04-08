@@ -27,8 +27,8 @@
 #include <vector>
 
 #include <llvm/ADT/SmallVector.h>
-#include <llvm/IR/Instruction.h>
 #include <llvm/IR/IRBuilder.h>
+#include <llvm/IR/Instruction.h>
 
 #include <glog/logging.h>
 
@@ -40,189 +40,106 @@ namespace llvm {
   class Type;
   class Module;
   class Function;
-}
+} // namespace llvm
 
 namespace Hobbit {
-
-  class Tensor;
   class Visitor;
+
   const uint8_t ALIGNMENT = 32;
 
   namespace ast {
+    class Tensor;
+
     class Node {
     public:
       enum NodeType {
-        TensorID,
-        IndexID,
+#include "NodeTypes.def"
       };
 
       virtual const std::string &GetName() { return name_; }
-      virtual Node *GetParent() { return parent_; }
-      virtual Node *GetChild() { return child_; }
-      virtual void SetChild(Node *node) {
-        if (child_) node->SetChild(child_);
-        child_ = node;
-        node->parent_ = this;
+
+      virtual Node *AddInput(Node *n) {
+        inputs_.push_back(n);
+        return this;
       }
+
+      virtual Node *GetInput(int which) { return inputs_[which]; }
+
+      virtual Node *SetInputs(llvm::ArrayRef<Node *> nodes) {
+        inputs_ = llvm::SmallVector<Node *, 3>(nodes.begin(), nodes.end());
+        return this;
+      }
+
+      virtual llvm::ArrayRef<Node *> GetInputs() { return inputs_; }
 
       virtual NodeType GetNodeType() const = 0;
 
-    protected:
-      explicit Node(Node *parent = nullptr, Node *child = nullptr) : parent_(parent), child_(child) {}
+      virtual void AcceptVisitor(
+          Visitor *) = 0; // provides codegen function/info for this node
 
+    protected:
       std::string name_;
 
-      Node *parent_;
-      Node *child_;
+      llvm::SmallVector<Node *, 3> inputs_; // Tensors are nodes
     };
-  }
 
-  class Function {
-  public:
-    static Function *Create(const std::string &name);
+    class Tensor : public Node {
+    public:
+      static Tensor *Create(const std::string &name, Tensor *parent,
+                            llvm::ArrayRef<uint64_t> dims, llvm::Type *type);
 
-    // Add an argument to the function signature and get it so that we can
-    // operate on it
-    Tensor *GetNewArg(const std::string &name,
-                      llvm::SmallVector<uint64_t, 4> dims, llvm::Type *type);
-    Tensor *GetNewAlloca(const std::string &name,
-                         llvm::SmallVector<uint64_t, 4> dims, llvm::Type *type);
+      NodeType GetNodeType() const override { return VariableID; }
 
-    Tensor *GetNewArg(const std::string &name,
-                      llvm::SmallVector<uint64_t, 4> dims, llvm::Type
-                      *type, void *buffer);
+      static inline bool classof(const Node *node) {
+        return node->GetNodeType() == VariableID;
+      }
 
-    void SetArg(Tensor *t);
+      llvm::Type *GetType();
 
-    void PushNode(ast::Node *node);
+      llvm::Value *GetValue();
+      void SetValue(llvm::Value *value);
 
-  private:
-    friend class FunctionCG;
+      // Gets the number of dimensions for a tensor
+      uint64_t NDim();
 
-    std::string name_;
+      // Gets a dimension of a tensor
+      uint64_t Dim(uint64_t which);
 
-    // For the function signature
-    llvm::SmallVector<Tensor *, 4> arg_table_;
-    llvm::SmallVector<Tensor *, 8> alloca_table_;
+      // Gets the overall size of a tensor
+      uint64_t Size();
 
-    // Holds the graph in memory
-    ast::Node *child_;
-    ast::Node *last_node_;
-  };
+      // for calculating the index of an item in a shaped flat buffer
+      uint64_t At(llvm::ArrayRef<uint64_t> idx);
 
-  class Index : public ast::Node {
-  public:
-    Index(uint64_t start, uint64_t end, uint64_t stride=1, bool redux=false)
-            : start_(start), end_(end), stride_(stride), is_redux_(false) {}
+      llvm::Value *At(llvm::ArrayRef<llvm::Value *> idx, llvm::BasicBlock *BB);
 
-    uint64_t GetRange() {
-      return end_ - start_;
-    }
+      void AcceptVisitor(Visitor *) override {
+        ;
+      } // codegen visitors do nothing
 
-    Index *Split(uint64_t chunk_size) {
-      if (is_redux_) LOG(FATAL) << "Attempting to split along a reduction dimension!";
+      // Collapse all the dimensions of this tensor into a single dimension,
+      // returns pointer to this tensor
+      Tensor *Flatten();
 
-      Index *child_idx = new Index(0, chunk_size, 1);
+    private:
+      Tensor(llvm::Type *type, llvm::ArrayRef<uint64_t> dims,
+             llvm::ArrayRef<uint64_t> start_idx = {0});
+      virtual ~Tensor();
 
-      this->stride_ = chunk_size;
+    private:
+      llvm::Value *llvm_value_;
+      llvm::Type *llvm_type_;
+      llvm::SmallVector<uint64_t, 4> dims_;
+      llvm::SmallVector<llvm::ConstantInt *, 4> value_dims_;
+      llvm::SmallVector<uint64_t, 4> start_idx_;
 
-      this->SetChild(child_idx);
+      std::vector<Tensor *> children_;
 
-      return child_idx;
-    }
+      Tensor *parent_;
+    };
 
-    NodeType GetNodeType() const override { return IndexID; }
-
-    static bool classof(Node *n) {
-      return n->GetNodeType() == IndexID;
-    }
-
-  private:
-    friend class LoopCG;
-
-    uint64_t start_ = 0;
-    uint64_t end_ = 0;
-    uint64_t stride_ = 1;
-    bool is_redux_;
-
-    llvm::PHINode *phi_ = nullptr;
-    Index *parent_ = nullptr; // you can accumulate an index by adding together the phi's of the parents
-    Index *child_ = nullptr; // you can traverse in either direction
-  };
-
-  class Kernel : public ast::Node {
-  public:
-    explicit Kernel(llvm::SmallVector<Tensor *, 2> args) : args_(std::move(args)) {}
-
-    // maybe we use regular C to express the kernel...
-
-    // How to represent kernels...elementwise is fine, just store Tensor1 + Tensor2
-    // I guess we can just have special sumreduce/prodreduce?
-
-  private:
-    friend class KernelCG;
-
-    llvm::SmallVector<Tensor *, 2> args_;
-  };
-
-  class Tensor : public ast::Node {
-  public:
-    static Tensor CreateVariable(const std::string &name, Node *parent,
-                                  llvm::SmallVector<uint64_t, 4> dims,
-                                  llvm::Type *type);
-    static Tensor CreateConstant(const std::string &name, Node *parent,
-                                  llvm::SmallVector<uint64_t, 4> dims,
-                                  llvm::Type *type, void *buffer);
-
-    NodeType GetNodeType() const override { return TensorID; }
-
-    static inline bool classof(const Node *node) {
-      return node->GetNodeType() == TensorID;
-    }
-
-    llvm::Type *GetType();
-
-    void SetBuffer(llvm::Value *val);
-    llvm::Value *GetBuffer();
-
-    // Gets the number of dimensions for a tensor
-    uint64_t NDim();
-    // Gets a dimension of a tensor
-    uint64_t Dim(uint64_t which);
-    // Gets the overall size of a tensor
-    uint64_t Size();
-
-    // Get a chip from a tensor (that references the current tensor)
-    Tensor *Chip(llvm::SmallVector<uint64_t, 4> start_idx,
-                 llvm::SmallVector<uint64_t, 4> dims);
-
-    // Collapse all the dimensions of this tensor into a single dimension,
-    // returns pointer to this tensor
-    Tensor *Flatten();
-
-//    Tensor &operator=(Tensor &other);
-//    Tensor &operator+=(Tensor &other);
-//    Tensor &operator-=(Tensor &other);
-//    Tensor &operator*=(Tensor &other);
-//    Tensor &operator/=(Tensor &other);
-  private:
-    friend class TensorCG;
-
-    Tensor(llvm::Value *ptr, llvm::SmallVector<uint64_t, 4> dims,
-           llvm::Type *type, llvm::SmallVector<uint64_t, 4> start_idx={0});
-
-    // for calculating the index of an item in a shaped flat buffer
-    uint64_t At_(llvm::SmallVector<uint64_t, 4> idx);
-
-  private:
-    std::string name_;
-
-    // can store constant array here
-    llvm::Value *llvm_buffer_;
-    llvm::Type *llvm_type_;
-    llvm::SmallVector<uint64_t, 4> dims_;
-    llvm::SmallVector<uint64_t, 4> start_idx_;
-  };
-}
+    // TODO (Aman): class Constant : public Tensor
+  } // namespace ast
+} // namespace Hobbit
 
 #endif // HOBBIT_NODE_HPP
