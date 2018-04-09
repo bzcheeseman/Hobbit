@@ -30,7 +30,12 @@ class Function;
 namespace Hobbit {
 class Operator {
 public:
-  virtual void InsertIntoFunction(llvm::Function *) = 0;
+  enum OperatorType {
+#include "OperatorTypes.def"
+  };
+
+  virtual OperatorType GetOperatorType() const = 0;
+  virtual llvm::BasicBlock *InsertIntoFunction(llvm::Function *) = 0;
 };
 } // namespace Hobbit
 

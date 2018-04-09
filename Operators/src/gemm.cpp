@@ -39,11 +39,31 @@ public:
       : N_(N), M_(M), K_(K), A_(A), B_(B), C_(C), alpha_(alpha), beta_(beta) {
     CHECK_EQ(A_->GetType(), B_->GetType());
     CHECK_EQ(A_->GetType(), C_->GetType());
+
     CHECK_EQ(alpha_->getType(), A_->GetType());
     CHECK_EQ(beta_->getType(), A_->GetType());
+
+    CHECK_EQ(A_->NDim(), 2);
+    CHECK_EQ(B_->NDim(), 2);
+    CHECK_EQ(C_->NDim(), 2);
+
+    CHECK_EQ(A_->Dim(0), N_);
+    CHECK_EQ(A_->Dim(1), K_);
+
+    CHECK_EQ(B_->Dim(0), K_);
+    CHECK_EQ(B_->Dim(1), M_);
+
+    CHECK_EQ(C_->Dim(0), N_);
+    CHECK_EQ(C_->Dim(1), M_);
   }
 
-  void InsertIntoFunction(Function *func) override {
+  OperatorType GetOperatorType() const override { return gemmID; }
+
+  static inline bool classof(const Operator *op) {
+    return op->GetOperatorType() == gemmID;
+  }
+
+  llvm::BasicBlock *InsertIntoFunction(Function *func) override {
     util::LoopMD loopMD;
     loopMD.vector_width = 4;
     loopMD.unroll_count = 32;
@@ -64,25 +84,24 @@ public:
     K = builder.getInt64(K_);
 
     util::LoopInfo loopinfo_N = util::EmitLoop("hobbit.gemm.N", gemm_prehead,
-                                               gemm_posttail, zero, N, one);
-    loopinfo_N.body_bb->removeFromParent();
+                                               gemm_posttail, zero, N, one, false);
     util::AddLoopMetadata(loopinfo_N.cond, loopMD);
 
     util::LoopInfo loopinfo_M = util::EmitLoop(
         "hobbit.gemm.M", loopinfo_N.head_bb, loopinfo_N.tail_bb, zero, M, one);
     util::AddLoopMetadata(loopinfo_M.cond, loopMD);
 
+    builder.SetInsertPoint(loopinfo_M.body_bb);
     Value *C_idx =
         C_->At({loopinfo_N.ind_var, loopinfo_M.ind_var}, loopinfo_M.body_bb);
     Value *C_gep = builder.CreateInBoundsGEP(C_->GetValue(), C_idx);
 
-    Value *C_elt;
+    Value *C_elt = builder.CreateAlignedLoad(C_gep, 32);
     if (C_->GetType()->isFloatingPointTy()) {
-      Value *C_elt =
-          builder.CreateFMul(beta_, builder.CreateAlignedLoad(C_gep, 32));
+      C_elt = builder.CreateFMul(beta_, C_elt);
     }
     if (C_->GetType()->isIntegerTy()) {
-      C_elt = builder.CreateMul(beta_, builder.CreateAlignedLoad(C_gep, 32));
+      C_elt = builder.CreateMul(beta_, C_elt);
     }
 
     util::LoopInfo loopinfo_K = util::EmitLoop(
@@ -106,12 +125,14 @@ public:
     }
 
     if (A_->GetType()->isIntegerTy()) {
-      Value *tmp = builder.CreateMul(A_elt, B_elt);
+      Value *tmp = builder.CreateMul(builder.CreateMul(A_elt, B_elt), alpha_);
       C_elt = builder.CreateAdd(C_elt, tmp);
     }
 
     builder.CreateAlignedStore(C_elt, C_gep, 32);
     builder.CreateBr(loopinfo_K.tail_bb);
+
+    return gemm_posttail;
   }
 
 private:

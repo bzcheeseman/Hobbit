@@ -47,6 +47,7 @@ llvm::Value *Hobbit::ast::Tensor::GetValue() { return llvm_value_; }
 
 void Hobbit::ast::Tensor::SetValue(llvm::Value *value) {
   llvm_value_ = std::move(value);
+  llvm_value_->setName(name_);
 }
 
 uint64_t Hobbit::ast::Tensor::NDim() { return dims_.size(); }
