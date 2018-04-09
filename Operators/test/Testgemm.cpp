@@ -30,6 +30,7 @@
 
 #include "../src/gemm.cpp"
 
+// TODO (Aman): Add actual asserts here
 TEST(OpTest, gemm) {
   llvm::LLVMContext ctx;
 
