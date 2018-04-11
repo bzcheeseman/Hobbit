@@ -2,14 +2,14 @@ llvm_map_components_to_libnames(llvm_libs all)
 
 file(GLOB UTILS utils/*.h* utils/*.c*)
 add_library(HobbitOpUtils SHARED ${UTILS})
-target_link_libraries(HobbitOpUtils PUBLIC ${llvm_libs})
+target_link_libraries(HobbitOpUtils PRIVATE ${llvm_libs})
 
 function(add_operator name)
     add_library(HobbitOp${name} SHARED src/${name}.cpp)
     target_include_directories(HobbitOp${name}
             PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/utils ${CMAKE_CURRENT_SOURCE_DIR}/include
     )
-    target_link_libraries(HobbitOp${name} PUBLIC HobbitAST HobbitOpUtils ${llvm_libs})
+    target_link_libraries(HobbitOp${name} PUBLIC HobbitAST HobbitOpUtils ${llvm_libs} Polly PollyISL)
 
     if(BUILD_TESTS)
         add_gtest(${name} HobbitOp${name})

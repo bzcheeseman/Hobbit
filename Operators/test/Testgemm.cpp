@@ -34,6 +34,8 @@
 #include <llvm/Transforms/IPO/PassManagerBuilder.h>
 #include <llvm/Target/TargetOptions.h>
 #include <llvm/ExecutionEngine/ExecutionEngine.h>
+#include <llvm/ExecutionEngine/MCJIT.h>
+#include <polly/RegisterPasses.h>
 
 #include "../src/gemm.cpp"
 
@@ -153,23 +155,35 @@ TEST(OpTest_Verify, gemm) {
   llvm::verifyModule(*Mod, &llvm::errs());
 
   llvm::legacy::PassManager pm;
+
+//  llvm::PassRegistry *pr = llvm::PassRegistry::getPassRegistry();
+//  polly::initializePollyPasses(*pr);
+
   llvm::PassManagerBuilder PMBuilder;
+
+//  llvm::RegisterStandardPasses register_passes (
+//          llvm::PassManagerBuilder::ExtensionPointTy::EP_EarlyAsPossible,
+//          [](const llvm::PassManagerBuilder &pmb, llvm::legacy::PassManagerBase &pm) {
+//            polly::registerPollyPasses(pm);
+//          }
+//  );
 
   PMBuilder.OptLevel = 3;
 
-  PMBuilder.populateModulePassManager(pm);
   target_machine->adjustPassManager(PMBuilder);
+  PMBuilder.populateModulePassManager(pm);
 
   pm.run(*Mod);
 
   llvm::verifyModule(*Mod, &llvm::errs());
 
-  std::string error_str; // JIT has not been linked in
+  std::string error_str;
 
   llvm::EngineBuilder engineBuilder(std::move(Mod));
   engineBuilder.setErrorStr(&error_str);
   engineBuilder.setEngineKind(llvm::EngineKind::JIT);
+  engineBuilder.setMCPU("x86-64");
   llvm::ExecutionEngine *engine = engineBuilder.create();
 
-  void (*hobbit_gemm)(float *, float *, float *) = (void (*)(float *, float *, float *))engine->getFunctionAddress("gemm_test");
+   void (*hobbit_gemm)(float *, float *, float *) = (void (*)(float *, float *, float *))engine->getFunctionAddress("gemm_test");
 }
