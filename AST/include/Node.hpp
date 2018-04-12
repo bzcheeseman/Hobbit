@@ -24,10 +24,11 @@
 #define HOBBIT_NODE_HPP
 
 #include <string>
-#include <vector>
+#include <utility> #include <vector>
 
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/IR/IRBuilder.h>
+#include <llvm/IR/TypeBuilder.h>
 #include <llvm/IR/Instruction.h>
 
 #include <glog/logging.h>
@@ -56,43 +57,51 @@ public:
 #include "NodeTypes.def"
   };
 
-  virtual const std::string &GetName() { return name_; }
-
-  virtual Node *AddInput(Node *n) {
-    inputs_.push_back(n);
-    return this;
-  }
-
-  virtual Node *GetInput(int which) { return inputs_[which]; }
-
-  virtual Node *SetInputs(llvm::ArrayRef<Node *> nodes) {
-    inputs_ = llvm::SmallVector<Node *, 3>(nodes.begin(), nodes.end());
-    return this;
-  }
-
-  virtual llvm::ArrayRef<Node *> GetInputs() { return inputs_; }
-
+  virtual const std::string &GetName() = 0;
   virtual NodeType GetNodeType() const = 0;
+//  virtual llvm::BasicBlock *InsertIntoFunction(llvm::Function *) = 0;
+};
 
-  virtual void
-  AcceptVisitor(Visitor *) = 0; // provides codegen function/info for this node
+// TODO: class Constant : public Node
+class Variable : public Node {
+public:
+
+  static Variable *Create(const std::string &name, llvm::ArrayRef<uint64_t> dims, bool is_arg) {
+    Variable *var = new Variable(name, dims, is_arg);
+//    llvm::Type *type = llvm::TypeBuilder<CxxType, xcompile>::get(ctx);
+
+    return var;
+  }
+
+  const std::string &GetName() override { return m_name_; }
+  NodeType GetNodeType() const override { return VariableID; };
+
+  static inline bool classof(const Node *node) {
+    return node->GetNodeType() == VariableID;
+  }
+
+  // TODO: codegen
 
 protected:
-  std::string name_;
+  Variable(std::string name, llvm::ArrayRef<uint64_t> dims, bool is_arg) :
+          m_name_(std::move(name)), m_dims_(dims.begin(), dims.end()), m_is_arg_(is_arg) {}
 
-  llvm::SmallVector<Node *, 3> inputs_; // Tensors are nodes
+private:
+  std::string m_name_;
+  llvm::SmallVector<uint64_t, 4> m_dims_;
+  bool m_is_arg_;
 };
 
 class Tensor : public Node {
 public:
   static Tensor *Create(const std::string &name, Tensor *parent,
                         llvm::ArrayRef<uint64_t> dims, llvm::Type *type);
+  // CreateArg
+  // CreateConst
+
+  const std::string &GetName() override { return name_; }
 
   NodeType GetNodeType() const override { return VariableID; }
-
-  static inline bool classof(const Node *node) {
-    return node->GetNodeType() == VariableID;
-  }
 
   llvm::Type *GetType();
 
@@ -113,8 +122,6 @@ public:
 
   llvm::Value *At(llvm::ArrayRef<llvm::Value *> idx, llvm::BasicBlock *BB);
 
-  void AcceptVisitor(Visitor *) override { ; } // codegen visitors do nothing
-
   // Collapse all the dimensions of this tensor into a single dimension,
   // returns pointer to this tensor
   Tensor *Flatten();
@@ -125,6 +132,8 @@ private:
   virtual ~Tensor();
 
 private:
+  std::string name_;
+
   llvm::Value *llvm_value_;
   llvm::Type *llvm_type_;
   llvm::SmallVector<uint64_t, 4> dims_;
@@ -136,7 +145,6 @@ private:
   Tensor *parent_;
 };
 
-// TODO (Aman): class Constant : public Tensor
 } // namespace ast
 } // namespace Hobbit
 

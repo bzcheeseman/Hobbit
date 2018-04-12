@@ -75,7 +75,15 @@ public:
     BasicBlock *gemm_posttail =
         BasicBlock::Create(ctx, "hobbit.gemm.posttail", func);
 
-    IRBuilder<> builder(gemm_prehead);
+    BasicBlock *gemm_prehead_pred;
+    IRBuilder<> builder(ctx);
+    if ((gemm_prehead_pred = gemm_prehead->getSinglePredecessor())) {
+      builder.SetInsertPoint(gemm_prehead_pred);
+      builder.CreateBr(gemm_prehead);
+    }
+
+    builder.SetInsertPoint(gemm_prehead);
+
     Value *zero, *one, *K, *N, *M;
     zero = builder.getInt64(0);
     one = builder.getInt64(1);
