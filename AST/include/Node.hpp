@@ -24,7 +24,8 @@
 #define HOBBIT_NODE_HPP
 
 #include <string>
-#include <utility> #include <vector>
+#include <utility>
+#include <vector>
 
 #include <llvm/ADT/SmallVector.h>
 #include <llvm/IR/IRBuilder.h>
@@ -57,12 +58,23 @@ public:
 #include "NodeTypes.def"
   };
 
-  virtual const std::string &GetName() = 0;
+  virtual const std::string &GetName() const = 0;
   virtual NodeType GetNodeType() const = 0;
-//  virtual llvm::BasicBlock *InsertIntoFunction(llvm::Function *) = 0;
+
+  //  virtual llvm::BasicBlock *InsertIntoFunction(llvm::Function *) = 0;
+
+  virtual const std::vector<Node *> &Consumers() { return mb_consumers_; }
+  virtual const std::vector<Node *> &Producers() { return mb_producers_; }
+
+  virtual std::vector<Node *> &MutableConsumers() { return mb_consumers_; }
+  virtual std::vector<Node *> &MutableProducers() { return mb_producers_; }
+
+protected:
+  std::vector<Node *> mb_consumers_; // these use this node
+  std::vector<Node *> mb_producers_; // this node uses these
 };
 
-// TODO: class Constant : public Node
+// TODO (Aman): class Constant : public Node
 class Variable : public Node {
 public:
 
@@ -73,7 +85,7 @@ public:
     return var;
   }
 
-  const std::string &GetName() override { return m_name_; }
+  const std::string &GetName() const override { return m_name_; }
   NodeType GetNodeType() const override { return VariableID; };
 
   static inline bool classof(const Node *node) {
@@ -90,6 +102,29 @@ private:
   std::string m_name_;
   llvm::SmallVector<uint64_t, 4> m_dims_;
   bool m_is_arg_;
+};
+
+class Operator : public Node {
+public:
+
+  static ast::Operator *Create(const std::string &name, Operator &&op) {
+    ast::Operator *out = new ast::Operator(name, std::move(op));
+    return out;
+  }
+
+  const std::string &GetName() const override { return m_name_; }
+  NodeType GetNodeType() const override { return OperatorID; };
+
+  static inline bool classof(const Node *node) {
+    return node->GetNodeType() == OperatorID;
+  }
+
+protected:
+  Operator(std::string name, Operator &&op) : m_name_(std::move(name)), m_op_(std::move(op)) {}
+
+private:
+  std::string m_name_;
+  Operator m_op_;
 };
 
 class Tensor : public Node {
