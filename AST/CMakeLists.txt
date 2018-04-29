@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.5)
 project(Hobbit)
 
 file(GLOB SOURCES src/*.c*)
-file(GLOB HEADERS include/*.h*)
+file(GLOB HEADERS include/ast/*.h*)
 
 llvm_map_components_to_libnames(llvm_libs all)
 

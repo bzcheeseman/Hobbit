@@ -20,8 +20,8 @@
     limitations under the License.
  */
 
-#include "Visitor.hpp"
-#include "Node.hpp"
+#include "ast/Visitor.hpp"
+#include "ast/Node.hpp"
 
 #include <glog/logging.h>
 
@@ -34,6 +34,7 @@
 #include <llvm/Target/TargetMachine.h>
 #include <llvm/Target/TargetOptions.h>
 #include <llvm/Transforms/IPO/PassManagerBuilder.h>
+#include <ast/DataStorage.hpp>
 
 Hobbit::Function *Hobbit::Function::Create(const std::string &name) {
   Function *f = new Function;
@@ -46,7 +47,8 @@ Hobbit::Function::GetNewArg(const std::string &name,
                             llvm::SmallVector<uint64_t, 4> dims,
                             llvm::Type *type) {
   // Create a new ast::Tensor
-  ast::Tensor *arg = ast::Tensor::Create(name, nullptr, std::move(dims), type);
+  ast::Tensor *arg = new ast::Tensor(name, std::move(dims), type->getContext());
+  arg->SetType(type);
   // Add the tensor to the arg table
   arg_table_.push_back(arg);
   return arg;
@@ -57,7 +59,8 @@ Hobbit::Function::GetNewAlloca(const std::string &name,
                                llvm::SmallVector<uint64_t, 4> dims,
                                llvm::Type *type) {
   // Create a new ast::Tensor
-  ast::Tensor *arg = ast::Tensor::Create(name, nullptr, std::move(dims), type);
+  ast::Tensor *arg = new ast::Tensor(name, std::move(dims), type->getContext());
+  arg->SetType(type);
   // Add the tensor to the arg table
   alloca_table_.push_back(arg);
   return arg;

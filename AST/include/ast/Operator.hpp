@@ -1,5 +1,5 @@
 //
-// Created by Aman LaChapelle on 4/8/18.
+// Created by Aman LaChapelle on 4/29/18.
 //
 // Hobbit
 // Copyright (c) 2018 Aman LaChapelle
@@ -23,20 +23,42 @@
 #ifndef HOBBIT_OPERATOR_HPP
 #define HOBBIT_OPERATOR_HPP
 
-namespace llvm {
-class Function;
-}
+// Project
+#include <ast/Node.hpp>
+
+// STL
+#include <string>
 
 namespace Hobbit {
-class Operator {
-public:
-  enum OperatorType {
-#include "OperatorTypes.def"
-  };
 
-  virtual OperatorType GetOperatorType() const = 0;
-  virtual llvm::BasicBlock *InsertIntoFunction(llvm::Function *) = 0;
+namespace ops {
+  class Operator;
+}
+
+namespace ast {
+class Operator : public Node {
+public:
+  static ast::Operator *Create(const std::string &name, ops::Operator *op) {
+    ast::Operator *out = new ast::Operator(name, std::move(op));
+    return out;
+  }
+
+  const std::string &GetName() const override { return m_name_; }
+  NodeType GetNodeType() const override { return OperatorID; };
+
+  static inline bool classof(const Node *node) {
+    return node->GetNodeType() == OperatorID;
+  }
+
+protected:
+  Operator(std::string name, ops::Operator *op)
+      : m_name_(std::move(name)), m_op_(std::move(op)) {}
+
+private:
+  std::string m_name_;
+  ops::Operator *m_op_;
 };
+} // namespace ast
 } // namespace Hobbit
 
 #endif // HOBBIT_OPERATOR_HPP

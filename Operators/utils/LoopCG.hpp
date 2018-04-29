@@ -49,7 +49,8 @@ struct LoopInfo {
 
 LoopInfo EmitLoop(const std::string &name, llvm::BasicBlock *loop_prehead,
                   llvm::BasicBlock *loop_posttail, llvm::Value *loop_start,
-                  llvm::Value *loop_end, llvm::Value *loop_increment, bool has_body=true);
+                  llvm::Value *loop_end, llvm::Value *loop_increment,
+                  bool has_body = true);
 
 void AddLoopMetadata(llvm::BranchInst *loop_end_br, LoopMD loopMD);
 } // namespace util

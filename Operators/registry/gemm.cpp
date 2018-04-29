@@ -24,37 +24,38 @@
 #include <llvm/IR/Function.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/LLVMContext.h>
+#include <glog/logging.h>
+#include <ast/DataStorage.hpp>
 
 #include "LoopCG.hpp"
-#include "Node.hpp"
-#include "Operator.hpp"
+#include "ops/Operator.hpp"
 
 using namespace llvm;
 
 namespace Hobbit {
-class gemm : public Operator {
+class gemm : public ops::Operator {
 public:
   gemm(uint64_t N, uint64_t M, uint64_t K, ast::Tensor *A, ast::Tensor *B,
        ast::Tensor *C, Value *alpha, Value *beta)
       : N_(N), M_(M), K_(K), A_(A), B_(B), C_(C), alpha_(alpha), beta_(beta) {
-    CHECK_EQ(A_->GetType(), B_->GetType());
-    CHECK_EQ(A_->GetType(), C_->GetType());
+    CHECK_EQ(A_->Type(), B_->Type());
+    CHECK_EQ(A_->Type(), C_->Type());
 
-    CHECK_EQ(alpha_->getType(), A_->GetType());
-    CHECK_EQ(beta_->getType(), A_->GetType());
+    CHECK_EQ(alpha_->getType(), A_->Type());
+    CHECK_EQ(beta_->getType(), A_->Type());
 
-    CHECK_EQ(A_->NDim(), 2);
-    CHECK_EQ(B_->NDim(), 2);
-    CHECK_EQ(C_->NDim(), 2);
+    CHECK_EQ(A_->Shape().NDim(), 2);
+    CHECK_EQ(B_->Shape().NDim(), 2);
+    CHECK_EQ(C_->Shape().NDim(), 2);
 
-    CHECK_EQ(A_->Dim(0), N_);
-    CHECK_EQ(A_->Dim(1), K_);
+    CHECK_EQ(A_->Shape().Dim((uint64_t)0), N_);
+    CHECK_EQ(A_->Shape().Dim(1), K_);
 
-    CHECK_EQ(B_->Dim(0), K_);
-    CHECK_EQ(B_->Dim(1), M_);
+    CHECK_EQ(B_->Shape().Dim((uint64_t)0), K_);
+    CHECK_EQ(B_->Shape().Dim(1), M_);
 
-    CHECK_EQ(C_->Dim(0), N_);
-    CHECK_EQ(C_->Dim(1), M_);
+    CHECK_EQ(C_->Shape().Dim((uint64_t)0), N_);
+    CHECK_EQ(C_->Shape().Dim(1), M_);
   }
 
   OperatorType GetOperatorType() const override { return gemmID; }
@@ -91,8 +92,8 @@ public:
     M = builder.getInt64(M_);
     K = builder.getInt64(K_);
 
-    util::LoopInfo loopinfo_N = util::EmitLoop("hobbit.gemm.N", gemm_prehead,
-                                               gemm_posttail, zero, N, one, false);
+    util::LoopInfo loopinfo_N = util::EmitLoop(
+        "hobbit.gemm.N", gemm_prehead, gemm_posttail, zero, N, one, false);
     util::AddLoopMetadata(loopinfo_N.cond, loopMD);
 
     util::LoopInfo loopinfo_M = util::EmitLoop(
@@ -101,14 +102,14 @@ public:
 
     builder.SetInsertPoint(loopinfo_M.body_bb);
     Value *C_idx =
-        C_->At({loopinfo_N.ind_var, loopinfo_M.ind_var}, loopinfo_M.body_bb);
-    Value *C_gep = builder.CreateInBoundsGEP(C_->GetValue(), C_idx);
+        C_->Shape().At({loopinfo_N.ind_var, loopinfo_M.ind_var}, loopinfo_M.body_bb);
+    Value *C_gep = builder.CreateInBoundsGEP(C_->Value(), C_idx);
 
     Value *C_elt = builder.CreateAlignedLoad(C_gep, 32);
-    if (C_->GetType()->isFloatingPointTy()) {
+    if (C_->Type()->isFloatingPointTy()) {
       C_elt = builder.CreateFMul(beta_, C_elt);
     }
-    if (C_->GetType()->isIntegerTy()) {
+    if (C_->Type()->isIntegerTy()) {
       C_elt = builder.CreateMul(beta_, C_elt);
     }
 
@@ -119,20 +120,20 @@ public:
     BasicBlock *body_bb = loopinfo_K.body_bb;
     builder.SetInsertPoint(body_bb);
 
-    Value *A_idx = A_->At({loopinfo_N.ind_var, loopinfo_K.ind_var}, body_bb);
-    Value *B_idx = B_->At({loopinfo_K.ind_var, loopinfo_M.ind_var}, body_bb);
+    Value *A_idx = A_->Shape().At({loopinfo_N.ind_var, loopinfo_K.ind_var}, body_bb);
+    Value *B_idx = B_->Shape().At({loopinfo_K.ind_var, loopinfo_M.ind_var}, body_bb);
 
     Value *A_elt = builder.CreateAlignedLoad(
-        builder.CreateInBoundsGEP(A_->GetValue(), A_idx), 32);
+        builder.CreateInBoundsGEP(A_->Value(), A_idx), 32);
     Value *B_elt = builder.CreateAlignedLoad(
-        builder.CreateInBoundsGEP(B_->GetValue(), B_idx), 32);
+        builder.CreateInBoundsGEP(B_->Value(), B_idx), 32);
 
-    if (A_->GetType()->isFloatingPointTy()) {
+    if (A_->Type()->isFloatingPointTy()) {
       Value *tmp = builder.CreateFMul(builder.CreateFMul(A_elt, B_elt), alpha_);
       C_elt = builder.CreateFAdd(C_elt, tmp);
     }
 
-    if (A_->GetType()->isIntegerTy()) {
+    if (A_->Type()->isIntegerTy()) {
       Value *tmp = builder.CreateMul(builder.CreateMul(A_elt, B_elt), alpha_);
       C_elt = builder.CreateAdd(C_elt, tmp);
     }

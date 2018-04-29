@@ -5,7 +5,7 @@ add_library(HobbitOpUtils SHARED ${UTILS})
 target_link_libraries(HobbitOpUtils PRIVATE ${llvm_libs})
 
 function(add_operator name)
-    add_library(HobbitOp${name} SHARED src/${name}.cpp)
+    add_library(HobbitOp${name} SHARED registry/${name}.cpp)
     target_include_directories(HobbitOp${name}
             PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/utils ${CMAKE_CURRENT_SOURCE_DIR}/include
     )

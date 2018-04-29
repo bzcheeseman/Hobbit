@@ -29,7 +29,8 @@
 Hobbit::util::LoopInfo
 Hobbit::util::EmitLoop(const std::string &name, llvm::BasicBlock *loop_prehead,
                        llvm::BasicBlock *loop_posttail, llvm::Value *loop_start,
-                       llvm::Value *loop_end, llvm::Value *loop_increment, bool has_body) {
+                       llvm::Value *loop_end, llvm::Value *loop_increment,
+                       bool has_body) {
   llvm::LLVMContext &ctx = loop_prehead->getContext();
   llvm::Function *parent_func = loop_prehead->getParent();
 
@@ -37,7 +38,8 @@ Hobbit::util::EmitLoop(const std::string &name, llvm::BasicBlock *loop_prehead,
       llvm::BasicBlock::Create(ctx, name + ".head", parent_func);
 
   llvm::BasicBlock *body_bb;
-  if (has_body) body_bb = llvm::BasicBlock::Create(ctx, name + ".body", parent_func);
+  if (has_body)
+    body_bb = llvm::BasicBlock::Create(ctx, name + ".body", parent_func);
 
   llvm::BasicBlock *tail_bb =
       llvm::BasicBlock::Create(ctx, name + ".tail", parent_func);
@@ -51,7 +53,8 @@ Hobbit::util::EmitLoop(const std::string &name, llvm::BasicBlock *loop_prehead,
       builder.CreatePHI(builder.getInt64Ty(), 2, name + ".idx");
   phi->addIncoming(loop_start, loop_prehead);
 
-  if (has_body) builder.CreateBr(body_bb);
+  if (has_body)
+    builder.CreateBr(body_bb);
 
   // Create loop tail
   builder.SetInsertPoint(tail_bb);

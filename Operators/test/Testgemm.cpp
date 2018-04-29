@@ -22,22 +22,25 @@
 
 #include <gtest/gtest.h>
 
-#include <llvm/IR/LLVMContext.h>
-#include <llvm/IR/Module.h>
-#include <llvm/IR/Function.h>
-#include <llvm/Support/raw_ostream.h>
-#include <llvm/IR/Verifier.h>
-#include <llvm/Support/TargetSelect.h>
-#include <llvm/Target/TargetMachine.h>
-#include <llvm/Support/TargetRegistry.h>
-#include <llvm/IR/LegacyPassManager.h>
-#include <llvm/Transforms/IPO/PassManagerBuilder.h>
-#include <llvm/Target/TargetOptions.h>
 #include <llvm/ExecutionEngine/ExecutionEngine.h>
 #include <llvm/ExecutionEngine/MCJIT.h>
+#include <llvm/IR/Function.h>
+#include <llvm/IR/LLVMContext.h>
+#include <llvm/IR/LegacyPassManager.h>
+#include <llvm/IR/Module.h>
+#include <llvm/IR/Verifier.h>
+#include <llvm/Support/TargetRegistry.h>
+#include <llvm/Support/TargetSelect.h>
+#include <llvm/Support/raw_ostream.h>
+#include <llvm/Target/TargetMachine.h>
+#include <llvm/Target/TargetOptions.h>
+#include <llvm/Transforms/IPO/PassManagerBuilder.h>
 #include <polly/RegisterPasses.h>
+#include <ast/DataStorage.hpp>
+#include <llvm/IR/Constants.h>
+#include <ops/Operator.hpp>
 
-#include "../src/gemm.cpp"
+#include "../registry/gemm.cpp"
 
 // TODO (Aman): Add actual asserts here
 TEST(OpTest_Create, gemm) {
@@ -47,13 +50,14 @@ TEST(OpTest_Create, gemm) {
   llvm::Type *float_ptr_ty = float_ty->getPointerTo(0);
 
   std::unique_ptr<llvm::Module> Mod =
-          llvm::make_unique<llvm::Module>("gemm_test", ctx);
+      llvm::make_unique<llvm::Module>("gemm_test", ctx);
 
-  llvm::FunctionType *ft =
-          llvm::FunctionType::get(llvm::Type::getVoidTy(ctx), {float_ptr_ty, float_ptr_ty, float_ptr_ty}, false);
+  llvm::FunctionType *ft = llvm::FunctionType::get(
+      llvm::Type::getVoidTy(ctx), {float_ptr_ty, float_ptr_ty, float_ptr_ty},
+      false);
 
-  llvm::Function *f = llvm::cast<llvm::Function>(
-          Mod->getOrInsertFunction("gemm_test", ft));
+  llvm::Function *f =
+      llvm::cast<llvm::Function>(Mod->getOrInsertFunction("gemm_test", ft));
 
   const size_t N = 1024;
   const size_t M = 1024;
@@ -61,22 +65,25 @@ TEST(OpTest_Create, gemm) {
 
   llvm::Function::arg_iterator iter = f->arg_begin();
 
-  Hobbit::ast::Tensor *A = Hobbit::ast::Tensor::Create("A", nullptr, {N, K}, float_ty);
+  Hobbit::ast::Tensor A ("A", {N, K}, ctx);
   llvm::Argument *arg_A = &(*iter);
-  A->SetValue(arg_A);
+  A.SetType(float_ty);
+  A.SetValue(arg_A);
 
-  Hobbit::ast::Tensor *B = Hobbit::ast::Tensor::Create("B", nullptr, {K, M}, float_ty);
+  Hobbit::ast::Tensor B ("B", {K, M}, ctx);
   llvm::Argument *arg_B = &(*++iter);
-  B->SetValue(arg_B);
+  B.SetType(float_ty);
+  B.SetValue(arg_B);
 
-  Hobbit::ast::Tensor *C = Hobbit::ast::Tensor::Create("C", nullptr, {N, M}, float_ty);
+  Hobbit::ast::Tensor C ("C", {N, M}, ctx);
   llvm::Argument *arg_C = &(*++iter);
-  C->SetValue(arg_C);
+  C.SetType(float_ty);
+  C.SetValue(arg_C);
 
   llvm::Value *alpha = llvm::ConstantFP::get(float_ty, 1.0);
   llvm::Value *beta = llvm::ConstantFP::get(float_ty, 0.0);
 
-  Hobbit::Operator *gemm_op = new Hobbit::gemm(N, M, K, A, B, C, alpha, beta);
+  Hobbit::ops::Operator *gemm_op = new Hobbit::gemm(N, M, K, &A, &B, &C, alpha, beta);
 
   llvm::BasicBlock *ret_block = gemm_op->InsertIntoFunction(f);
 
@@ -96,13 +103,14 @@ TEST(OpTest_Verify, gemm) {
   llvm::Type *float_ptr_ty = float_ty->getPointerTo(0);
 
   std::unique_ptr<llvm::Module> Mod =
-          llvm::make_unique<llvm::Module>("gemm_test", ctx);
+      llvm::make_unique<llvm::Module>("gemm_test", ctx);
 
-  llvm::FunctionType *ft =
-          llvm::FunctionType::get(llvm::Type::getVoidTy(ctx), {float_ptr_ty, float_ptr_ty, float_ptr_ty}, false);
+  llvm::FunctionType *ft = llvm::FunctionType::get(
+      llvm::Type::getVoidTy(ctx), {float_ptr_ty, float_ptr_ty, float_ptr_ty},
+      false);
 
-  llvm::Function *f = llvm::cast<llvm::Function>(
-          Mod->getOrInsertFunction("gemm_test", ft));
+  llvm::Function *f =
+      llvm::cast<llvm::Function>(Mod->getOrInsertFunction("gemm_test", ft));
 
   const size_t N = 1024;
   const size_t M = 1024;
@@ -110,22 +118,25 @@ TEST(OpTest_Verify, gemm) {
 
   llvm::Function::arg_iterator iter = f->arg_begin();
 
-  Hobbit::ast::Tensor *A = Hobbit::ast::Tensor::Create("A", nullptr, {N, K}, float_ty);
+  Hobbit::ast::Tensor A ("A", {N, K}, ctx);
   llvm::Argument *arg_A = &(*iter);
-  A->SetValue(arg_A);
+  A.SetType(float_ty);
+  A.SetValue(arg_A);
 
-  Hobbit::ast::Tensor *B = Hobbit::ast::Tensor::Create("B", nullptr, {K, M}, float_ty);
+  Hobbit::ast::Tensor B ("B", {K, M}, ctx);
   llvm::Argument *arg_B = &(*++iter);
-  B->SetValue(arg_B);
+  B.SetType(float_ty);
+  B.SetValue(arg_B);
 
-  Hobbit::ast::Tensor *C = Hobbit::ast::Tensor::Create("C", nullptr, {N, M}, float_ty);
+  Hobbit::ast::Tensor C ("C", {N, M}, ctx);
   llvm::Argument *arg_C = &(*++iter);
-  C->SetValue(arg_C);
+  C.SetType(float_ty);
+  C.SetValue(arg_C);
 
   llvm::Value *alpha = llvm::ConstantFP::get(float_ty, 1.0);
   llvm::Value *beta = llvm::ConstantFP::get(float_ty, 0.0);
 
-  Hobbit::Operator *gemm_op = new Hobbit::gemm(N, M, K, A, B, C, alpha, beta);
+  Hobbit::ops::Operator *gemm_op = new Hobbit::gemm(N, M, K, &A, &B, &C, alpha, beta);
 
   llvm::BasicBlock *ret_block = gemm_op->InsertIntoFunction(f);
 
@@ -141,13 +152,14 @@ TEST(OpTest_Verify, gemm) {
   Mod->setTargetTriple(llvm::sys::getDefaultTargetTriple());
 
   std::string error;
-  auto target = llvm::TargetRegistry::lookupTarget(llvm::sys::getDefaultTargetTriple(), error);
+  auto target = llvm::TargetRegistry::lookupTarget(
+      llvm::sys::getDefaultTargetTriple(), error);
 
   llvm::TargetOptions options;
   auto RM = llvm::Optional<llvm::Reloc::Model>();
 
-  llvm::TargetMachine *target_machine =
-          target->createTargetMachine(llvm::sys::getDefaultTargetTriple(), "generic", "", options, RM);
+  llvm::TargetMachine *target_machine = target->createTargetMachine(
+      llvm::sys::getDefaultTargetTriple(), "generic", "", options, RM);
 
   Mod->setDataLayout(target_machine->createDataLayout());
   Mod->setTargetTriple(llvm::sys::getDefaultTargetTriple());
@@ -156,17 +168,18 @@ TEST(OpTest_Verify, gemm) {
 
   llvm::legacy::PassManager pm;
 
-//  llvm::PassRegistry *pr = llvm::PassRegistry::getPassRegistry();
-//  polly::initializePollyPasses(*pr);
+  //  llvm::PassRegistry *pr = llvm::PassRegistry::getPassRegistry();
+  //  polly::initializePollyPasses(*pr);
 
   llvm::PassManagerBuilder PMBuilder;
 
-//  llvm::RegisterStandardPasses register_passes (
-//          llvm::PassManagerBuilder::ExtensionPointTy::EP_EarlyAsPossible,
-//          [](const llvm::PassManagerBuilder &pmb, llvm::legacy::PassManagerBase &pm) {
-//            polly::registerPollyPasses(pm);
-//          }
-//  );
+  //  llvm::RegisterStandardPasses register_passes (
+  //          llvm::PassManagerBuilder::ExtensionPointTy::EP_EarlyAsPossible,
+  //          [](const llvm::PassManagerBuilder &pmb,
+  //          llvm::legacy::PassManagerBase &pm) {
+  //            polly::registerPollyPasses(pm);
+  //          }
+  //  );
 
   PMBuilder.OptLevel = 3;
 
@@ -185,5 +198,6 @@ TEST(OpTest_Verify, gemm) {
   engineBuilder.setMCPU("x86-64");
   llvm::ExecutionEngine *engine = engineBuilder.create();
 
-   void (*hobbit_gemm)(float *, float *, float *) = (void (*)(float *, float *, float *))engine->getFunctionAddress("gemm_test");
+  void (*hobbit_gemm)(float *, float *, float *) = (void (*)(
+      float *, float *, float *))engine->getFunctionAddress("gemm_test");
 }
