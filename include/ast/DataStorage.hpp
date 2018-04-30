@@ -30,8 +30,8 @@
 #include <string>
 
 // LLVM
-#include <llvm/ADT/ArrayRef.h>
 #include <glog/logging.h>
+#include <llvm/ADT/ArrayRef.h>
 
 namespace llvm {
 class LLVMContext;
@@ -66,7 +66,8 @@ public:
 
   uint64_t At(llvm::ArrayRef<uint64_t> idx) const;
 
-  llvm::Value *At(llvm::ArrayRef<llvm::Value *> idx, llvm::BasicBlock *BB) const;
+  llvm::Value *At(llvm::ArrayRef<llvm::Value *> idx,
+                  llvm::BasicBlock *BB) const;
 
   // BB can be nullptr, in which case the output is just a shape with llvm not
   // initialized
@@ -84,10 +85,10 @@ namespace ast {
 class Tensor : public Node { // constant or variable
 public:
   Tensor(std::string name, llvm::ArrayRef<uint64_t> dims)
-  : m_name_(std::move(name)), m_shape_(dims) {}
+      : m_name_(std::move(name)), m_shape_(dims) {}
   Tensor(std::string name, llvm::ArrayRef<uint64_t> dims,
-          llvm::LLVMContext &ctx)
-  : m_name_(std::move(name)), m_shape_(ctx, dims) {}
+         llvm::LLVMContext &ctx)
+      : m_name_(std::move(name)), m_shape_(ctx, dims) {}
 
   const std::string &GetName() const override { return m_name_; }
   NodeType GetNodeType() const override { return VariableID; };
@@ -100,13 +101,25 @@ public:
 
   const internal::Shape &Shape() { return m_shape_; }
 
-  llvm::Type *Type() { CHECK_NOTNULL(m_type_); return m_type_; }
+  llvm::Type *Type() {
+    CHECK_NOTNULL(m_type_);
+    return m_type_;
+  }
 
-  llvm::Value *Value() { CHECK_NOTNULL(m_data_); return m_data_; }
-  
-  void SetType(llvm::Type *type) { CHECK_NOTNULL(type); m_type_ = type;}
-  
-  void SetValue(llvm::Value *val) { CHECK_NOTNULL(val); m_data_ = val;}
+  llvm::Value *Value() {
+    CHECK_NOTNULL(m_data_);
+    return m_data_;
+  }
+
+  void SetType(llvm::Type *type) {
+    CHECK_NOTNULL(type);
+    m_type_ = type;
+  }
+
+  void SetValue(llvm::Value *val) {
+    CHECK_NOTNULL(val);
+    m_data_ = val;
+  }
 
   // TODO: codegen
 

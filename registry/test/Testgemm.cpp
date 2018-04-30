@@ -22,8 +22,10 @@
 
 #include <gtest/gtest.h>
 
+#include <ast/DataStorage.hpp>
 #include <llvm/ExecutionEngine/ExecutionEngine.h>
 #include <llvm/ExecutionEngine/MCJIT.h>
+#include <llvm/IR/Constants.h>
 #include <llvm/IR/Function.h>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/LegacyPassManager.h>
@@ -35,10 +37,8 @@
 #include <llvm/Target/TargetMachine.h>
 #include <llvm/Target/TargetOptions.h>
 #include <llvm/Transforms/IPO/PassManagerBuilder.h>
-#include <polly/RegisterPasses.h>
-#include <ast/DataStorage.hpp>
-#include <llvm/IR/Constants.h>
 #include <ops/Operator.hpp>
+#include <polly/RegisterPasses.h>
 
 #include "../registry/gemm.cpp"
 
@@ -65,17 +65,17 @@ TEST(OpTest_Create, gemm) {
 
   llvm::Function::arg_iterator iter = f->arg_begin();
 
-  Hobbit::ast::Tensor A ("A", {N, K}, ctx);
+  Hobbit::ast::Tensor A("A", {N, K}, ctx);
   llvm::Argument *arg_A = &(*iter);
   A.SetType(float_ty);
   A.SetValue(arg_A);
 
-  Hobbit::ast::Tensor B ("B", {K, M}, ctx);
+  Hobbit::ast::Tensor B("B", {K, M}, ctx);
   llvm::Argument *arg_B = &(*++iter);
   B.SetType(float_ty);
   B.SetValue(arg_B);
 
-  Hobbit::ast::Tensor C ("C", {N, M}, ctx);
+  Hobbit::ast::Tensor C("C", {N, M}, ctx);
   llvm::Argument *arg_C = &(*++iter);
   C.SetType(float_ty);
   C.SetValue(arg_C);
@@ -83,7 +83,8 @@ TEST(OpTest_Create, gemm) {
   llvm::Value *alpha = llvm::ConstantFP::get(float_ty, 1.0);
   llvm::Value *beta = llvm::ConstantFP::get(float_ty, 0.0);
 
-  Hobbit::ops::Operator *gemm_op = new Hobbit::gemm(N, M, K, &A, &B, &C, alpha, beta);
+  Hobbit::ops::Operator *gemm_op =
+      new Hobbit::gemm(N, M, K, &A, &B, &C, alpha, beta);
 
   llvm::BasicBlock *ret_block = gemm_op->InsertIntoFunction(f);
 
@@ -118,17 +119,17 @@ TEST(OpTest_Verify, gemm) {
 
   llvm::Function::arg_iterator iter = f->arg_begin();
 
-  Hobbit::ast::Tensor A ("A", {N, K}, ctx);
+  Hobbit::ast::Tensor A("A", {N, K}, ctx);
   llvm::Argument *arg_A = &(*iter);
   A.SetType(float_ty);
   A.SetValue(arg_A);
 
-  Hobbit::ast::Tensor B ("B", {K, M}, ctx);
+  Hobbit::ast::Tensor B("B", {K, M}, ctx);
   llvm::Argument *arg_B = &(*++iter);
   B.SetType(float_ty);
   B.SetValue(arg_B);
 
-  Hobbit::ast::Tensor C ("C", {N, M}, ctx);
+  Hobbit::ast::Tensor C("C", {N, M}, ctx);
   llvm::Argument *arg_C = &(*++iter);
   C.SetType(float_ty);
   C.SetValue(arg_C);
@@ -136,7 +137,8 @@ TEST(OpTest_Verify, gemm) {
   llvm::Value *alpha = llvm::ConstantFP::get(float_ty, 1.0);
   llvm::Value *beta = llvm::ConstantFP::get(float_ty, 0.0);
 
-  Hobbit::ops::Operator *gemm_op = new Hobbit::gemm(N, M, K, &A, &B, &C, alpha, beta);
+  Hobbit::ops::Operator *gemm_op =
+      new Hobbit::gemm(N, M, K, &A, &B, &C, alpha, beta);
 
   llvm::BasicBlock *ret_block = gemm_op->InsertIntoFunction(f);
 

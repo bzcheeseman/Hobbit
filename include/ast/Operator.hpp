@@ -32,7 +32,7 @@
 namespace Hobbit {
 
 namespace ops {
-  class Operator;
+class Operator;
 }
 
 namespace ast {
