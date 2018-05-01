@@ -28,7 +28,7 @@
 
 // STL
 #include <string>
-
+#include <utility>
 // LLVM
 #include <glog/logging.h>
 #include <llvm/ADT/ArrayRef.h>
@@ -41,7 +41,8 @@ class Type;
 } // namespace llvm
 
 namespace Hobbit {
-namespace internal {
+namespace ast {
+
 class Shape {
 public:
   Shape(llvm::LLVMContext &ctx, llvm::ArrayRef<uint64_t> dims);
@@ -55,6 +56,8 @@ public:
 
   // Gets a dimension of a tensor
   uint64_t Dim(uint64_t which) const;
+
+  llvm::Type *DimType() const;
 
   // Gets a dimension of a tensor
   llvm::Value *Dim(llvm::Value *which) const;
@@ -78,9 +81,45 @@ private:
   bool m_has_llvm_;
   llvm::SmallVector<llvm::Value *, 4> m_v_dims_;
 };
-} // namespace internal
 
-namespace ast {
+class Tensor;
+
+class TensorChip {
+public:
+  TensorChip(Tensor &t, llvm::ArrayRef<uint64_t> start_idx, Shape shape)
+      : m_parent_tensor_(t), m_start_idx_(start_idx.begin(), start_idx.end()),
+        m_shape_(std::move(shape)) {
+    CHECK_EQ(m_start_idx_.size(), m_shape_.NDim());
+  }
+
+  // Gets the number of dimensions for a tensor
+  uint64_t NDim() const;
+
+  // Gets a dimension of a tensor
+  uint64_t Dim(uint64_t which) const;
+
+  // Gets a dimension of a tensor
+  llvm::Value *Dim(llvm::Value *which) const;
+
+  uint64_t Size() const;
+
+  // Gets the overall size of a tensor
+  llvm::Value *Size(llvm::BasicBlock *BB) const;
+
+  uint64_t At(llvm::ArrayRef<uint64_t> idx) const;
+
+  llvm::Value *At(llvm::ArrayRef<llvm::Value *> idx,
+                  llvm::BasicBlock *BB) const;
+
+  // BB can be nullptr, in which case the output is just a shape with llvm not
+  // initialized. Returns a reference to itself, now flattened.
+  TensorChip &Flatten(llvm::BasicBlock *BB);
+
+private:
+  llvm::SmallVector<uint64_t, 4> m_start_idx_;
+  Shape m_shape_;
+  Tensor &m_parent_tensor_;
+};
 
 class Tensor : public Node { // constant or variable
 public:
@@ -99,7 +138,9 @@ public:
 
   void InitLLVM(llvm::LLVMContext &ctx) { m_shape_.InitLLVM(ctx); }
 
-  const internal::Shape &Shape() { return m_shape_; }
+  const Shape &GetShape() { return m_shape_; }
+
+  void Reshape(const Shape &shape) { m_shape_ = shape; }
 
   llvm::Type *Type() {
     CHECK_NOTNULL(m_type_);
@@ -121,13 +162,27 @@ public:
     m_data_ = val;
   }
 
+  TensorChip Chip(llvm::ArrayRef<uint64_t> start_idx,
+                  llvm::ArrayRef<uint64_t> dims) {
+    return TensorChip(*this, start_idx, Shape(dims));
+  }
+
+  TensorChip Chip(llvm::ArrayRef<uint64_t> start_idx, Shape shape) {
+    return TensorChip(*this, start_idx, std::move(shape));
+  }
+
+  TensorChip Chip(llvm::ArrayRef<uint64_t> start_idx,
+                  llvm::ArrayRef<llvm::Value *> dims) {
+    return TensorChip(*this, start_idx, Shape(dims));
+  }
+
   // TODO: codegen
 
 private:
   std::string m_name_;
   llvm::Type *m_type_;
-  llvm::Value *m_data_ = nullptr;
-  internal::Shape m_shape_; // can be nothing until we're ready to init
+  llvm::Value *m_data_ = nullptr; // can be nothing until we're ready to init
+  Shape m_shape_;
 };
 
 } // namespace ast

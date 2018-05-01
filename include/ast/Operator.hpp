@@ -50,6 +50,8 @@ public:
     return node->GetNodeType() == OperatorID;
   }
 
+  // TODO: codegen
+
 protected:
   Operator(std::string name, ops::Operator *op)
       : m_name_(std::move(name)), m_op_(std::move(op)) {}

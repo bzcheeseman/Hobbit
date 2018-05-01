@@ -27,7 +27,7 @@
 #include <glog/logging.h>
 #include <ast/DataStorage.hpp>
 
-#include "LoopCG.hpp"
+#include "utils/LoopCG.hpp"
 #include "ops/Operator.hpp"
 
 using namespace llvm;
@@ -46,18 +46,18 @@ public:
     CHECK_EQ(alpha_->getType(), A_->Type());
     CHECK_EQ(beta_->getType(), A_->Type());
 
-    CHECK_EQ(A_->Shape().NDim(), 2);
-    CHECK_EQ(B_->Shape().NDim(), 2);
-    CHECK_EQ(C_->Shape().NDim(), 2);
+    CHECK_EQ(A_->GetShape().NDim(), 2);
+    CHECK_EQ(B_->GetShape().NDim(), 2);
+    CHECK_EQ(C_->GetShape().NDim(), 2);
 
-    CHECK_EQ(A_->Shape().Dim((uint64_t)0), N_);
-    CHECK_EQ(A_->Shape().Dim(1), K_);
+    CHECK_EQ(A_->GetShape().Dim((uint64_t)0), N_);
+    CHECK_EQ(A_->GetShape().Dim(1), K_);
 
-    CHECK_EQ(B_->Shape().Dim((uint64_t)0), K_);
-    CHECK_EQ(B_->Shape().Dim(1), M_);
+    CHECK_EQ(B_->GetShape().Dim((uint64_t)0), K_);
+    CHECK_EQ(B_->GetShape().Dim(1), M_);
 
-    CHECK_EQ(C_->Shape().Dim((uint64_t)0), N_);
-    CHECK_EQ(C_->Shape().Dim(1), M_);
+    CHECK_EQ(C_->GetShape().Dim((uint64_t)0), N_);
+    CHECK_EQ(C_->GetShape().Dim(1), M_);
   }
 
   OperatorType GetOperatorType() const override { return gemmID; }
@@ -104,7 +104,7 @@ public:
 
     builder.SetInsertPoint(loopinfo_M.body_bb);
     Value *C_idx =
-        C_->Shape().At({loopinfo_N.ind_var, loopinfo_M.ind_var}, loopinfo_M.body_bb);
+        C_->GetShape().At({loopinfo_N.ind_var, loopinfo_M.ind_var}, loopinfo_M.body_bb);
     Value *C_gep = builder.CreateInBoundsGEP(C_->Value(), C_idx);
 
     Value *C_elt = builder.CreateAlignedLoad(C_gep, 32);
@@ -122,8 +122,8 @@ public:
     BasicBlock *body_bb = loopinfo_K.body_bb;
     builder.SetInsertPoint(body_bb);
 
-    Value *A_idx = A_->Shape().At({loopinfo_N.ind_var, loopinfo_K.ind_var}, body_bb);
-    Value *B_idx = B_->Shape().At({loopinfo_K.ind_var, loopinfo_M.ind_var}, body_bb);
+    Value *A_idx = A_->GetShape().At({loopinfo_N.ind_var, loopinfo_K.ind_var}, body_bb);
+    Value *B_idx = B_->GetShape().At({loopinfo_K.ind_var, loopinfo_M.ind_var}, body_bb);
 
     Value *A_elt = builder.CreateAlignedLoad(
         builder.CreateInBoundsGEP(A_->Value(), A_idx), 32);

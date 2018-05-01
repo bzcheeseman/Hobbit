@@ -7,7 +7,7 @@ target_link_libraries(HobbitRegistryUtils PRIVATE ${llvm_libs})
 function(add_operator name)
     add_library(HobbitOp${name} SHARED ${name}.cpp)
     target_include_directories(HobbitOp${name}
-            PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/utils ${CMAKE_CURRENT_SOURCE_DIR}/include
+            PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
             )
     target_link_libraries(HobbitOp${name} PUBLIC Hobbit HobbitRegistryUtils ${llvm_libs} Polly PollyISL)
 

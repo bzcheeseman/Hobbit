@@ -22,9 +22,10 @@ add_custom_target(check COMMAND ${CMAKE_CTEST_COMMAND} -V)
 
 llvm_map_components_to_libnames(llvm_libs all)
 
-file(GLOB INCLUDE ${CMAKE_CURRENT_SOURCE_DIR}/include/**/*.h*)
+file(GLOB AST ${CMAKE_CURRENT_SOURCE_DIR}/include/ast/*.hpp)
+file(GLOB OPS ${CMAKE_CURRENT_SOURCE_DIR}/include/ops/*.hpp)
 file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.c*)
-add_library(Hobbit SHARED ${INCLUDE} ${SOURCES})
+add_library(Hobbit SHARED ${AST} ${OPS} ${SOURCES})
 target_link_libraries(Hobbit PUBLIC c++ ${llvm_libs} glog::glog)
 target_include_directories(Hobbit PUBLIC ${LLVM_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
