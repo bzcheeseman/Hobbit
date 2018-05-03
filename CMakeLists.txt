@@ -32,4 +32,6 @@ target_include_directories(Hobbit PUBLIC ${LLVM_INCLUDE_DIRS} ${CMAKE_CURRENT_SO
 add_subdirectory(registry)
 add_subdirectory(KernelFusion)
 
+add_gtest(DataStorage Hobbit)
+
 include(AddClangFormat)

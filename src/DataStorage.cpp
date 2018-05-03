@@ -51,8 +51,7 @@ Hobbit::ast::Shape::Shape(llvm::ArrayRef<llvm::Value *> dims)
   llvm::ConstantInt *d;
   for (auto &dim : dims) {
     d = llvm::dyn_cast<llvm::ConstantInt>(dim);
-    CHECK_NOTNULL(d);
-    m_dims_.push_back(d->getZExtValue());
+    if (d != nullptr) m_dims_.push_back(d->getZExtValue());
   }
 }
 
@@ -64,7 +63,7 @@ void Hobbit::ast::Shape::InitLLVM(llvm::LLVMContext &ctx) {
   m_has_llvm_ = true;
 }
 
-uint64_t Hobbit::ast::Shape::NDim() const { return m_dims_.size(); }
+uint64_t Hobbit::ast::Shape::NDim() const { return m_has_llvm_ ? m_v_dims_.size() : m_dims_.size(); }
 
 uint64_t Hobbit::ast::Shape::Dim(uint64_t which) const {
   CHECK_LT(which, m_dims_.size());
