@@ -42,24 +42,23 @@
 #include <llvm/Transforms/IPO/PassManagerBuilder.h>
 #include <random>
 
-#include <ast/Node.hpp>
-#include <ast/DataStorage.hpp>
+#include <graph/Node.hpp>
+#include <graph/DataStorage.hpp>
 #include <ops/Operator.hpp>
-#include <ast/Operator.hpp>
 
 namespace {
   using namespace Hobbit;
 
 TEST(Basic, CreateGraph) {
-  llvm::SmallVector<uint64_t, 4> tensor_dims = {64, 3, 224, 224};
+//  llvm::SmallVector<uint64_t, 4> tensor_dims = {64, 3, 224, 224};
 
-  ast::Tensor argA ("argA", tensor_dims);
-  ast::Tensor argB ("argB", tensor_dims);
+  ast::Variable argA ("argA");
+  ast::Variable argB ("argB");
 
-  ops::NoOp noop;
+  ast::Operation op("basic", {&argA, &argB});
+  ast::Operation op2("basic2", {&op, &argA});
 
-  ast::Operator *astnoop = ast::Operator::Create("NoOp", &noop, {&argA, &argB});
-  llvm::errs() << *astnoop;
+  op2.Print(llvm::errs());
 }
 
 //TEST(Basic, CreateLLVMFunction) {
@@ -85,7 +84,7 @@ TEST(Basic, CreateGraph) {
 //  Hobbit::Tensor *lhs =
 //      func->GetNewArg("lhs", {n_elts}, llvm::Type::getFloatPtrTy(ctx));
 //
-//  Hobbit::ast::Node *hsum = Hobbit::HSum::Create("hsum", func, 0, 153);
+//  Hobbit::graph::Node *hsum = Hobbit::HSum::Create("hsum", func, 0, 153);
 //
 //  func->PushNode(hsum);
 //  Hobbit::Tensor *out = llvm::dyn_cast<Hobbit::HSum>(hsum)->SetArgs({lhs});

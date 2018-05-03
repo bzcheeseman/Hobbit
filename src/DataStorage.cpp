@@ -21,7 +21,7 @@
  */
 
 // Project
-#include <ast/DataStorage.hpp>
+#include <graph/DataStorage.hpp>
 
 // STL
 #include <numeric>
@@ -135,54 +135,4 @@ Hobbit::ast::Shape Hobbit::ast::Shape::Flatten(llvm::BasicBlock *BB) const {
   CHECK_NOTNULL(BB);
   llvm::ArrayRef<llvm::Value *> flattened_dims = {this->Size(BB)};
   return Hobbit::ast::Shape(flattened_dims);
-}
-
-uint64_t Hobbit::ast::TensorChip::NDim() const {
-  return m_shape_.NDim();
-}
-
-uint64_t Hobbit::ast::TensorChip::Dim(uint64_t which) const {
-  return m_shape_.Dim(which);
-}
-
-llvm::Value *Hobbit::ast::TensorChip::Dim(llvm::Value *which) const {
-  return m_shape_.Dim(which);
-}
-
-uint64_t Hobbit::ast::TensorChip::Size() const {
-  return m_shape_.Size();
-}
-
-llvm::Value *Hobbit::ast::TensorChip::Size(llvm::BasicBlock *BB) const {
-  return m_shape_.Size(BB);
-}
-
-uint64_t Hobbit::ast::TensorChip::At(llvm::ArrayRef<uint64_t> idx) const {
-  CHECK_EQ(idx.size(), m_start_idx_.size());
-  uint64_t idx_size = idx.size();
-  llvm::SmallVector<uint64_t, 4> incremented_idx;
-  for (uint64_t i = 0; i < idx_size; ++i) {
-    // Have to find the index at the offset idx
-    incremented_idx.push_back(m_start_idx_[i] + idx[i]);
-  }
-  return m_shape_.At(incremented_idx);
-}
-
-llvm::Value *Hobbit::ast::TensorChip::At(llvm::ArrayRef<llvm::Value *> idx, llvm::BasicBlock *BB) const {
-  CHECK_EQ(idx.size(), m_start_idx_.size());
-  uint64_t idx_size = idx.size();
-  llvm::SmallVector<llvm::Value *, 4> incremented_idx;
-  for (uint64_t i = 0; i < idx_size; ++i) {
-    // Have to find the index at the offset idx
-    llvm::Value *start_value = llvm::ConstantInt::get(m_shape_.DimType(), m_start_idx_[i]);
-    llvm::Value *summed_idx = llvm::BinaryOperator::CreateAdd(start_value, idx[i], "", BB);
-    incremented_idx.push_back(summed_idx);
-  }
-  return m_shape_.At(incremented_idx, BB);
-}
-
-Hobbit::ast::TensorChip &Hobbit::ast::TensorChip::Flatten(llvm::BasicBlock *BB) {
-  Shape new_shape = m_shape_.Flatten(BB);
-  m_shape_ = new_shape;
-  return *this;
 }

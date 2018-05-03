@@ -23,9 +23,6 @@
 #ifndef HOBBIT_DATASTORAGE_HPP
 #define HOBBIT_DATASTORAGE_HPP
 
-// Project
-#include <ast/Node.hpp>
-
 // glog
 #include <glog/logging.h>
 // STL
@@ -84,68 +81,13 @@ private:
   llvm::SmallVector<llvm::Value *, 4> m_v_dims_;
 };
 
-class Tensor;
-
-class TensorChip {
-public:
-  TensorChip(Tensor &t, llvm::ArrayRef<uint64_t> start_idx, Shape shape)
-      : m_parent_tensor_(t), m_start_idx_(start_idx.begin(), start_idx.end()),
-        m_shape_(std::move(shape)) {
-    CHECK_EQ(m_start_idx_.size(), m_shape_.NDim());
-  }
-
-  // Gets the number of dimensions for a tensor
-  uint64_t NDim() const;
-
-  // Gets a dimension of a tensor
-  uint64_t Dim(uint64_t which) const;
-
-  // Gets a dimension of a tensor
-  llvm::Value *Dim(llvm::Value *which) const;
-
-  uint64_t Size() const;
-
-  // Gets the overall size of a tensor
-  llvm::Value *Size(llvm::BasicBlock *BB) const;
-
-  uint64_t At(llvm::ArrayRef<uint64_t> idx) const;
-
-  llvm::Value *At(llvm::ArrayRef<llvm::Value *> idx,
-                  llvm::BasicBlock *BB) const;
-
-  // BB can be nullptr, in which case the output is just a shape with llvm not
-  // initialized. Returns a reference to itself, now flattened.
-  TensorChip &Flatten(llvm::BasicBlock *BB);
-
-private:
-  llvm::SmallVector<uint64_t, 4> m_start_idx_;
-  Shape m_shape_;
-  Tensor &m_parent_tensor_;
-};
-
-class Tensor : public Node { // constant or variable
+class Tensor {
 public:
   Tensor(std::string name, llvm::ArrayRef<uint64_t> dims)
       : m_name_(std::move(name)), m_shape_(dims) {}
   Tensor(std::string name, llvm::ArrayRef<uint64_t> dims,
          llvm::LLVMContext &ctx)
       : m_name_(std::move(name)), m_shape_(ctx, dims) {}
-
-  const std::string &GetName() const override { return m_name_; }
-  NodeType GetNodeType() const override { return VariableID; };
-
-  friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const Tensor &t) {
-    os << t.m_name_ << ": Shape = {";
-    for (uint64_t i = 0; i < t.m_shape_.NDim(); i++) {
-      os << t.m_shape_.Dim(i) << ", ";
-    }
-    os << "}\n";
-    return os;
-  }
-
-  static inline bool classof(const Node *node) {
-    return node->GetNodeType() == VariableID;
-  }
 
   void InitLLVM(llvm::LLVMContext &ctx) { m_shape_.InitLLVM(ctx); }
 
@@ -173,20 +115,6 @@ public:
     m_data_ = val;
   }
 
-  TensorChip Chip(llvm::ArrayRef<uint64_t> start_idx,
-                  llvm::ArrayRef<uint64_t> dims) {
-    return TensorChip(*this, start_idx, Shape(dims));
-  }
-
-  TensorChip Chip(llvm::ArrayRef<uint64_t> start_idx, Shape shape) {
-    return TensorChip(*this, start_idx, std::move(shape));
-  }
-
-  TensorChip Chip(llvm::ArrayRef<uint64_t> start_idx,
-                  llvm::ArrayRef<llvm::Value *> dims) {
-    return TensorChip(*this, start_idx, Shape(dims));
-  }
-
   // TODO: codegen
 
 private:
@@ -196,7 +124,7 @@ private:
   Shape m_shape_;
 };
 
-} // namespace ast
+} // namespace graph
 } // namespace Hobbit
 
 #endif // HOBBIT_DATASTORAGE_HPP
