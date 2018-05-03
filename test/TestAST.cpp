@@ -42,52 +42,62 @@
 #include <llvm/Transforms/IPO/PassManagerBuilder.h>
 #include <random>
 
-#include "Node.hpp"
-#include "Visitor.hpp"
+#include <ast/Node.hpp>
+#include <ast/DataStorage.hpp>
+#include <ops/Operator.hpp>
+#include <ast/Operator.hpp>
 
 namespace {
+  using namespace Hobbit;
 
-TEST(Basic, CreateLLVMFunction) {
-  llvm::LLVMContext ctx;
+TEST(Basic, CreateGraph) {
+  llvm::SmallVector<uint64_t, 4> tensor_dims = {64, 3, 224, 224};
 
-  Hobbit::Visitor *cgvisitor = Hobbit::Visitor::Create(&ctx, "test_module");
+  ast::Tensor argA ("argA", tensor_dims);
+  ast::Tensor argB ("argB", tensor_dims);
 
-  Hobbit::Function *func = Hobbit::Function::Create("TestFunction");
+  ops::NoOp noop;
 
-  const int n_elts = 153;
-
-  std::random_device rd;
-  std::mt19937 gen(rd());
-  std::uniform_real_distribution<float> dis(0.0, 1.0);
-
-  std::vector<float> f1,
-      f2; // why are there a bunch of zeros in the middle...
-  for (int i = 0; i < n_elts; i++) {
-    f1.push_back(dis(gen));
-    f2.push_back(dis(gen));
-  }
-
-  Hobbit::Tensor *lhs =
-      func->GetNewArg("lhs", {n_elts}, llvm::Type::getFloatPtrTy(ctx));
-
-  Hobbit::ast::Node *hsum = Hobbit::HSum::Create("hsum", func, 0, 153);
-
-  func->PushNode(hsum);
-  Hobbit::Tensor *out = llvm::dyn_cast<Hobbit::HSum>(hsum)->SetArgs({lhs});
-  func->SetArg(out);
-
-  func->Emit(cgvisitor);
-
-  cgvisitor->FinalizeFunction(func);
-  cgvisitor->GetModule()->print(llvm::outs(), nullptr);
-  cgvisitor->Finalize(3, llvm::sys::getDefaultTargetTriple(), "corei7-avx",
-                      "+avx,+sse,+x87,+cx16");
-  cgvisitor->GetModule()->print(llvm::outs(), nullptr);
+  ast::Operator *astnoop = ast::Operator::Create("NoOp", &noop, {&argA, &argB});
+  llvm::errs() << *astnoop;
 }
+
+//TEST(Basic, CreateLLVMFunction) {
+//  llvm::LLVMContext ctx;
+//
+//  Hobbit::Visitor *cgvisitor = Hobbit::Visitor::Create(&ctx, "test_module");
+//
+//  Hobbit::Function *func = Hobbit::Function::Create("TestFunction");
+//
+//  const int n_elts = 153;
+//
+//  std::random_device rd;
+//  std::mt19937 gen(rd());
+//  std::uniform_real_distribution<float> dis(0.0, 1.0);
+//
+//  std::vector<float> f1,
+//      f2; // why are there a bunch of zeros in the middle...
+//  for (int i = 0; i < n_elts; i++) {
+//    f1.push_back(dis(gen));
+//    f2.push_back(dis(gen));
+//  }
+//
+//  Hobbit::Tensor *lhs =
+//      func->GetNewArg("lhs", {n_elts}, llvm::Type::getFloatPtrTy(ctx));
+//
+//  Hobbit::ast::Node *hsum = Hobbit::HSum::Create("hsum", func, 0, 153);
+//
+//  func->PushNode(hsum);
+//  Hobbit::Tensor *out = llvm::dyn_cast<Hobbit::HSum>(hsum)->SetArgs({lhs});
+//  func->SetArg(out);
+//
+//  func->Emit(cgvisitor);
+//
+//  cgvisitor->FinalizeFunction(func);
+//  cgvisitor->GetModule()->print(llvm::outs(), nullptr);
+//  cgvisitor->Finalize(3, llvm::sys::getDefaultTargetTriple(), "corei7-avx",
+//                      "+avx,+sse,+x87,+cx16");
+//  cgvisitor->GetModule()->print(llvm::outs(), nullptr);
+//}
+
 } // namespace
-
-int main(int argc, char *argv[]) {
-  ::testing::InitGoogleTest(&argc, argv);
-  google::InitGoogleLogging(argv[0]);
-  return RUN_ALL_TESTS();
-}

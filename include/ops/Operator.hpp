@@ -39,6 +39,19 @@ public:
 
   virtual llvm::BasicBlock *InsertIntoFunction(llvm::Function *) = 0;
 };
+
+class NoOp : public Operator {
+public:
+  OperatorType GetOperatorType() const override { return noopID; }
+
+  static inline bool classof(const Operator *op) {
+    return op->GetOperatorType() == noopID;
+  }
+
+  virtual llvm::BasicBlock *InsertIntoFunction(llvm::Function *f) {
+    return &*--f->end();
+  }
+};
 } // namespace ops
 } // namespace Hobbit
 

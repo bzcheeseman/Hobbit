@@ -26,6 +26,10 @@
 #include <string>
 #include <vector>
 
+namespace llvm {
+class raw_ostream;
+}
+
 namespace Hobbit {
 class Visitor;
 
@@ -40,17 +44,7 @@ public:
   virtual const std::string &GetName() const = 0;
   virtual NodeType GetNodeType() const = 0;
 
-  //  virtual llvm::BasicBlock *InsertIntoFunction(llvm::Function *) = 0;
-
-  virtual const std::vector<Node *> &Consumers() { return mb_consumers_; }
-  virtual const std::vector<Node *> &Producers() { return mb_producers_; }
-
-  virtual std::vector<Node *> &MutableConsumers() { return mb_consumers_; }
-  virtual std::vector<Node *> &MutableProducers() { return mb_producers_; }
-
-protected:
-  std::vector<Node *> mb_consumers_; // these use this node
-  std::vector<Node *> mb_producers_; // this node uses these
+  //  virtual void Visit(Visitor &v) = 0;
 };
 
 } // namespace ast

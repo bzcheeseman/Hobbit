@@ -26,12 +26,14 @@
 // Project
 #include <ast/Node.hpp>
 
+// glog
+#include <glog/logging.h>
 // STL
 #include <string>
 #include <utility>
 // LLVM
-#include <glog/logging.h>
 #include <llvm/ADT/ArrayRef.h>
+#include <llvm/Support/raw_ostream.h>
 
 namespace llvm {
 class LLVMContext;
@@ -131,6 +133,15 @@ public:
 
   const std::string &GetName() const override { return m_name_; }
   NodeType GetNodeType() const override { return VariableID; };
+
+  friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os, const Tensor &t) {
+    os << t.m_name_ << ": Shape = {";
+    for (uint64_t i = 0; i < t.m_shape_.NDim(); i++) {
+      os << t.m_shape_.Dim(i) << ", ";
+    }
+    os << "}\n";
+    return os;
+  }
 
   static inline bool classof(const Node *node) {
     return node->GetNodeType() == VariableID;

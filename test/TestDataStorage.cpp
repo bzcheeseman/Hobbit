@@ -30,7 +30,7 @@
 
 #include "TestHelper.hpp"
 
-namespace {
+namespace { // Maybe wait until we use the tensors a little bit to test them...
   TEST(Shape, CreateShapeNoCtx) {
     llvm::SmallVector<uint64_t, 3> dims = {32, 44, 0}; // should be able to handle a zero dimension
     for (int i = 0; i < 15; i++) {

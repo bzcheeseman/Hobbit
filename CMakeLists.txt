@@ -33,5 +33,6 @@ add_subdirectory(registry)
 add_subdirectory(KernelFusion)
 
 add_gtest(DataStorage Hobbit)
+add_gtest(AST Hobbit)
 
 include(AddClangFormat)
