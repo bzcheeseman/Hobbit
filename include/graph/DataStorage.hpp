@@ -40,7 +40,7 @@ class Type;
 } // namespace llvm
 
 namespace Hobbit {
-namespace ast {
+namespace graph {
 
 class Shape {
 public:

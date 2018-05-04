@@ -37,9 +37,10 @@ class raw_ostream;
 }
 
 namespace Hobbit {
-class Visitor;
-
-namespace ast {
+namespace codegen {
+  class Visitor;
+}
+namespace graph {
 
 class Node {
 public:
@@ -50,24 +51,34 @@ public:
   explicit Node(const std::string &name) : m_name_(name) {}
 
   const std::string &GetName() const { return m_name_; }
+  virtual NodeType GetNodeType() const = 0;
 
-//  virtual void Visit(Visitor &v) = 0;
+//  virtual void Accept(Visitor &v) = 0;
+
   virtual void Print(llvm::raw_ostream &os) const = 0;
 
 protected:
   std::string m_name_;
 };
 
-class Variable : public Node { // visitor adds this as a function argument
-public:
-  explicit Variable(const std::string &name)
-          : Node(name), m_shape_(nullptr), m_val_(nullptr) {}
-  Variable(const std::string &name, Shape *shape)
-          : Node(name), m_shape_(std::move(shape)), m_val_(nullptr) {}
-  Variable(const std::string &name, std::unique_ptr<Shape> shape)
-          : Node(name), m_shape_(std::move(shape)), m_val_(nullptr) {}
+class Operation;
 
-  void Print(llvm::raw_ostream &os) const {
+class Variable : public Node { // TODO: only create through Module
+public:
+  Variable(const std::string &name, llvm::Type *type=nullptr, Node *creator=nullptr)
+          : Node(name), m_shape_(nullptr), m_val_(nullptr), m_type_(type), m_creator_(creator) {}
+  Variable(const std::string &name, Shape *shape, llvm::Type *type=nullptr, Node *creator=nullptr)
+          : Node(name), m_shape_(std::move(shape)), m_val_(nullptr), m_type_(type), m_creator_(creator) {}
+  Variable(const std::string &name, std::unique_ptr<Shape> shape, llvm::Type *type=nullptr, Node *creator=nullptr)
+          : Node(name), m_shape_(std::move(shape)), m_val_(nullptr), m_type_(type), m_creator_(creator) {}
+
+  // LLVM-style RTTI
+  NodeType GetNodeType() const override { return VariableID; }
+  static inline bool classof(const Node *node) {
+    return node->GetNodeType() == VariableID;
+  }
+
+  void Print(llvm::raw_ostream &os) const override {
     os << "Variable: " << m_name_;
     if (m_shape_ != nullptr) {
       os << " Shape: {";
@@ -79,18 +90,31 @@ public:
     os << "\n";
   }
 
-  const llvm::Value *GetVal() const { return m_val_; }
+  llvm::Value *GetVal() const { return m_val_; }
   void SetVal(llvm::Value *val) { CHECK_NOTNULL(val); m_val_ = val; }
+
+  llvm::Type *GetType() const { return m_type_; }
+  void SetType(llvm::Type *type) { CHECK_NOTNULL(type); m_type_ = type; }
+
+  Node *Creator() { return m_creator_; }
 
 private:
   std::unique_ptr<Shape> m_shape_; // Variable owns its shape
+  llvm::Type *m_type_;
   llvm::Value *m_val_;
+  Node *m_creator_;
 };
 
-class Operation : public Node { // visitor checks input/output sizes? Or just adds it to the graph?
+class Operation : public Node { // How do I use another Operation as an input?
 public:
   Operation(const std::string &name, llvm::ArrayRef<Node *> inputs)
       : Node(name), m_inputs_(inputs.begin(), inputs.end()), m_op_(nullptr) {}
+
+  // LLVM-style RTTI
+  NodeType GetNodeType() const override { return OperatorID; }
+  static inline bool classof(const Node *node) {
+    return node->GetNodeType() == OperatorID;
+  }
 
   void Print(llvm::raw_ostream &os) const override {
     os << "Operator: " << m_name_ << " - Inputs:\n";
@@ -101,6 +125,8 @@ public:
 
   const ops::Operator *GetOp() const { return m_op_; }
   void SetOp(ops::Operator *op) { CHECK_NOTNULL(op); m_op_ = std::move(op); }
+
+  llvm::ArrayRef<Node *> Inputs() { return m_inputs_; }
 
 private:
   llvm::SmallVector<Node *, 5> m_inputs_;

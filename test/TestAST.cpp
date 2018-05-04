@@ -45,6 +45,7 @@
 #include <graph/Node.hpp>
 #include <graph/DataStorage.hpp>
 #include <ops/Operator.hpp>
+#include <codegen/Visitor.hpp>
 
 namespace {
   using namespace Hobbit;
@@ -52,13 +53,15 @@ namespace {
 TEST(Basic, CreateGraph) {
 //  llvm::SmallVector<uint64_t, 4> tensor_dims = {64, 3, 224, 224};
 
-  ast::Variable argA ("argA");
-  ast::Variable argB ("argB");
+  graph::Variable argA ("argA");
+  graph::Variable argB ("argB");
 
-  ast::Operation op("basic", {&argA, &argB});
-  ast::Operation op2("basic2", {&op, &argA});
+  graph::Operation op("basic", {&argA, &argB});
+  graph::Operation op2("basic2", {&op, &argA});
 
-  op2.Print(llvm::errs());
+  codegen::Visitor visitor;
+  visitor.BuildTree(&op2);
+  llvm::errs() << visitor;
 }
 
 //TEST(Basic, CreateLLVMFunction) {

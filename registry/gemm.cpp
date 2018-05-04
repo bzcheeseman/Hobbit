@@ -25,7 +25,7 @@
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/LLVMContext.h>
 #include <glog/logging.h>
-#include <ast/DataStorage.hpp>
+#include <graph/DataStorage.hpp>
 
 #include "utils/LoopCG.hpp"
 #include "ops/Operator.hpp"
@@ -37,8 +37,8 @@ using namespace llvm;
 namespace Hobbit {
 class gemm : public ops::Operator {
 public:
-  gemm(uint64_t N, uint64_t M, uint64_t K, ast::Tensor *A, ast::Tensor *B,
-       ast::Tensor *C, Value *alpha, Value *beta)
+  gemm(uint64_t N, uint64_t M, uint64_t K, graph::Tensor *A, graph::Tensor *B,
+       graph::Tensor *C, Value *alpha, Value *beta)
       : N_(N), M_(M), K_(K), A_(A), B_(B), C_(C), alpha_(alpha), beta_(beta) {
     CHECK_EQ(A_->Type(), B_->Type());
     CHECK_EQ(A_->Type(), C_->Type());
@@ -64,6 +64,14 @@ public:
 
   static inline bool classof(const Operator *op) {
     return op->GetOperatorType() == gemmID;
+  }
+
+  llvm::Type *GetOutputType() const override {
+    return A_->Type();
+  }
+
+  llvm::ArrayRef<uint64_t> GetOutputShape() const override {
+    return {N_, M_};
   }
 
   llvm::BasicBlock *InsertIntoFunction(Function *func) override {
@@ -148,7 +156,7 @@ public:
 
 private:
   uint64_t N_, M_, K_;
-  ast::Tensor *A_, *B_, *C_;
+  graph::Tensor *A_, *B_, *C_;
   Value *alpha_, *beta_;
 };
 } // namespace Hobbit

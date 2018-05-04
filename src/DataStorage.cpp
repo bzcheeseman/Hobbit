@@ -33,7 +33,7 @@
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/InstrTypes.h>
 
-Hobbit::ast::Shape::Shape(llvm::LLVMContext &ctx,
+Hobbit::graph::Shape::Shape(llvm::LLVMContext &ctx,
                                llvm::ArrayRef<uint64_t> dims)
     : m_dims_(dims.begin(), dims.end()) {
   for (auto &dim : dims) {
@@ -43,10 +43,10 @@ Hobbit::ast::Shape::Shape(llvm::LLVMContext &ctx,
   m_has_llvm_ = true;
 }
 
-Hobbit::ast::Shape::Shape(llvm::ArrayRef<uint64_t> dims)
+Hobbit::graph::Shape::Shape(llvm::ArrayRef<uint64_t> dims)
     : m_dims_(dims.begin(), dims.end()), m_has_llvm_(false) {}
 
-Hobbit::ast::Shape::Shape(llvm::ArrayRef<llvm::Value *> dims)
+Hobbit::graph::Shape::Shape(llvm::ArrayRef<llvm::Value *> dims)
     : m_v_dims_(dims.begin(), dims.end()), m_has_llvm_(true) {
   llvm::ConstantInt *d;
   for (auto &dim : dims) {
@@ -55,7 +55,7 @@ Hobbit::ast::Shape::Shape(llvm::ArrayRef<llvm::Value *> dims)
   }
 }
 
-void Hobbit::ast::Shape::InitLLVM(llvm::LLVMContext &ctx) {
+void Hobbit::graph::Shape::InitLLVM(llvm::LLVMContext &ctx) {
   for (auto &dim : m_dims_) {
     m_v_dims_.push_back(
         llvm::ConstantInt::get(llvm::Type::getInt64Ty(ctx), dim, false));
@@ -63,19 +63,19 @@ void Hobbit::ast::Shape::InitLLVM(llvm::LLVMContext &ctx) {
   m_has_llvm_ = true;
 }
 
-uint64_t Hobbit::ast::Shape::NDim() const { return m_has_llvm_ ? m_v_dims_.size() : m_dims_.size(); }
+uint64_t Hobbit::graph::Shape::NDim() const { return m_has_llvm_ ? m_v_dims_.size() : m_dims_.size(); }
 
-uint64_t Hobbit::ast::Shape::Dim(uint64_t which) const {
+uint64_t Hobbit::graph::Shape::Dim(uint64_t which) const {
   CHECK_LT(which, m_dims_.size());
   return m_dims_[which];
 }
 
-llvm::Type *Hobbit::ast::Shape::DimType() const {
+llvm::Type *Hobbit::graph::Shape::DimType() const {
   CHECK(m_has_llvm_) << "LLVM Value dims not initialized";
   return m_v_dims_[0]->getType();
 }
 
-llvm::Value *Hobbit::ast::Shape::Dim(llvm::Value *which) const {
+llvm::Value *Hobbit::graph::Shape::Dim(llvm::Value *which) const {
   CHECK(m_has_llvm_) << "LLVM Value dims not initialized";
 
   llvm::ConstantInt *which_dim = llvm::dyn_cast<llvm::ConstantInt>(which);
@@ -85,12 +85,12 @@ llvm::Value *Hobbit::ast::Shape::Dim(llvm::Value *which) const {
   return m_v_dims_[which_dim->getZExtValue()];
 }
 
-uint64_t Hobbit::ast::Shape::Size() const {
+uint64_t Hobbit::graph::Shape::Size() const {
   return std::accumulate(m_dims_.begin(), m_dims_.end(), (uint64_t)1,
                          std::multiplies<uint64_t>());
 }
 
-llvm::Value *Hobbit::ast::Shape::Size(llvm::BasicBlock *BB) const {
+llvm::Value *Hobbit::graph::Shape::Size(llvm::BasicBlock *BB) const {
   CHECK(m_has_llvm_) << "LLVM Value dims not initialized";
   llvm::Value *out = llvm::ConstantInt::get(m_v_dims_[0]->getType(), 1);
   for (auto &dim : m_v_dims_) {
@@ -99,7 +99,7 @@ llvm::Value *Hobbit::ast::Shape::Size(llvm::BasicBlock *BB) const {
   return out;
 }
 
-uint64_t Hobbit::ast::Shape::At(llvm::ArrayRef<uint64_t> idx) const {
+uint64_t Hobbit::graph::Shape::At(llvm::ArrayRef<uint64_t> idx) const {
   CHECK_EQ(idx.size(), m_dims_.size());
 
   uint64_t out = 0;
@@ -112,7 +112,7 @@ uint64_t Hobbit::ast::Shape::At(llvm::ArrayRef<uint64_t> idx) const {
   return out;
 }
 
-llvm::Value *Hobbit::ast::Shape::At(llvm::ArrayRef<llvm::Value *> idx,
+llvm::Value *Hobbit::graph::Shape::At(llvm::ArrayRef<llvm::Value *> idx,
                                          llvm::BasicBlock *BB) const {
   CHECK(m_has_llvm_) << "LLVM Value dims not initialized";
   CHECK_EQ(idx.size(), m_dims_.size());
@@ -127,12 +127,12 @@ llvm::Value *Hobbit::ast::Shape::At(llvm::ArrayRef<llvm::Value *> idx,
   return out;
 }
 
-Hobbit::ast::Shape Hobbit::ast::Shape::Flatten(llvm::BasicBlock *BB) const {
+Hobbit::graph::Shape Hobbit::graph::Shape::Flatten(llvm::BasicBlock *BB) const {
   if (!m_has_llvm_ || BB == nullptr) {
     llvm::ArrayRef<uint64_t> flattened_dims = {this->Size()};
-    return Hobbit::ast::Shape(flattened_dims);
+    return Hobbit::graph::Shape(flattened_dims);
   }
   CHECK_NOTNULL(BB);
   llvm::ArrayRef<llvm::Value *> flattened_dims = {this->Size(BB)};
-  return Hobbit::ast::Shape(flattened_dims);
+  return Hobbit::graph::Shape(flattened_dims);
 }
