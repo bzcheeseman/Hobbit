@@ -22,25 +22,9 @@
 
 #include <codegen/Visitor.hpp>
 
-void Hobbit::codegen::Visitor::BuildTree(Hobbit::graph::Node *root) { // last node
-
-  if (root == nullptr) {
-    return;
-  }
-
-  graph::Variable *node_var;
-  if ((node_var = llvm::dyn_cast<graph::Variable>(root))) {
-    m_args_.insert(node_var);
-    BuildTree(node_var->Creator());
-  }
-
-  graph::Operation *node_op;
-  if ((node_op = llvm::dyn_cast<graph::Operation>(root))) {
-    m_ops_.insert(m_ops_.begin(), node_op);
-    for (auto &input : node_op->Inputs()) {
-      BuildTree(input);
-    }
-  }
+void Hobbit::codegen::Visitor::BuildTree(Hobbit::graph::Node *root) {
+  BuildTree_(root);
+  SortTree_();
 }
 
 Hobbit::codegen::Function Hobbit::codegen::Visitor::GetWrapperFunction(const std::string &name, unsigned int addrspace) {
@@ -54,6 +38,31 @@ Hobbit::codegen::Function Hobbit::codegen::Visitor::GetWrapperFunction(const std
   Function f = {name, arg_types};
 
   return f;
+}
+
+void Hobbit::codegen::Visitor::BuildTree_(Hobbit::graph::Node *root) {
+
+  if (root == nullptr) {
+    return;
+  }
+
+  graph::Variable *node_var;
+  if ((node_var = llvm::dyn_cast<graph::Variable>(root))) {
+    m_args_.insert(node_var);
+    BuildTree_(node_var->Creator());
+  }
+
+  graph::Operation *node_op;
+  if ((node_op = llvm::dyn_cast<graph::Operation>(root))) {
+    m_ops_.push_back(node_op);
+    for (auto &input : node_op->Inputs()) {
+      BuildTree_(input);
+    }
+  }
+}
+
+void Hobbit::codegen::Visitor::SortTree_() {
+  m_ops_.sort(OperationRHSDependsOnLHS);
 }
 
 llvm::raw_ostream &Hobbit::codegen::operator<<(llvm::raw_ostream &os, Hobbit::codegen::Visitor &v) {

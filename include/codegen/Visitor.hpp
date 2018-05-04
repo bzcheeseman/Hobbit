@@ -27,6 +27,7 @@
 #include <graph/Node.hpp>
 #include <llvm/Support/Casting.h>
 #include <set>
+#include <list>
 #include "Module.hpp"
 
 namespace Hobbit {
@@ -39,19 +40,16 @@ namespace graph {
 
 namespace codegen {
 
-struct OperationRHSDependsOnLHS {
-  bool operator()(graph::Operation *lhs, graph::Operation *rhs) const { // am I not traversing the whole tree?
-    if (lhs == rhs) return false;
+bool OperationRHSDependsOnLHS(graph::Operation *lhs, graph::Operation *rhs) {
+  if (lhs == rhs) return false;
 
-    for (auto &input : rhs->Inputs()) {
-      llvm::errs() << input->GetName() << ", " << lhs->GetName() << "\n";
-      // if the lhs is in the rhs' inputs, then it's 'less than'...two basic2 and something else are comparing as equal
-      if (input == lhs) return true;
-    }
-
-    return false;
+  bool depends = false;
+  for (auto &input : rhs->Inputs()) { // if LHS is in the inputs for RHS then RHS depends on LHS
+    depends |= (input == lhs);
   }
-};
+
+  return depends;
+}
 
 class Visitor {
 public:
@@ -62,7 +60,11 @@ public:
   friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os, Visitor &v);
 
 private:
-  std::set<graph::Operation *, OperationRHSDependsOnLHS> m_ops_; // ops can only depend on ops that come before them
+  void BuildTree_(graph::Node *root);
+  void SortTree_();
+
+private:
+  std::list<graph::Operation *> m_ops_; // ops can only depend on ops that come before them
   std::set<graph::Variable *> m_args_;
 };
 
