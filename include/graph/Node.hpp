@@ -107,8 +107,8 @@ private:
 
 class Operation : public Node { // How do I use another Operation as an input?
 public:
-  Operation(const std::string &name, llvm::ArrayRef<Node *> inputs)
-      : Node(name), m_inputs_(inputs.begin(), inputs.end()), m_op_(nullptr) {}
+  Operation(const std::string &name, llvm::ArrayRef<Node *> inputs, ops::Operator *op=nullptr)
+      : Node(name), m_inputs_(inputs.begin(), inputs.end()), m_op_(op) {}
 
   // LLVM-style RTTI
   NodeType GetNodeType() const override { return OperatorID; }

@@ -23,10 +23,13 @@
 #ifndef HOBBIT_OPERATOR_HPP
 #define HOBBIT_OPERATOR_HPP
 
+#include <llvm/IR/Function.h>
+
 namespace llvm {
 class Function;
 class BasicBlock;
 class Type;
+class LLVMContext;
 }
 
 namespace Hobbit {
@@ -43,18 +46,27 @@ public:
   virtual llvm::ArrayRef<uint64_t> GetOutputShape() const = 0;
 };
 
-//class NoOp : public Operator {
-//public:
-//  OperatorType GetOperatorType() const override { return noopID; }
-//
-//  static inline bool classof(const Operator *op) {
-//    return op->GetOperatorType() == noopID;
-//  }
-//
-//  virtual llvm::BasicBlock *InsertIntoFunction(llvm::Function *f) override {
-//    return &*--f->end();
-//  }
-//};
+class MockOperator : public Operator {
+public:
+  MockOperator(llvm::LLVMContext &ctx) : m_ctx_(ctx) {}
+
+  OperatorType GetOperatorType() const override { return mockID; }
+  static inline bool classof(const Operator *op) {
+    return op->GetOperatorType() == mockID;
+  }
+  llvm::BasicBlock *InsertIntoFunction(llvm::Function *f) override {
+    return &*(--f->end());
+  }
+  llvm::Type *GetOutputType() const override {
+    return llvm::Type::getFloatTy(m_ctx_);
+  }
+  llvm::ArrayRef<uint64_t> GetOutputShape() const override {
+    return {0};
+  }
+
+private:
+  llvm::LLVMContext &m_ctx_;
+};
 } // namespace ops
 } // namespace Hobbit
 

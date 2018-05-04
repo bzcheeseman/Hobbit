@@ -22,7 +22,7 @@
 
 #include <gtest/gtest.h>
 
-#include <ast/DataStorage.hpp>
+#include <graph/DataStorage.hpp>
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/IR/Constants.h>
 #include <llvm/Support/raw_ostream.h>
@@ -34,7 +34,7 @@ namespace { // Maybe wait until we use the tensors a little bit to test them...
   TEST(Shape, CreateShapeNoCtx) {
     llvm::SmallVector<uint64_t, 3> dims = {32, 44, 0}; // should be able to handle a zero dimension
     for (int i = 0; i < 15; i++) {
-      EXPECT_NO_THROW(Hobbit::ast::Shape shape(dims));
+      EXPECT_NO_THROW(Hobbit::graph::Shape shape(dims));
       ++dims[2];
     }
   }
@@ -43,14 +43,14 @@ namespace { // Maybe wait until we use the tensors a little bit to test them...
     llvm::SmallVector<uint64_t, 3> dims = {32, 44, 2348};
     llvm::SmallVector<uint64_t, 3> idx = {3, 5, 1234};
     uint64_t correct_idx = ((idx[0] * dims[1]) + idx[1]) * dims[2] + idx[2];
-    Hobbit::ast::Shape shape(dims);
+    Hobbit::graph::Shape shape(dims);
     EXPECT_EQ(shape.At(idx), correct_idx);
   }
 
   TEST(Shape, FlattenNoCtx) {
     llvm::SmallVector<uint64_t, 3> dims = {32, 44, 2348};
-    Hobbit::ast::Shape shape(dims);
-    Hobbit::ast::Shape flat = shape.Flatten(nullptr);
+    Hobbit::graph::Shape shape(dims);
+    Hobbit::graph::Shape flat = shape.Flatten(nullptr);
     EXPECT_EQ(flat.NDim(), 1);
     EXPECT_EQ(shape.Size(), flat.Dim((uint64_t)0));
   }
@@ -59,7 +59,7 @@ namespace { // Maybe wait until we use the tensors a little bit to test them...
     llvm::SmallVector<uint64_t, 3> dims = {32, 44, 0}; // should be able to handle a zero dimension
     llvm::LLVMContext ctx;
     for (int i = 0; i < 15; i++) {
-      EXPECT_NO_THROW(Hobbit::ast::Shape shape(ctx, dims));
+      EXPECT_NO_THROW(Hobbit::graph::Shape shape(ctx, dims));
       ++dims[2];
     }
   }
@@ -84,7 +84,7 @@ namespace { // Maybe wait until we use the tensors a little bit to test them...
     EXPECT_TRUE(func != nullptr);
     llvm::BasicBlock *BB = llvm::BasicBlock::Create(ctx, "AtBB", func);
 
-    Hobbit::ast::Shape shape(ctx, dims);
+    Hobbit::graph::Shape shape(ctx, dims);
     EXPECT_EQ(shape.At(idx), correct_idx);
     llvm::Value *at_val = shape.At(idx_v, BB);
 
@@ -110,7 +110,7 @@ namespace { // Maybe wait until we use the tensors a little bit to test them...
   TEST(Shape, FlattenCtx) {
     llvm::LLVMContext ctx;
     llvm::SmallVector<uint64_t, 3> dims = {32, 44, 2348};
-    Hobbit::ast::Shape shape(ctx, dims);
+    Hobbit::graph::Shape shape(ctx, dims);
 
     llvm::Type *uint64_type = llvm::Type::getInt64Ty(ctx);
 
@@ -121,7 +121,7 @@ namespace { // Maybe wait until we use the tensors a little bit to test them...
     EXPECT_TRUE(func != nullptr);
     llvm::BasicBlock *BB = llvm::BasicBlock::Create(ctx, "flatBB", func);
 
-    Hobbit::ast::Shape flat = shape.Flatten(BB);
+    Hobbit::graph::Shape flat = shape.Flatten(BB);
 
     llvm::IRBuilder<> builder(BB);
     builder.CreateRet(flat.Dim(zero));

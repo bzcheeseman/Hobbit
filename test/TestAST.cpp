@@ -53,15 +53,22 @@ namespace {
 TEST(Basic, CreateGraph) {
 //  llvm::SmallVector<uint64_t, 4> tensor_dims = {64, 3, 224, 224};
 
-  graph::Variable argA ("argA");
-  graph::Variable argB ("argB");
+  codegen::Module module("TestModule");
 
-  graph::Operation op("basic", {&argA, &argB});
-  graph::Operation op2("basic2", {&op, &argA});
+  graph::Variable argA ("argA", llvm::Type::getFloatTy(module.GetContext()));
+  graph::Variable argB ("argB", llvm::Type::getFloatTy(module.GetContext()));
+
+  ops::MockOperator mock_op (module.GetContext());
+
+  graph::Operation op("basic", {&argA, &argB}, &mock_op);
+  graph::Operation op2("basic2", {&op, &argA}, &mock_op);
 
   codegen::Visitor visitor;
   visitor.BuildTree(&op2);
   llvm::errs() << visitor;
+  codegen::Function fp = visitor.GetWrapperFunction("test");
+  module.InsertFunction(fp);
+  module.Print(llvm::errs());
 }
 
 //TEST(Basic, CreateLLVMFunction) {

@@ -44,7 +44,7 @@ class Visitor {
 public:
 
   void BuildTree(graph::Node *root);
-  Function GetWrapperFunction(const std::string &name);
+  Function GetWrapperFunction(const std::string &name, unsigned int addrspace=0);
 
   friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os, Visitor &v);
 

@@ -43,17 +43,17 @@ struct Function {
 class Module {
 public:
   Module(const std::string &name) : m_ctx_(), m_module_(llvm::make_unique<llvm::Module>(name, m_ctx_)) {}
-  virtual ~Module() {
-    for (auto &func : m_func_table_) {
-      delete func.first;
-    }
-  }
 
   llvm::LLVMContext &GetContext() { return m_ctx_; }
 
   void InsertFunction(Function &f) {
-    llvm::Value *func = m_module_->getOrInsertFunction(f.name, llvm::Type::getVoidTy(m_ctx_), f.arg_types);
+    llvm::FunctionType *ft = llvm::FunctionType::get(llvm::Type::getVoidTy(m_ctx_), f.arg_types, false);
+    llvm::Value *func = m_module_->getOrInsertFunction(f.name, ft);
     m_func_table_[&f] = llvm::cast<llvm::Function>(func);
+  }
+
+  void Print(llvm::raw_ostream &os) {
+    m_module_->print(os, nullptr);
   }
 
 private:

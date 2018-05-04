@@ -22,7 +22,7 @@
 
 #include <gtest/gtest.h>
 
-#include <ast/DataStorage.hpp>
+#include <graph/DataStorage.hpp>
 #include <llvm/ExecutionEngine/ExecutionEngine.h>
 #include <llvm/ExecutionEngine/MCJIT.h>
 #include <llvm/IR/Constants.h>
@@ -65,17 +65,17 @@ TEST(OpTest_Create, gemm) {
 
   llvm::Function::arg_iterator iter = f->arg_begin();
 
-  Hobbit::ast::Tensor A("A", {N, K}, ctx);
+  Hobbit::graph::Tensor A("A", {N, K}, ctx);
   llvm::Argument *arg_A = &(*iter);
   A.SetType(float_ty);
   A.SetValue(arg_A);
 
-  Hobbit::ast::Tensor B("B", {K, M}, ctx);
+  Hobbit::graph::Tensor B("B", {K, M}, ctx);
   llvm::Argument *arg_B = &(*++iter);
   B.SetType(float_ty);
   B.SetValue(arg_B);
 
-  Hobbit::ast::Tensor C("C", {N, M}, ctx);
+  Hobbit::graph::Tensor C("C", {N, M}, ctx);
   llvm::Argument *arg_C = &(*++iter);
   C.SetType(float_ty);
   C.SetValue(arg_C);
@@ -119,17 +119,17 @@ TEST(OpTest_Verify, gemm) {
 
   llvm::Function::arg_iterator iter = f->arg_begin();
 
-  Hobbit::ast::Tensor A("A", {N, K}, ctx);
+  Hobbit::graph::Tensor A("A", {N, K}, ctx);
   llvm::Argument *arg_A = &(*iter);
   A.SetType(float_ty);
   A.SetValue(arg_A);
 
-  Hobbit::ast::Tensor B("B", {K, M}, ctx);
+  Hobbit::graph::Tensor B("B", {K, M}, ctx);
   llvm::Argument *arg_B = &(*++iter);
   B.SetType(float_ty);
   B.SetValue(arg_B);
 
-  Hobbit::ast::Tensor C("C", {N, M}, ctx);
+  Hobbit::graph::Tensor C("C", {N, M}, ctx);
   llvm::Argument *arg_C = &(*++iter);
   C.SetType(float_ty);
   C.SetValue(arg_C);
