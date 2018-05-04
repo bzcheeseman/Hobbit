@@ -40,6 +40,8 @@ struct Function {
   llvm::ArrayRef<llvm::Type *> arg_types;
 };
 
+// typeid wraps llvm::Type
+
 class Module {
 public:
   Module(const std::string &name) : m_ctx_(), m_module_(llvm::make_unique<llvm::Module>(name, m_ctx_)) {}
@@ -50,6 +52,11 @@ public:
     llvm::FunctionType *ft = llvm::FunctionType::get(llvm::Type::getVoidTy(m_ctx_), f.arg_types, false);
     llvm::Value *func = m_module_->getOrInsertFunction(f.name, ft);
     m_func_table_[&f] = llvm::cast<llvm::Function>(func);
+  }
+
+  graph::Variable GetVariable(const std::string &name, llvm::ArrayRef<uint64_t> dims) {
+    std::unique_ptr<graph::Shape> shape = llvm::make_unique<graph::Shape>(m_ctx_, dims);
+    return graph::Variable(name, std::move(shape));
   }
 
   void Print(llvm::raw_ostream &os) {
