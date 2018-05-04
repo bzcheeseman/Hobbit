@@ -44,6 +44,8 @@ struct OperationRHSDependsOnLHS {
     if (lhs == rhs) return false;
 
     for (auto &input : rhs->Inputs()) {
+      llvm::errs() << input->GetName() << ", " << lhs->GetName() << "\n";
+      // if the lhs is in the rhs' inputs, then it's 'less than'...two basic2 and something else are comparing as equal
       if (input == lhs) return true;
     }
 
