@@ -49,7 +49,7 @@ public:
   friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os, Visitor &v);
 
 private:
-  std::list<graph::Operation *> m_ops_; // first op in list has no dependencies except inputs
+  std::list<graph::Operation *> m_ops_; // ops can only depend on ops that come before them
   std::set<graph::Variable *> m_args_;
 };
 
