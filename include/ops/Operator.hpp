@@ -46,6 +46,11 @@ public:
   virtual llvm::ArrayRef<uint64_t> GetOutputShape() const = 0;
 };
 
+template<class OP, class... Args>
+OP CreateOperator(Args... args) {
+  return OP(std::forward<Args...>(args...));
+}
+
 class MockOperator : public Operator {
 public:
   MockOperator(llvm::LLVMContext &ctx) : m_ctx_(ctx) {}

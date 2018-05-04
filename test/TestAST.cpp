@@ -58,7 +58,7 @@ TEST(Basic, CreateGraph) {
   graph::Variable argA = module.GetVariable("argA", {32, 1, 28, 28}, FLOAT32);
   graph::Variable argB = module.GetVariable("argB", {32, 1, 28, 28}, FLOAT32);
 
-  ops::MockOperator mock_op (module.GetContext());
+  auto mock_op = ops::CreateOperator<ops::MockOperator, llvm::LLVMContext&>(module.GetContext());
 
   graph::Operation op = module.GetOperation("basic", {&argA, &argB}, &mock_op);
   graph::Operation op2 = module.GetOperation("basic2", {&op, &argB}, &mock_op);

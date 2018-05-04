@@ -17,3 +17,4 @@ function(add_operator name)
 endfunction()
 
 add_operator(gemm)
+add_operator(eltwise_add)

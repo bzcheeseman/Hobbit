@@ -40,6 +40,16 @@ namespace graph {
 
 namespace codegen {
 
+struct OperationRHSDependsOnLHS {
+  bool operator()(graph::Operation *lhs, graph::Operation *rhs) {
+    bool depends = false;
+    for (auto &input : rhs->Inputs()) {
+      depends |= (input == lhs);
+    }
+    return depends;
+  }
+};
+
 class Visitor {
 public:
 
@@ -49,7 +59,7 @@ public:
   friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os, Visitor &v);
 
 private:
-  op_list m_ops_; // ops can only depend on ops that come before them
+  std::set<graph::Operation *, OperationRHSDependsOnLHS> m_ops_; // ops can only depend on ops that come before them
   std::set<graph::Variable *> m_args_;
 };
 

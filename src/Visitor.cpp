@@ -36,7 +36,7 @@ void Hobbit::codegen::Visitor::BuildTree(Hobbit::graph::Node *root) { // last no
 
   graph::Operation *node_op;
   if ((node_op = llvm::dyn_cast<graph::Operation>(root))) {
-    m_ops_.push_front(node_op);
+    m_ops_.insert(node_op);
     for (auto &input : node_op->Inputs()) {
       BuildTree(input);
     }
@@ -57,7 +57,6 @@ Hobbit::codegen::Function Hobbit::codegen::Visitor::GetWrapperFunction(const std
 }
 
 llvm::raw_ostream &Hobbit::codegen::operator<<(llvm::raw_ostream &os, Hobbit::codegen::Visitor &v) {
-
   for (auto &node : v.m_ops_) {
     os << "Operation: " << node->GetName() << "\n";
     os << "\tOpArgs:\n";

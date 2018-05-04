@@ -28,6 +28,8 @@
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/Support/raw_ostream.h>
 
+#include <glog/logging.h>
+
 #include <ops/Operator.hpp>
 
 #include "Shape.hpp"
@@ -95,6 +97,8 @@ public:
   void SetType(llvm::Type *type) { CHECK_NOTNULL(type); m_type_ = type; }
 
   Node *Creator() { return m_creator_; }
+
+  Shape &GetShape() const { return *m_shape_; }
 
 private:
   std::unique_ptr<Shape> m_shape_; // Variable owns its shape

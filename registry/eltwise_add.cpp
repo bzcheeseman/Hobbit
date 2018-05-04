@@ -25,25 +25,26 @@
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/LLVMContext.h>
 #include <glog/logging.h>
-#include <ast/DataStorage.hpp>
+#include <graph/DataStorage.hpp>
 
 #include "utils/LoopCG.hpp"
 #include "ops/Operator.hpp"
 
 using namespace llvm;
 
-// TODO: Make this so that we don't have to #include a .cpp
-
 namespace Hobbit {
   class eltwise_add : public ops::Operator {
   public:
-    eltwise_add(ast::Tensor *A, ast::Tensor *B) : A_(A), B_(B) {
+    eltwise_add(graph::Tensor *A, graph::Tensor *B, graph::Tensor *C) : A_(A), B_(B), C_(C) {
       CHECK_EQ(A_->Type(), B_->Type());
+      CHECK_EQ(A_->Type(), C_->Type());
 
       CHECK_EQ(A_->GetShape().NDim(), B_->GetShape().NDim());
+      CHECK_EQ(A_->GetShape().NDim(), C_->GetShape().NDim());
 
       // Doesn't actually check if the dimensions are the same
       CHECK_EQ(A_->GetShape().Size(), B_->GetShape().Size());
+      CHECK_EQ(A_->GetShape().Size(), C_->GetShape().Size());
     }
 
     OperatorType GetOperatorType() const override { return eltwiseAddID; }
@@ -64,14 +65,14 @@ namespace Hobbit {
       BasicBlock *posttail =
               BasicBlock::Create(ctx, "hobbit.eltwise_add.posttail", func);
 
-      BasicBlock *gemm_prehead_pred;
+      BasicBlock *prehead_pred;
       IRBuilder<> builder(ctx);
-      if ((gemm_prehead_pred = gemm_prehead->getSinglePredecessor())) {
-        builder.SetInsertPoint(gemm_prehead_pred);
-        builder.CreateBr(gemm_prehead);
+      if ((prehead_pred = prehead->getSinglePredecessor())) {
+        builder.SetInsertPoint(prehead_pred);
+        builder.CreateBr(prehead);
       }
 
-      builder.SetInsertPoint(gemm_prehead);
+      builder.SetInsertPoint(prehead);
       Value *zero, *one, *size;
       zero = builder.getInt64(0);
       one = builder.getInt64(1);
@@ -81,31 +82,33 @@ namespace Hobbit {
               "hobbit.eltwise_add.i", prehead, posttail, zero, size, one, false);
       util::AddLoopMetadata(loopinfo_i.cond, loopMD);
 
-//      Value *A_idx = A_->GetShape().At({loopinfo_N.ind_var, loopinfo_K.ind_var}, body_bb);
-//      Value *B_idx = B_->GetShape().At({loopinfo_K.ind_var, loopinfo_M.ind_var}, body_bb);
+      const graph::Shape a_shape = A_->GetShape();
+      graph::Shape flat = a_shape.Flatten(prehead);
 
-//      Value *A_elt = builder.CreateAlignedLoad(
-//              builder.CreateInBoundsGEP(A_->Value(), A_idx), 32);
-//      Value *B_elt = builder.CreateAlignedLoad(
-//              builder.CreateInBoundsGEP(B_->Value(), B_idx), 32);
+      Value *idx = flat.At({loopinfo_i.ind_var}, loopinfo_i.body_bb);
 
-//      if (A_->Type()->isFloatingPointTy()) {
-//        Value *tmp = builder.CreateFAdd(builder.CreateFMul(A_elt, B_elt), alpha_);
-//        C_elt = builder.CreateFAdd(C_elt, tmp);
-//      }
-//
-//      if (A_->Type()->isIntegerTy()) {
-//        Value *tmp = builder.CreateMul(builder.CreateMul(A_elt, B_elt), alpha_);
-//        C_elt = builder.CreateAdd(C_elt, tmp);
-//      }
+      Value *C_gep = builder.CreateInBoundsGEP(C_->Value(), idx);
 
-//      builder.CreateAlignedStore(C_elt, C_gep, 32);
-//      builder.CreateBr(loopinfo_K.tail_bb);
-//
+      Value *A_elt = builder.CreateAlignedLoad(
+              builder.CreateInBoundsGEP(A_->Value(), idx), 32);
+      Value *B_elt = builder.CreateAlignedLoad(
+              builder.CreateInBoundsGEP(B_->Value(), idx), 32);
+
+      Value *C_elt;
+      if (A_->Type()->isFloatingPointTy()) {
+        C_elt = builder.CreateFAdd(A_elt, B_elt);
+      }
+      if (A_->Type()->isIntegerTy()) {
+        C_elt = builder.CreateAdd(A_elt, B_elt);
+      }
+
+      builder.CreateAlignedStore(C_elt, C_gep, 32);
+      builder.CreateBr(posttail);
+
       return posttail;
     }
 
   private:
-    ast::Tensor *A_, *B_;
+    graph::Tensor *A_, *B_, *C_;
   };
 } // namespace Hobbit
