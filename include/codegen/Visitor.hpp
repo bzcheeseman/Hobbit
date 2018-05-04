@@ -49,7 +49,7 @@ public:
   friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os, Visitor &v);
 
 private:
-  std::list<graph::Operation *> m_ops_; // ops can only depend on ops that come before them
+  op_list m_ops_; // ops can only depend on ops that come before them
   std::set<graph::Variable *> m_args_;
 };
 

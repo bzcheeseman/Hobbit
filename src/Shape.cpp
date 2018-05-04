@@ -21,7 +21,7 @@
  */
 
 // Project
-#include <graph/DataStorage.hpp>
+#include <graph/Shape.hpp>
 
 // STL
 #include <numeric>
@@ -56,6 +56,8 @@ Hobbit::graph::Shape::Shape(llvm::ArrayRef<llvm::Value *> dims)
 }
 
 void Hobbit::graph::Shape::InitLLVM(llvm::LLVMContext &ctx) {
+  if (m_has_llvm_) return; // early exit if already called or not needed
+
   for (auto &dim : m_dims_) {
     m_v_dims_.push_back(
         llvm::ConstantInt::get(llvm::Type::getInt64Ty(ctx), dim, false));

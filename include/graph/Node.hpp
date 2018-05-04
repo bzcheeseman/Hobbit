@@ -30,7 +30,7 @@
 
 #include <ops/Operator.hpp>
 
-#include "DataStorage.hpp"
+#include "Shape.hpp"
 
 namespace llvm {
 class raw_ostream;
@@ -53,8 +53,6 @@ public:
   const std::string &GetName() const { return m_name_; }
   virtual NodeType GetNodeType() const = 0;
 
-//  virtual void Accept(Visitor &v) = 0;
-
   virtual void Print(llvm::raw_ostream &os) const = 0;
 
 protected:
@@ -65,11 +63,11 @@ class Operation;
 
 class Variable : public Node { // TODO: only create through Module
 public:
-  Variable(const std::string &name, llvm::Type *type=nullptr, Node *creator=nullptr)
+  explicit Variable(const std::string &name, llvm::Type *type=nullptr, Node *creator=nullptr)
           : Node(name), m_shape_(nullptr), m_val_(nullptr), m_type_(type), m_creator_(creator) {}
   Variable(const std::string &name, Shape *shape, llvm::Type *type=nullptr, Node *creator=nullptr)
           : Node(name), m_shape_(std::move(shape)), m_val_(nullptr), m_type_(type), m_creator_(creator) {}
-  Variable(const std::string &name, std::unique_ptr<Shape> shape, llvm::Type *type=nullptr, Node *creator=nullptr)
+  Variable(const std::string &name, std::unique_ptr<Shape> &&shape, llvm::Type *type=nullptr, Node *creator=nullptr)
           : Node(name), m_shape_(std::move(shape)), m_val_(nullptr), m_type_(type), m_creator_(creator) {}
 
   // LLVM-style RTTI

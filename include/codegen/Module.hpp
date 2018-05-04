@@ -27,6 +27,10 @@
 #include <llvm/IR/Module.h>
 
 #include <set>
+#include <graph/Node.hpp>
+
+#include "Type.hpp"
+#include "Visitor.hpp"
 
 namespace Hobbit {
 namespace graph {
@@ -40,7 +44,7 @@ struct Function {
   llvm::ArrayRef<llvm::Type *> arg_types;
 };
 
-// typeid wraps llvm::Type
+// opid wraps the operator from the registry...how to register ops?
 
 class Module {
 public:
@@ -54,9 +58,13 @@ public:
     m_func_table_[&f] = llvm::cast<llvm::Function>(func);
   }
 
-  graph::Variable GetVariable(const std::string &name, llvm::ArrayRef<uint64_t> dims) {
+  graph::Variable GetVariable(const std::string &name, llvm::ArrayRef<uint64_t> dims, TypeID type) {
     std::unique_ptr<graph::Shape> shape = llvm::make_unique<graph::Shape>(m_ctx_, dims);
-    return graph::Variable(name, std::move(shape));
+    return graph::Variable(name, std::move(shape), GetType(type, m_ctx_));
+  }
+
+  graph::Operation GetOperation(const std::string &name, llvm::ArrayRef<graph::Node *> inputs, ops::Operator *op) {
+    return graph::Operation(name, inputs, op);
   }
 
   void Print(llvm::raw_ostream &os) {

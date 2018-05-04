@@ -23,6 +23,8 @@
 #ifndef HOBBIT_DATASTORAGE_HPP
 #define HOBBIT_DATASTORAGE_HPP
 
+// Project
+#include "Shape.hpp"
 // glog
 #include <glog/logging.h>
 // STL
@@ -42,52 +44,13 @@ class Type;
 namespace Hobbit {
 namespace graph {
 
-class Shape {
-public:
-  Shape(llvm::LLVMContext &ctx, llvm::ArrayRef<uint64_t> dims);
-  explicit Shape(llvm::ArrayRef<uint64_t> dims);
-  explicit Shape(llvm::ArrayRef<llvm::Value *> dims);
-
-  void InitLLVM(llvm::LLVMContext &ctx);
-
-  // Gets the number of dimensions for a tensor
-  uint64_t NDim() const;
-
-  // Gets a dimension of a tensor
-  uint64_t Dim(uint64_t which) const;
-
-  llvm::Type *DimType() const;
-
-  // Gets a dimension of a tensor
-  llvm::Value *Dim(llvm::Value *which) const;
-
-  uint64_t Size() const;
-
-  // Gets the overall size of a tensor
-  llvm::Value *Size(llvm::BasicBlock *BB) const;
-
-  uint64_t At(llvm::ArrayRef<uint64_t> idx) const;
-
-  llvm::Value *At(llvm::ArrayRef<llvm::Value *> idx,
-                  llvm::BasicBlock *BB) const;
-
-  // BB can be nullptr, in which case the output is just a shape with llvm not
-  // initialized
-  Shape Flatten(llvm::BasicBlock *BB) const;
-
-private:
-  llvm::SmallVector<uint64_t, 4> m_dims_;
-  bool m_has_llvm_;
-  llvm::SmallVector<llvm::Value *, 4> m_v_dims_;
-};
-
-class Tensor {
+class Tensor : public Node {
 public:
   Tensor(std::string name, llvm::ArrayRef<uint64_t> dims)
-      : m_name_(std::move(name)), m_shape_(dims) {}
+      : Node(name), m_name_(std::move(name)), m_shape_(dims) {}
   Tensor(std::string name, llvm::ArrayRef<uint64_t> dims,
          llvm::LLVMContext &ctx)
-      : m_name_(std::move(name)), m_shape_(ctx, dims) {}
+      : Node(name), m_name_(std::move(name)), m_shape_(ctx, dims) {}
 
   void InitLLVM(llvm::LLVMContext &ctx) { m_shape_.InitLLVM(ctx); }
 

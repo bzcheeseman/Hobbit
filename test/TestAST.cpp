@@ -55,16 +55,17 @@ TEST(Basic, CreateGraph) {
 
   codegen::Module module("TestModule");
 
-  graph::Variable argA ("argA", llvm::Type::getFloatTy(module.GetContext()));
-  graph::Variable argB ("argB", llvm::Type::getFloatTy(module.GetContext()));
+  graph::Variable argA = module.GetVariable("argA", {32, 1, 28, 28}, FLOAT32);
+  graph::Variable argB = module.GetVariable("argB", {32, 1, 28, 28}, FLOAT32);
 
   ops::MockOperator mock_op (module.GetContext());
 
-  graph::Operation op("basic", {&argA, &argB}, &mock_op);
-  graph::Operation op2("basic2", {&op, &argA}, &mock_op);
+  graph::Operation op = module.GetOperation("basic", {&argA, &argB}, &mock_op);
+  graph::Operation op2 = module.GetOperation("basic2", {&op, &argB}, &mock_op);
+  graph::Operation op3 = module.GetOperation("basic3", {&op, &op2, &argA}, &mock_op);
 
   codegen::Visitor visitor;
-  visitor.BuildTree(&op2);
+  visitor.BuildTree(&op3);
   llvm::errs() << visitor;
   codegen::Function fp = visitor.GetWrapperFunction("test");
   module.InsertFunction(fp);
