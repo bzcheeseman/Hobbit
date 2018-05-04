@@ -61,8 +61,9 @@ TEST(Basic, CreateGraph) {
   auto mock_op = ops::CreateOperator<ops::MockOperator, llvm::LLVMContext&>(module.GetContext());
 
   graph::Operation op = module.GetOperation("basic", {&argA, &argB}, &mock_op);
-  graph::Operation op2 = module.GetOperation("basic2", {&op, &argB}, &mock_op);
-  graph::Operation op3 = module.GetOperation("basic3", {&op, &op2, &argA}, &mock_op);
+  graph::Operation opp = module.GetOperation("basic_p", {&op}, &mock_op);
+  graph::Operation op2 = module.GetOperation("basic2", {&argB}, &mock_op);
+  graph::Operation op3 = module.GetOperation("basic3", {&opp, &op2, &argA}, &mock_op);
 
   codegen::Visitor visitor;
   visitor.BuildTree(&op3);

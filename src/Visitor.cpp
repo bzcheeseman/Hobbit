@@ -36,7 +36,7 @@ void Hobbit::codegen::Visitor::BuildTree(Hobbit::graph::Node *root) { // last no
 
   graph::Operation *node_op;
   if ((node_op = llvm::dyn_cast<graph::Operation>(root))) {
-    m_ops_.insert(node_op);
+    m_ops_.insert(m_ops_.begin(), node_op);
     for (auto &input : node_op->Inputs()) {
       BuildTree(input);
     }

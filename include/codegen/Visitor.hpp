@@ -27,7 +27,6 @@
 #include <graph/Node.hpp>
 #include <llvm/Support/Casting.h>
 #include <set>
-#include <list>
 #include "Module.hpp"
 
 namespace Hobbit {
@@ -41,12 +40,14 @@ namespace graph {
 namespace codegen {
 
 struct OperationRHSDependsOnLHS {
-  bool operator()(graph::Operation *lhs, graph::Operation *rhs) {
-    bool depends = false;
+  bool operator()(graph::Operation *lhs, graph::Operation *rhs) const { // am I not traversing the whole tree?
+    if (lhs == rhs) return false;
+
     for (auto &input : rhs->Inputs()) {
-      depends |= (input == lhs);
+      if (input == lhs) return true;
     }
-    return depends;
+
+    return false;
   }
 };
 
