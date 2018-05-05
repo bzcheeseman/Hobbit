@@ -10,9 +10,9 @@
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
     You may obtain a copy of the License at
-    
+
         http://www.apache.org/licenses/LICENSE-2.0
-    
+
     Unless required by applicable law or agreed to in writing, software
     distributed under the License is distributed on an "AS IS" BASIS,
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -20,34 +20,41 @@
     limitations under the License.
  */
 
-#include <codegen/Visitor.hpp>
 #include <codegen/Module.hpp>
+#include <codegen/Visitor.hpp>
 #include <graph/Node.hpp>
 
 #include <llvm/Support/Casting.h>
 #include <llvm/Support/raw_ostream.h>
 
 namespace {
-  using namespace Hobbit;
-  bool OperationRHSDependsOnLHS(graph::Operation *lhs, graph::Operation *rhs) {
-    if (lhs == rhs) return false;
+using namespace Hobbit;
+bool OperationRHSDependsOnLHS(graph::Operation *lhs, graph::Operation *rhs) {
+  if (lhs == rhs)
+    return false;
 
-    bool depends = false;
-    for (auto &input : rhs->Inputs()) { // if LHS is in the inputs for RHS then RHS depends on LHS
-      depends |= (input == lhs);
-    }
-
-    return depends;
+  bool depends = false;
+  for (auto &input : rhs->Inputs()) { // if LHS is in the inputs for RHS then
+                                      // RHS depends on LHS
+    depends |= (input == lhs);
   }
+
+  return depends;
 }
+} // namespace
 
 void Hobbit::codegen::Visitor::BuildTree(Hobbit::graph::Node *root) {
   BuildTree_(root);
   SortTree_();
 }
 
-Hobbit::codegen::Function Hobbit::codegen::Visitor::GetWrapperFunction(const std::string &name, unsigned int addrspace) {
-  llvm::Type *ret_type = (*--m_ops_.end())->GetOp()->GetOutputType(); //->getPointerTo(addrspace); // TODO: do I want double ptr?
+Hobbit::codegen::Function
+Hobbit::codegen::Visitor::GetWrapperFunction(const std::string &name,
+                                             unsigned int addrspace) {
+  llvm::Type *ret_type = (*--m_ops_.end())
+                             ->GetOp()
+                             ->GetOutputType(); //->getPointerTo(addrspace); //
+                                                //TODO: do I want double ptr?
   std::vector<llvm::Type *> arg_types;
   for (auto &arg : m_args_) {
     arg_types.push_back(arg->GetType()->getPointerTo(addrspace));
@@ -84,7 +91,21 @@ void Hobbit::codegen::Visitor::SortTree_() {
   m_ops_.sort(OperationRHSDependsOnLHS);
 }
 
-llvm::raw_ostream &Hobbit::codegen::operator<<(llvm::raw_ostream &os, Hobbit::codegen::Visitor &v) {
+llvm::raw_ostream &Hobbit::codegen::operator<<(llvm::raw_ostream &os,
+                                               Hobbit::codegen::Visitor &v) {
+  for (auto &node : v.m_ops_) {
+    os << "Operation: " << node->GetName() << "\n";
+    os << "\tOpArgs:\n";
+    for (auto &arg : node->Inputs()) {
+      os << "\t\t" << arg->GetName() << "\n";
+    }
+  }
+
+  return os;
+}
+
+std::ostream &Hobbit::codegen::operator<<(std::ostream &os,
+                                          Hobbit::codegen::Visitor &v) {
   for (auto &node : v.m_ops_) {
     os << "Operation: " << node->GetName() << "\n";
     os << "\tOpArgs:\n";

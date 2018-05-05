@@ -20,15 +20,15 @@
     limitations under the License.
  */
 
+#include <glog/logging.h>
+#include <graph/DataStorage.hpp>
 #include <llvm/IR/BasicBlock.h>
 #include <llvm/IR/Function.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/LLVMContext.h>
-#include <glog/logging.h>
-#include <graph/DataStorage.hpp>
 
-#include "utils/LoopCG.hpp"
 #include "ops/Operator.hpp"
+#include "utils/LoopCG.hpp"
 
 using namespace llvm;
 
@@ -66,13 +66,9 @@ public:
     return op->GetOperatorType() == gemmID;
   }
 
-  llvm::Type *GetOutputType() const override {
-    return A_->Type();
-  }
+  llvm::Type *GetOutputType() const override { return A_->Type(); }
 
-  llvm::ArrayRef<uint64_t> GetOutputShape() const override {
-    return {N_, M_};
-  }
+  llvm::ArrayRef<uint64_t> GetOutputShape() const override { return {N_, M_}; }
 
   llvm::BasicBlock *InsertIntoFunction(Function *func) override {
     util::LoopMD loopMD;
@@ -111,8 +107,8 @@ public:
     util::AddLoopMetadata(loopinfo_M.cond, loopMD);
 
     builder.SetInsertPoint(loopinfo_M.body_bb);
-    Value *C_idx =
-        C_->GetShape().At({loopinfo_N.ind_var, loopinfo_M.ind_var}, loopinfo_M.body_bb);
+    Value *C_idx = C_->GetShape().At({loopinfo_N.ind_var, loopinfo_M.ind_var},
+                                     loopinfo_M.body_bb);
     Value *C_gep = builder.CreateInBoundsGEP(C_->Value(), C_idx);
 
     Value *C_elt = builder.CreateAlignedLoad(C_gep, 32);
@@ -130,8 +126,10 @@ public:
     BasicBlock *body_bb = loopinfo_K.body_bb;
     builder.SetInsertPoint(body_bb);
 
-    Value *A_idx = A_->GetShape().At({loopinfo_N.ind_var, loopinfo_K.ind_var}, body_bb);
-    Value *B_idx = B_->GetShape().At({loopinfo_K.ind_var, loopinfo_M.ind_var}, body_bb);
+    Value *A_idx =
+        A_->GetShape().At({loopinfo_N.ind_var, loopinfo_K.ind_var}, body_bb);
+    Value *B_idx =
+        B_->GetShape().At({loopinfo_K.ind_var, loopinfo_M.ind_var}, body_bb);
 
     Value *A_elt = builder.CreateAlignedLoad(
         builder.CreateInBoundsGEP(A_->Value(), A_idx), 32);

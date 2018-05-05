@@ -42,39 +42,41 @@
 #include <llvm/Transforms/IPO/PassManagerBuilder.h>
 #include <random>
 
-#include <graph/Node.hpp>
-#include <graph/DataStorage.hpp>
-#include <ops/Operator.hpp>
-#include <codegen/Visitor.hpp>
 #include <codegen/Module.hpp>
+#include <codegen/Visitor.hpp>
+#include <graph/DataStorage.hpp>
+#include <graph/Node.hpp>
+#include <ops/Operator.hpp>
 
 namespace {
-  using namespace Hobbit;
+using namespace Hobbit;
 
 TEST(Basic, CreateGraph) {
-//  llvm::SmallVector<uint64_t, 4> tensor_dims = {64, 3, 224, 224};
+  //  llvm::SmallVector<uint64_t, 4> tensor_dims = {64, 3, 224, 224};
 
   codegen::Module module("TestModule");
 
   graph::Variable argA = module.GetVariable("argA", {32, 1, 28, 28}, FLOAT32);
   graph::Variable argB = module.GetVariable("argB", {32, 1, 28, 28}, FLOAT32);
 
-  auto mock_op = ops::CreateOperator<ops::MockOperator, llvm::LLVMContext&>(module.GetContext());
+  auto mock_op = ops::CreateOperator<ops::MockOperator, llvm::LLVMContext &>(
+      module.GetContext());
 
   graph::Operation op = module.GetOperation("basic", {&argA, &argB}, &mock_op);
   graph::Operation opp = module.GetOperation("basic_p", {&op}, &mock_op);
   graph::Operation op2 = module.GetOperation("basic2", {&argB}, &mock_op);
-  graph::Operation op3 = module.GetOperation("basic3", {&opp, &op2, &argA}, &mock_op);
+  graph::Operation op3 =
+      module.GetOperation("basic3", {&opp, &op2, &argA}, &mock_op);
 
   codegen::Visitor visitor;
   visitor.BuildTree(&op3);
-  llvm::errs() << visitor;
+  LOG(INFO) << visitor;
   codegen::Function fp = visitor.GetWrapperFunction("test");
   module.InsertFunction(fp);
   module.Print(llvm::errs());
 }
 
-//TEST(Basic, CreateLLVMFunction) {
+// TEST(Basic, CreateLLVMFunction) {
 //  llvm::LLVMContext ctx;
 //
 //  Hobbit::Visitor *cgvisitor = Hobbit::Visitor::Create(&ctx, "test_module");

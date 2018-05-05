@@ -34,7 +34,7 @@
 #include <llvm/IR/InstrTypes.h>
 
 Hobbit::graph::Shape::Shape(llvm::LLVMContext &ctx,
-                               llvm::ArrayRef<uint64_t> dims)
+                            llvm::ArrayRef<uint64_t> dims)
     : m_dims_(dims.begin(), dims.end()) {
   for (auto &dim : dims) {
     m_v_dims_.push_back(
@@ -51,12 +51,14 @@ Hobbit::graph::Shape::Shape(llvm::ArrayRef<llvm::Value *> dims)
   llvm::ConstantInt *d;
   for (auto &dim : dims) {
     d = llvm::dyn_cast<llvm::ConstantInt>(dim);
-    if (d != nullptr) m_dims_.push_back(d->getZExtValue());
+    if (d != nullptr)
+      m_dims_.push_back(d->getZExtValue());
   }
 }
 
 void Hobbit::graph::Shape::InitLLVM(llvm::LLVMContext &ctx) {
-  if (m_has_llvm_) return; // early exit if already called or not needed
+  if (m_has_llvm_)
+    return; // early exit if already called or not needed
 
   for (auto &dim : m_dims_) {
     m_v_dims_.push_back(
@@ -65,7 +67,9 @@ void Hobbit::graph::Shape::InitLLVM(llvm::LLVMContext &ctx) {
   m_has_llvm_ = true;
 }
 
-uint64_t Hobbit::graph::Shape::NDim() const { return m_has_llvm_ ? m_v_dims_.size() : m_dims_.size(); }
+uint64_t Hobbit::graph::Shape::NDim() const {
+  return m_has_llvm_ ? m_v_dims_.size() : m_dims_.size();
+}
 
 uint64_t Hobbit::graph::Shape::Dim(uint64_t which) const {
   CHECK_LT(which, m_dims_.size());
@@ -115,7 +119,7 @@ uint64_t Hobbit::graph::Shape::At(llvm::ArrayRef<uint64_t> idx) const {
 }
 
 llvm::Value *Hobbit::graph::Shape::At(llvm::ArrayRef<llvm::Value *> idx,
-                                         llvm::BasicBlock *BB) const {
+                                      llvm::BasicBlock *BB) const {
   CHECK(m_has_llvm_) << "LLVM Value dims not initialized";
   CHECK_EQ(idx.size(), m_dims_.size());
 

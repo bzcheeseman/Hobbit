@@ -1,9 +1,10 @@
 file(GLOB_RECURSE
         ALL_CXX_SOURCE_FILES
         include/**/*.[chi]pp include/**/*.[chi]
-        src/**/*.[chi]pp src/**/*.[chi]
+        src/*.[chi]pp src/*.[chi]
         registry/**/*.[chi]pp registry/**/*.[chi]
-        test/**/*.[chi]pp test/**/*.[chi]
+        registry/*.[chi]pp registry/*.[chi]
+        test/*.[chi]pp test/*.[chi]
         KernelFusion/**/*.[chi]pp KernelFusion/**/*.[chi]
         )
 

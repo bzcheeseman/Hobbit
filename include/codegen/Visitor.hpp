@@ -49,14 +49,14 @@ public:
                               unsigned int addrspace = 0);
 
   friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os, Visitor &v);
+  friend std::ostream &operator<<(std::ostream &os, Visitor &v);
 
 private:
   void BuildTree_(graph::Node *root);
   void SortTree_();
 
 private:
-  std::list<graph::Operation *>
-      m_ops_; // ops can only depend on ops that come before them
+  std::list<graph::Operation *> m_ops_;
   std::set<graph::Variable *> m_args_;
 };
 
