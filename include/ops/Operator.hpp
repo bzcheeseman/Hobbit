@@ -30,7 +30,7 @@ class Function;
 class BasicBlock;
 class Type;
 class LLVMContext;
-}
+} // namespace llvm
 
 namespace Hobbit {
 namespace ops {
@@ -46,8 +46,7 @@ public:
   virtual llvm::ArrayRef<uint64_t> GetOutputShape() const = 0;
 };
 
-template<class OP, class... Args>
-OP CreateOperator(Args... args) {
+template <class OP, class... Args> OP CreateOperator(Args... args) {
   return OP(std::forward<Args...>(args...));
 }
 
@@ -65,9 +64,7 @@ public:
   llvm::Type *GetOutputType() const override {
     return llvm::Type::getFloatTy(m_ctx_);
   }
-  llvm::ArrayRef<uint64_t> GetOutputShape() const override {
-    return {0};
-  }
+  llvm::ArrayRef<uint64_t> GetOutputShape() const override { return {0}; }
 
 private:
   llvm::LLVMContext &m_ctx_;

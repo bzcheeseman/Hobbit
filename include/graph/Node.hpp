@@ -40,7 +40,7 @@ class raw_ostream;
 
 namespace Hobbit {
 namespace codegen {
-  class Visitor;
+class Visitor;
 }
 namespace graph {
 
@@ -65,12 +65,18 @@ class Operation;
 
 class Variable : public Node { // TODO: only create through Module
 public:
-  explicit Variable(const std::string &name, llvm::Type *type=nullptr, Node *creator=nullptr)
-          : Node(name), m_shape_(nullptr), m_val_(nullptr), m_type_(type), m_creator_(creator) {}
-  Variable(const std::string &name, Shape *shape, llvm::Type *type=nullptr, Node *creator=nullptr)
-          : Node(name), m_shape_(std::move(shape)), m_val_(nullptr), m_type_(type), m_creator_(creator) {}
-  Variable(const std::string &name, std::unique_ptr<Shape> &&shape, llvm::Type *type=nullptr, Node *creator=nullptr)
-          : Node(name), m_shape_(std::move(shape)), m_val_(nullptr), m_type_(type), m_creator_(creator) {}
+  explicit Variable(const std::string &name, llvm::Type *type = nullptr,
+                    Node *creator = nullptr)
+      : Node(name), m_shape_(nullptr), m_val_(nullptr), m_type_(type),
+        m_creator_(creator) {}
+  Variable(const std::string &name, Shape *shape, llvm::Type *type = nullptr,
+           Node *creator = nullptr)
+      : Node(name), m_shape_(std::move(shape)), m_val_(nullptr), m_type_(type),
+        m_creator_(creator) {}
+  Variable(const std::string &name, std::unique_ptr<Shape> &&shape,
+           llvm::Type *type = nullptr, Node *creator = nullptr)
+      : Node(name), m_shape_(std::move(shape)), m_val_(nullptr), m_type_(type),
+        m_creator_(creator) {}
 
   // LLVM-style RTTI
   NodeType GetNodeType() const override { return VariableID; }
@@ -91,10 +97,16 @@ public:
   }
 
   llvm::Value *GetVal() const { return m_val_; }
-  void SetVal(llvm::Value *val) { CHECK_NOTNULL(val); m_val_ = val; }
+  void SetVal(llvm::Value *val) {
+    CHECK_NOTNULL(val);
+    m_val_ = val;
+  }
 
   llvm::Type *GetType() const { return m_type_; }
-  void SetType(llvm::Type *type) { CHECK_NOTNULL(type); m_type_ = type; }
+  void SetType(llvm::Type *type) {
+    CHECK_NOTNULL(type);
+    m_type_ = type;
+  }
 
   Node *Creator() { return m_creator_; }
 
@@ -109,7 +121,8 @@ private:
 
 class Operation : public Node { // How do I use another Operation as an input?
 public:
-  Operation(const std::string &name, llvm::ArrayRef<Node *> inputs, ops::Operator *op=nullptr)
+  Operation(const std::string &name, llvm::ArrayRef<Node *> inputs,
+            ops::Operator *op = nullptr)
       : Node(name), m_inputs_(inputs.begin(), inputs.end()), m_op_(op) {}
 
   // LLVM-style RTTI
@@ -126,7 +139,10 @@ public:
   }
 
   const ops::Operator *GetOp() const { return m_op_; }
-  void SetOp(ops::Operator *op) { CHECK_NOTNULL(op); m_op_ = std::move(op); }
+  void SetOp(ops::Operator *op) {
+    CHECK_NOTNULL(op);
+    m_op_ = std::move(op);
+  }
 
   llvm::ArrayRef<Node *> Inputs() { return m_inputs_; }
 

@@ -21,6 +21,25 @@
  */
 
 #include <codegen/Visitor.hpp>
+#include <codegen/Module.hpp>
+#include <graph/Node.hpp>
+
+#include <llvm/Support/Casting.h>
+#include <llvm/Support/raw_ostream.h>
+
+namespace {
+  using namespace Hobbit;
+  bool OperationRHSDependsOnLHS(graph::Operation *lhs, graph::Operation *rhs) {
+    if (lhs == rhs) return false;
+
+    bool depends = false;
+    for (auto &input : rhs->Inputs()) { // if LHS is in the inputs for RHS then RHS depends on LHS
+      depends |= (input == lhs);
+    }
+
+    return depends;
+  }
+}
 
 void Hobbit::codegen::Visitor::BuildTree(Hobbit::graph::Node *root) {
   BuildTree_(root);

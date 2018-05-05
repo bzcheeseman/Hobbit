@@ -46,6 +46,7 @@
 #include <graph/DataStorage.hpp>
 #include <ops/Operator.hpp>
 #include <codegen/Visitor.hpp>
+#include <codegen/Module.hpp>
 
 namespace {
   using namespace Hobbit;
