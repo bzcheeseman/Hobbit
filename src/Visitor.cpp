@@ -48,24 +48,13 @@ void Hobbit::codegen::Visitor::BuildTree(Hobbit::graph::Node *root) {
   SortTree_();
 }
 
-// Hobbit::codegen::Function
-// Hobbit::codegen::Visitor::GetWrapperFunction(const std::string &name,
-//                                             unsigned int addrspace) {
-//  llvm::Type *ret_type = (*--m_ops_.end())
-//                             ->GetOp()
-//                             ->GetOutputType(); //->getPointerTo(addrspace);
-//                             //
-//                                                // TODO: do I want double ptr?
-//  std::vector<llvm::Type *> arg_types;
-//  for (auto &arg : m_args_) {
-//    arg_types.push_back(arg->GetType()->getPointerTo(addrspace));
-//  }
-//  arg_types.push_back(ret_type->getPointerTo(addrspace));
-//
-//  Function f = {name, arg_types};
-//
-//  return f;
-//}
+std::list<graph::Operation *> &codegen::Visitor::Tree() {
+  return m_ops_;
+}
+
+std::set<graph::Variable *> &codegen::Visitor::Args() {
+  return m_args_;
+}
 
 void Hobbit::codegen::Visitor::BuildTree_(Hobbit::graph::Node *root) {
 
@@ -91,6 +80,8 @@ void Hobbit::codegen::Visitor::BuildTree_(Hobbit::graph::Node *root) {
 void Hobbit::codegen::Visitor::SortTree_() {
   m_ops_.sort(OperationRHSDependsOnLHS);
 }
+
+/* ------------------- Friend functions ------------------- */
 
 llvm::raw_ostream &Hobbit::codegen::operator<<(llvm::raw_ostream &os,
                                                Hobbit::codegen::Visitor &v) {

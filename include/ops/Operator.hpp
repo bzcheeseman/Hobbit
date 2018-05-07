@@ -36,7 +36,7 @@ class LLVMContext;
 
 namespace Hobbit {
 namespace ops {
-class Operator { // TODO: only create through Module
+class Operator {
 public:
   enum OperatorType {
 #include "OperatorTypes.def"

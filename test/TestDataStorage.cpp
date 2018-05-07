@@ -143,7 +143,5 @@ TEST(Shape, FlattenCtx) {
   }
 
   EXPECT_EQ(retval, shape.Size());
-}; // TODO: add tests for Tensor (some small ones for now, not a lot of codegen
-   // to be done?)
-;  // TODO: add tests for TensorChip
+};
 } // namespace

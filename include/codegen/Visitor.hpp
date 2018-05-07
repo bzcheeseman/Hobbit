@@ -46,8 +46,10 @@ class Function;
 class Visitor {
 public:
   void BuildTree(graph::Node *root);
-  //  Function GetWrapperFunction(const std::string &name,
-  //                              unsigned int addrspace = 0);
+
+  // TODO: should these be mutable?
+  std::list<graph::Operation *> &Tree();
+  std::set<graph::Variable *> &Args();
 
   friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os, Visitor &v);
   friend std::ostream &operator<<(std::ostream &os, Visitor &v);

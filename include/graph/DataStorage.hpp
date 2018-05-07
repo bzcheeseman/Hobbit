@@ -24,8 +24,8 @@
 #define HOBBIT_DATASTORAGE_HPP
 
 // Project
-#include "Node.hpp"
 #include "Shape.hpp"
+#include "Node.hpp"
 // glog
 #include <glog/logging.h>
 // STL
@@ -79,7 +79,7 @@ public:
     m_data_ = val;
   }
 
-  // TODO: codegen
+  // TODO: codegen or replace with Variable
 
 private:
   std::string m_name_;

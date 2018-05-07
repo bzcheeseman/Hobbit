@@ -63,7 +63,7 @@ protected:
 
 class Operation;
 
-class Variable : public Node { // TODO: only create through Module
+class Variable : public Node {
 public:
   explicit Variable(const std::string &name, llvm::Type *type = nullptr,
                     Node *creator = nullptr)
