@@ -54,7 +54,7 @@ template <class OP, class... Args> OP CreateOperator(Args... args) {
 
 class MockOperator : public Operator {
 public:
-  MockOperator(llvm::LLVMContext &ctx) : m_ctx_(ctx) {}
+  explicit MockOperator(llvm::LLVMContext &ctx) : m_ctx_(ctx) {}
 
   OperatorType GetOperatorType() const override { return mockID; }
   static inline bool classof(const Operator *op) {
@@ -63,9 +63,9 @@ public:
 
   llvm::BasicBlock *InsertIntoFunction(llvm::Function *f) override {
     llvm::BasicBlock *BB =
-        llvm::BasicBlock::Create(f->getContext(), "hobbit.mock_operator", f);
+        llvm::BasicBlock::Create(m_ctx_, "hobbit.mock_operator", f);
     llvm::BasicBlock *BB_predecessor;
-    llvm::IRBuilder<> builder(f->getContext());
+    llvm::IRBuilder<> builder(m_ctx_);
     if ((BB_predecessor = BB->getSinglePredecessor())) {
       builder.SetInsertPoint(BB_predecessor);
       builder.CreateBr(BB);
