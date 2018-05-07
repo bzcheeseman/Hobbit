@@ -23,6 +23,7 @@
 #ifndef HOBBIT_VISITOR_HPP
 #define HOBBIT_VISITOR_HPP
 
+// STL
 #include <list>
 #include <set>
 
@@ -45,8 +46,8 @@ class Function;
 class Visitor {
 public:
   void BuildTree(graph::Node *root);
-  Function GetWrapperFunction(const std::string &name,
-                              unsigned int addrspace = 0);
+  //  Function GetWrapperFunction(const std::string &name,
+  //                              unsigned int addrspace = 0);
 
   friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os, Visitor &v);
   friend std::ostream &operator<<(std::ostream &os, Visitor &v);

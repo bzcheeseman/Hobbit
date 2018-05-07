@@ -23,16 +23,30 @@
 #ifndef HOBBIT_MODULE_HPP
 #define HOBBIT_MODULE_HPP
 
-#include <llvm/IR/Module.h>
-
-#include <graph/Node.hpp>
-#include <set>
-
+// Project
 #include "Type.hpp"
+// STL
+#include <map>
+// LLVM
+#include <llvm/ADT/ArrayRef.h>
+#include <llvm/IR/LLVMContext.h>
+
+namespace llvm {
+class Type;
+class raw_ostream;
+class Module;
+class Function;
+} // namespace llvm
 
 namespace Hobbit {
 namespace graph {
+class Node;
 class Variable;
+class Operation;
+} // namespace graph
+
+namespace ops {
+class Operator;
 }
 
 namespace codegen {
@@ -46,32 +60,20 @@ struct Function {
 
 class Module {
 public:
-  Module(const std::string &name)
-      : m_ctx_(), m_module_(llvm::make_unique<llvm::Module>(name, m_ctx_)) {}
+  explicit Module(const std::string &name);
 
-  llvm::LLVMContext &GetContext() { return m_ctx_; }
+  llvm::LLVMContext &GetContext();
 
-  void InsertFunction(Function &f) {
-    llvm::FunctionType *ft = llvm::FunctionType::get(
-        llvm::Type::getVoidTy(m_ctx_), f.arg_types, false);
-    llvm::Value *func = m_module_->getOrInsertFunction(f.name, ft);
-    m_func_table_[&f] = llvm::cast<llvm::Function>(func);
-  }
+  void InsertFunction(Function &f);
 
   graph::Variable GetVariable(const std::string &name,
-                              llvm::ArrayRef<uint64_t> dims, TypeID type) {
-    std::unique_ptr<graph::Shape> shape =
-        llvm::make_unique<graph::Shape>(m_ctx_, dims);
-    return graph::Variable(name, std::move(shape), GetType(type, m_ctx_));
-  }
+                              llvm::ArrayRef<uint64_t> dims, TypeID type);
 
   graph::Operation GetOperation(const std::string &name,
                                 llvm::ArrayRef<graph::Node *> inputs,
-                                ops::Operator *op) {
-    return graph::Operation(name, inputs, op);
-  }
+                                ops::Operator *op);
 
-  void Print(llvm::raw_ostream &os) { m_module_->print(os, nullptr); }
+  void Print(llvm::raw_ostream &os);
 
 private:
   llvm::LLVMContext m_ctx_;

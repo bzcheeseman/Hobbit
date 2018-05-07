@@ -20,8 +20,8 @@
     limitations under the License.
  */
 
-#include <codegen/Module.hpp>
 #include <codegen/Visitor.hpp>
+
 #include <graph/Node.hpp>
 
 #include <llvm/Support/Casting.h>
@@ -48,23 +48,24 @@ void Hobbit::codegen::Visitor::BuildTree(Hobbit::graph::Node *root) {
   SortTree_();
 }
 
-Hobbit::codegen::Function
-Hobbit::codegen::Visitor::GetWrapperFunction(const std::string &name,
-                                             unsigned int addrspace) {
-  llvm::Type *ret_type = (*--m_ops_.end())
-                             ->GetOp()
-                             ->GetOutputType(); //->getPointerTo(addrspace); //
-                                                //TODO: do I want double ptr?
-  std::vector<llvm::Type *> arg_types;
-  for (auto &arg : m_args_) {
-    arg_types.push_back(arg->GetType()->getPointerTo(addrspace));
-  }
-  arg_types.push_back(ret_type->getPointerTo(addrspace));
-
-  Function f = {name, arg_types};
-
-  return f;
-}
+// Hobbit::codegen::Function
+// Hobbit::codegen::Visitor::GetWrapperFunction(const std::string &name,
+//                                             unsigned int addrspace) {
+//  llvm::Type *ret_type = (*--m_ops_.end())
+//                             ->GetOp()
+//                             ->GetOutputType(); //->getPointerTo(addrspace);
+//                             //
+//                                                // TODO: do I want double ptr?
+//  std::vector<llvm::Type *> arg_types;
+//  for (auto &arg : m_args_) {
+//    arg_types.push_back(arg->GetType()->getPointerTo(addrspace));
+//  }
+//  arg_types.push_back(ret_type->getPointerTo(addrspace));
+//
+//  Function f = {name, arg_types};
+//
+//  return f;
+//}
 
 void Hobbit::codegen::Visitor::BuildTree_(Hobbit::graph::Node *root) {
 

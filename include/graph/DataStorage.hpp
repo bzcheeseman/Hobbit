@@ -24,6 +24,7 @@
 #define HOBBIT_DATASTORAGE_HPP
 
 // Project
+#include "Node.hpp"
 #include "Shape.hpp"
 // glog
 #include <glog/logging.h>

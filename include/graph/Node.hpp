@@ -23,16 +23,16 @@
 #ifndef HOBBIT_NODE_HPP
 #define HOBBIT_NODE_HPP
 
+// Project
+#include "Shape.hpp"
+#include <ops/Operator.hpp>
+// glog
+#include <glog/logging.h>
+// STL
 #include <string>
-
+// LLVM
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/Support/raw_ostream.h>
-
-#include <glog/logging.h>
-
-#include <ops/Operator.hpp>
-
-#include "Shape.hpp"
 
 namespace llvm {
 class raw_ostream;

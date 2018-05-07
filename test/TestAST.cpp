@@ -71,9 +71,9 @@ TEST(Basic, CreateGraph) {
   codegen::Visitor visitor;
   visitor.BuildTree(&op3);
   LOG(INFO) << visitor;
-  codegen::Function fp = visitor.GetWrapperFunction("test");
-  module.InsertFunction(fp);
-  module.Print(llvm::errs());
+//  codegen::Function fp = visitor.GetWrapperFunction("test");
+//  module.InsertFunction(fp);
+//  module.Print(llvm::errs());
 }
 
 // TEST(Basic, CreateLLVMFunction) {

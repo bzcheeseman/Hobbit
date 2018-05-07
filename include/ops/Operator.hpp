@@ -23,7 +23,9 @@
 #ifndef HOBBIT_OPERATOR_HPP
 #define HOBBIT_OPERATOR_HPP
 
+// LLVM
 #include <llvm/IR/Function.h>
+#include <llvm/IR/IRBuilder.h>
 
 namespace llvm {
 class Function;
@@ -58,13 +60,31 @@ public:
   static inline bool classof(const Operator *op) {
     return op->GetOperatorType() == mockID;
   }
+
   llvm::BasicBlock *InsertIntoFunction(llvm::Function *f) override {
-    return &*(--f->end());
+    llvm::BasicBlock *BB =
+        llvm::BasicBlock::Create(f->getContext(), "hobbit.mock_operator", f);
+    llvm::BasicBlock *BB_predecessor;
+    llvm::IRBuilder<> builder(f->getContext());
+    if ((BB_predecessor = BB->getSinglePredecessor())) {
+      builder.SetInsertPoint(BB_predecessor);
+      builder.CreateBr(BB);
+    }
+
+    builder.SetInsertPoint(BB);
+
+    llvm::ConstantInt *one = builder.getInt64(1), *two = builder.getInt64(2);
+
+    builder.CreateAdd(one, two, "hobbit.mock_operator.add", true, true);
+
+    return BB;
   }
+
   llvm::Type *GetOutputType() const override {
     return llvm::Type::getFloatTy(m_ctx_);
   }
-  llvm::ArrayRef<uint64_t> GetOutputShape() const override { return {0}; }
+
+  llvm::ArrayRef<uint64_t> GetOutputShape() const override { return {1}; }
 
 private:
   llvm::LLVMContext &m_ctx_;

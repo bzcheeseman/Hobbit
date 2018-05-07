@@ -23,6 +23,9 @@
 #ifndef HOBBIT_TYPE_HPP
 #define HOBBIT_TYPE_HPP
 
+// LLVM
+#include <llvm/IR/Module.h>
+
 enum TypeID { // Datatypes are signed (so all ints are signed)
   INT1,
   INT8,
