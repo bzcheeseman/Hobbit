@@ -59,6 +59,7 @@ private:
   void SortTree_();
 
 private:
+  bool m_tree_built_ = false;
   std::list<graph::Operation *> m_ops_;
   std::set<graph::Variable *> m_args_;
 };

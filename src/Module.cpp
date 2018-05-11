@@ -21,6 +21,7 @@
  */
 
 #include <codegen/Module.hpp>
+#include <codegen/Visitor.hpp>
 #include <graph/Node.hpp>
 
 #include <llvm/IR/Module.h>
@@ -30,11 +31,23 @@ Hobbit::codegen::Module::Module(const std::string &name)
 
 llvm::LLVMContext &Hobbit::codegen::Module::GetContext() { return m_ctx_; }
 
-void Hobbit::codegen::Module::InsertFunction(Hobbit::codegen::Function &f) {
-  llvm::FunctionType *ft = llvm::FunctionType::get(
-      llvm::Type::getVoidTy(m_ctx_), f.arg_types, false);
-  llvm::Value *func = m_module_->getOrInsertFunction(f.name, ft);
-  m_func_table_[&f] = llvm::cast<llvm::Function>(func);
+Hobbit::codegen::Function *
+Hobbit::codegen::Module::ParseTree(const std::string &name,
+                                   Hobbit::codegen::Visitor &visitor) {
+  llvm::FunctionType *ft = ParseArgs_(visitor.Args());
+  llvm::Function *func = llvm::cast<llvm::Function>(m_module_->getOrInsertFunction(name, ft));
+
+  Function *func_key = new Function{name};
+
+  auto visitor_arg_iter = visitor.Args().begin();
+  for (auto iter = func->arg_begin(), end = func->arg_end(); iter != end; ++iter) {
+    (*visitor_arg_iter)->SetVal(&*iter);
+    (&*iter)->setName((*visitor_arg_iter)->GetName());
+  }
+
+  ParseTree_(visitor.Tree()); // should this return something?
+
+  return func_key;
 }
 
 Hobbit::graph::Variable Hobbit::codegen::Module::GetVariable(
@@ -52,4 +65,21 @@ Hobbit::graph::Operation Hobbit::codegen::Module::GetOperation(
 
 void Hobbit::codegen::Module::Print(llvm::raw_ostream &os) {
   m_module_->print(os, nullptr);
+}
+
+llvm::FunctionType *Hobbit::codegen::Module::ParseArgs_(
+    const std::set<Hobbit::graph::Variable *> &args) {
+  std::vector<llvm::Type *> arg_types;
+  for (auto &arg : args) {
+    arg_types.push_back(arg->GetType()->getPointerTo(0));
+  }
+
+  llvm::FunctionType *ft =
+      llvm::FunctionType::get(llvm::Type::getVoidTy(m_ctx_), arg_types, false);
+  return ft;
+}
+
+void Hobbit::codegen::Module::ParseTree_(
+    const std::list<Hobbit::graph::Operation *> &tree) {
+  ; // now do the emitting...the tree is already in order
 }

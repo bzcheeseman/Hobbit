@@ -46,13 +46,22 @@ bool OperationRHSDependsOnLHS(graph::Operation *lhs, graph::Operation *rhs) {
 void Hobbit::codegen::Visitor::BuildTree(Hobbit::graph::Node *root) {
   BuildTree_(root);
   SortTree_();
+  m_tree_built_ = true;
 }
 
 std::list<graph::Operation *> &codegen::Visitor::Tree() {
+  if (!m_tree_built_) {
+    LOG(FATAL)
+        << "Dependency scheduling step not executed, tree not built or sorted";
+  }
   return m_ops_;
 }
 
 std::set<graph::Variable *> &codegen::Visitor::Args() {
+  if (!m_tree_built_) {
+    LOG(FATAL)
+        << "Dependency scheduling step not executed, tree not built or sorted";
+  }
   return m_args_;
 }
 

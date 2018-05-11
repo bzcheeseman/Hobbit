@@ -26,7 +26,9 @@
 // Project
 #include "Type.hpp"
 // STL
+#include <list>
 #include <map>
+#include <set>
 // LLVM
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/IR/LLVMContext.h>
@@ -51,9 +53,10 @@ class Operator;
 
 namespace codegen {
 
+class Visitor;
+
 struct Function {
   std::string name;
-  llvm::ArrayRef<llvm::Type *> arg_types;
 };
 
 // opid wraps the operator from the registry...how to register ops?
@@ -64,7 +67,7 @@ public:
 
   llvm::LLVMContext &GetContext();
 
-  void InsertFunction(Function &f);
+  Function *ParseTree(const std::string &name, Visitor &visitor);
 
   graph::Variable GetVariable(const std::string &name,
                               llvm::ArrayRef<uint64_t> dims, TypeID type);
@@ -76,6 +79,9 @@ public:
   void Print(llvm::raw_ostream &os);
 
 private:
+  llvm::FunctionType *ParseArgs_(const std::set<graph::Variable *> &args);
+  void ParseTree_(const std::list<graph::Operation *> &tree);
+
   llvm::LLVMContext m_ctx_;
   std::unique_ptr<llvm::Module> m_module_;
 
