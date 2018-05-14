@@ -11,9 +11,9 @@ function(add_operator name)
             )
     target_link_libraries(HobbitOp${name} PUBLIC Hobbit HobbitRegistryUtils ${llvm_libs} Polly PollyISL)
 
-    if(BUILD_TESTS)
-        add_gtest(${name} HobbitOp${name})
-    endif(BUILD_TESTS)
+#    if(BUILD_TESTS)
+#        add_gtest(${name} HobbitOp${name})
+#    endif(BUILD_TESTS)
 endfunction()
 
 add_operator(gemm)

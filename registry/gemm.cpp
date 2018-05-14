@@ -55,7 +55,8 @@ Hobbit::ops::gemm::gemm(Hobbit::codegen::Module *module, uint64_t N, uint64_t M,
   CHECK_EQ(B_->GetShape().Dim((uint64_t)0), K_);
   CHECK_EQ(B_->GetShape().Dim(1), M_);
 
-  *C_ = m_module_->GetVariable("gemm.output", {N_, M_}, A_->GetType());
+  *C_ = m_module_->GetVariable("hobbit.gemm.output", {N_, M_}, A_->GetType());
+  // TODO: How to init C_'s llvm::Value?
 }
 
 Hobbit::graph::Variable *Hobbit::ops::gemm::GetOutputVariable() const {

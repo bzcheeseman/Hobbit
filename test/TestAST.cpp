@@ -47,6 +47,7 @@
 #include <graph/DataStorage.hpp>
 #include <graph/Node.hpp>
 #include <ops/Operator.hpp>
+#include <ops/eltwise_add.hpp>
 
 namespace {
 using namespace Hobbit;
@@ -59,9 +60,10 @@ TEST(Basic, CreateGraph) {
   graph::Variable argA = module.GetVariable("argA", {32, 1, 28, 28}, FLOAT32);
   graph::Variable argB = module.GetVariable("argB", {32, 1, 28, 28}, FLOAT32);
 
-  auto mock_op = ops::CreateOperator<ops::MockOperator>(&module);
+  auto mock_op = ops::MockOperator(&module);
+  auto eltwise_add = ops::eltwise_add(&module, &argA, &argB);
 
-  graph::Operation op = module.GetOperation("basic", {&argA, &argB}, &mock_op);
+  graph::Operation op = module.GetOperation("basic", {&argA, &argB}, &eltwise_add);
   graph::Operation opp = module.GetOperation("basic_p", {&op}, &mock_op);
   graph::Operation op2 = module.GetOperation("basic2", {&argB}, &mock_op);
   graph::Operation op3 =

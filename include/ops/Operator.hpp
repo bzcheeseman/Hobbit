@@ -47,6 +47,7 @@ public:
 
   explicit Operator(codegen::Module *m) : m_module_(m) {}
 
+//  virtual void SetInputs(llvm::ArrayRef<graph::Variable *> inputs);
   virtual OperatorType GetOperatorType() const = 0;
   virtual llvm::BasicBlock *InsertIntoFunction(llvm::Function *) = 0;
   virtual graph::Variable *GetOutputVariable() const = 0;
@@ -54,14 +55,6 @@ public:
 protected:
   codegen::Module *m_module_;
 };
-
-template <class OP, class... Args> OP CreateOperator(codegen::Module *module, Args... args) {
-  return OP(std::forward<codegen::Module *>(module), std::forward<Args...>(args...));
-}
-
-template <class OP> OP CreateOperator(codegen::Module *module) {
-  return OP(std::forward<codegen::Module *>(module));
-}
 
 class MockOperator : public Operator {
 public:
@@ -74,7 +67,7 @@ public:
 
   llvm::BasicBlock *InsertIntoFunction(llvm::Function *f) override;
 
-  graph::Variable *GetOutputVariable() const override;
+  graph::Variable *GetOutputVariable() const override; // this should work decently well, I guess?
 
 private:
   graph::Variable *outvar;

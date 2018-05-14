@@ -66,6 +66,12 @@ Hobbit::graph::Variable Hobbit::codegen::Module::GetVariable(
   return graph::Variable(name, std::move(shape), type);
 }
 
+Hobbit::graph::Variable Hobbit::codegen::Module::GetVariable(
+        const std::string &name, graph::Shape *shape, llvm::Type *type) {
+  shape->InitLLVM(m_ctx_);
+  return graph::Variable(name, std::move(shape), type);
+}
+
 Hobbit::graph::Operation Hobbit::codegen::Module::GetOperation(
     const std::string &name, llvm::ArrayRef<Hobbit::graph::Node *> inputs,
     Hobbit::ops::Operator *op) {

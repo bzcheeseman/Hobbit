@@ -45,6 +45,7 @@ namespace graph {
 class Node;
 class Variable;
 class Operation;
+class Shape;
 } // namespace graph
 
 namespace ops {
@@ -74,6 +75,9 @@ public:
 
   graph::Variable GetVariable(const std::string &name,
                               llvm::ArrayRef<uint64_t> dims, llvm::Type *type);
+
+  graph::Variable GetVariable(const std::string &name,
+                              graph::Shape *shape, llvm::Type *type);
 
   graph::Operation GetOperation(const std::string &name,
                                 llvm::ArrayRef<graph::Node *> inputs,
