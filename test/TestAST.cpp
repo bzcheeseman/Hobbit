@@ -59,8 +59,7 @@ TEST(Basic, CreateGraph) {
   graph::Variable argA = module.GetVariable("argA", {32, 1, 28, 28}, FLOAT32);
   graph::Variable argB = module.GetVariable("argB", {32, 1, 28, 28}, FLOAT32);
 
-  auto mock_op = ops::CreateOperator<ops::MockOperator, llvm::LLVMContext &>(
-      module.GetContext());
+  auto mock_op = ops::CreateOperator<ops::MockOperator>(&module);
 
   graph::Operation op = module.GetOperation("basic", {&argA, &argB}, &mock_op);
   graph::Operation opp = module.GetOperation("basic_p", {&op}, &mock_op);
@@ -70,11 +69,13 @@ TEST(Basic, CreateGraph) {
 
   codegen::Visitor visitor;
   visitor.BuildTree(&op3);
-  LOG(INFO) << visitor;
+//  LOG(INFO) << visitor;
   //  codegen::Function fp = visitor.GetWrapperFunction("test");
   //  module.InsertFunction(fp);
   module.ParseTree("test", visitor);
-  module.Print(llvm::errs());
+//  module.Print(llvm::errs());
+
+  LOG(INFO) << op3.Inputs()[0]->GetName();
 }
 
 // TEST(Basic, CreateLLVMFunction) {

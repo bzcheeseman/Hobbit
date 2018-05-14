@@ -72,6 +72,9 @@ public:
   graph::Variable GetVariable(const std::string &name,
                               llvm::ArrayRef<uint64_t> dims, TypeID type);
 
+  graph::Variable GetVariable(const std::string &name,
+                              llvm::ArrayRef<uint64_t> dims, llvm::Type *type);
+
   graph::Operation GetOperation(const std::string &name,
                                 llvm::ArrayRef<graph::Node *> inputs,
                                 ops::Operator *op);
@@ -80,7 +83,7 @@ public:
 
 private:
   llvm::FunctionType *ParseArgs_(const std::set<graph::Variable *> &args);
-  void ParseTree_(const std::list<graph::Operation *> &tree);
+  void ParseTree_(llvm::Function *f, std::list<graph::Operation *> &tree);
 
   llvm::LLVMContext m_ctx_;
   std::unique_ptr<llvm::Module> m_module_;

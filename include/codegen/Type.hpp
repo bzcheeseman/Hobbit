@@ -37,7 +37,7 @@ enum TypeID { // Datatypes are signed (so all ints are signed)
   FLOAT64,
 };
 
-llvm::Type *GetType(TypeID type, llvm::LLVMContext &ctx) {
+inline llvm::Type *GetType(TypeID type, llvm::LLVMContext &ctx) {
   switch (type) {
   case INT1:
     return llvm::Type::getInt1Ty(ctx);

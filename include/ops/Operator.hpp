@@ -35,6 +35,9 @@ class LLVMContext;
 } // namespace llvm
 
 namespace Hobbit {
+namespace codegen {
+  class Module;
+}
 namespace ops {
 class Operator {
 public:
@@ -42,51 +45,39 @@ public:
 #include "OperatorTypes.def"
   };
 
+  explicit Operator(codegen::Module *m) : m_module_(m) {}
+
   virtual OperatorType GetOperatorType() const = 0;
   virtual llvm::BasicBlock *InsertIntoFunction(llvm::Function *) = 0;
-  virtual llvm::Type *GetOutputType() const = 0;
-  virtual llvm::ArrayRef<uint64_t> GetOutputShape() const = 0;
+  virtual graph::Variable *GetOutputVariable() const = 0;
+
+protected:
+  codegen::Module *m_module_;
 };
 
-template <class OP, class... Args> OP CreateOperator(Args... args) {
-  return OP(std::forward<Args...>(args...));
+template <class OP, class... Args> OP CreateOperator(codegen::Module *module, Args... args) {
+  return OP(std::forward<codegen::Module *>(module), std::forward<Args...>(args...));
+}
+
+template <class OP> OP CreateOperator(codegen::Module *module) {
+  return OP(std::forward<codegen::Module *>(module));
 }
 
 class MockOperator : public Operator {
 public:
-  explicit MockOperator(llvm::LLVMContext &ctx) : m_ctx_(ctx) {}
+  explicit MockOperator(codegen::Module *m);
 
-  OperatorType GetOperatorType() const override { return mockID; }
+  OperatorType GetOperatorType() const override;
   static inline bool classof(const Operator *op) {
     return op->GetOperatorType() == mockID;
   }
 
-  llvm::BasicBlock *InsertIntoFunction(llvm::Function *f) override {
-    llvm::BasicBlock *BB =
-        llvm::BasicBlock::Create(m_ctx_, "hobbit.mock_operator", f);
-    llvm::BasicBlock *BB_predecessor;
-    llvm::IRBuilder<> builder(m_ctx_);
-    if ((BB_predecessor = BB->getSinglePredecessor())) {
-      builder.SetInsertPoint(BB_predecessor);
-      builder.CreateBr(BB);
-    }
+  llvm::BasicBlock *InsertIntoFunction(llvm::Function *f) override;
 
-    builder.SetInsertPoint(BB);
-
-    llvm::ConstantInt *one = builder.getInt64(1), *two = builder.getInt64(2);
-
-    builder.CreateAdd(one, two, "hobbit.mock_operator.add", true, true);
-
-    return BB;
-  }
-
-  llvm::Type *GetOutputType() const override {
-    return llvm::Type::getFloatTy(m_ctx_);
-  }
-
-  llvm::ArrayRef<uint64_t> GetOutputShape() const override { return {1}; }
+  graph::Variable *GetOutputVariable() const override;
 
 private:
+  graph::Variable *outvar;
   llvm::LLVMContext &m_ctx_;
 };
 } // namespace ops
