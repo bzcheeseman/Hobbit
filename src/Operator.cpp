@@ -22,10 +22,14 @@
 
 #include <codegen/Module.hpp>
 #include <graph/Node.hpp>
-#include <ops/Operator.hpp>
+#include <llvm/IR/IRBuilder.h>
+#include <ops/mock.hpp>
 
 Hobbit::ops::MockOperator::MockOperator(codegen::Module *m)
-    : Operator(m), m_ctx_(m->GetContext()) {}
+    : Operator(m), m_ctx_(m->GetContext()) {
+  outvar = m_module_->GetVariable("mock.output", {1},
+                                  llvm::Type::getInt64Ty(m_ctx_));
+}
 
 Hobbit::ops::Operator::OperatorType
 Hobbit::ops::MockOperator::GetOperatorType() const {
@@ -54,7 +58,5 @@ Hobbit::ops::MockOperator::InsertIntoFunction(llvm::Function *f) {
 }
 
 Hobbit::graph::Variable *Hobbit::ops::MockOperator::GetOutputVariable() const {
-  *outvar = m_module_->GetVariable("mock.output", {1},
-                                   llvm::Type::getInt64Ty(m_ctx_));
   return outvar;
 }

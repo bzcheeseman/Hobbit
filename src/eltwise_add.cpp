@@ -29,14 +29,16 @@
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/LLVMContext.h>
 
+#include <codegen/Module.hpp>
 #include <ops/Operator.hpp>
 #include <utils/LoopCG.hpp>
-#include <codegen/Module.hpp>
 
 using namespace llvm;
 
-Hobbit::ops::eltwise_add::eltwise_add(codegen::Module *m, Hobbit::graph::Variable *A, Hobbit::graph::Variable *B)
-        : Operator(m), A_(A), B_(B) {
+Hobbit::ops::eltwise_add::eltwise_add(codegen::Module *m,
+                                      Hobbit::graph::Variable *A,
+                                      Hobbit::graph::Variable *B)
+    : Operator(m), A_(A), B_(B) {
   CHECK_EQ(A_->GetType(), B_->GetType());
 
   CHECK_EQ(A_->GetShape().NDim(), B_->GetShape().NDim());
@@ -44,7 +46,8 @@ Hobbit::ops::eltwise_add::eltwise_add(codegen::Module *m, Hobbit::graph::Variabl
   // Doesn't actually check if the dimensions are the same
   CHECK_EQ(A_->GetShape().Size(), B_->GetShape().Size());
 
-  *C_ = m_module_->GetVariable("hobbit.eltwise_add.output", &A_->GetShape(), A_->GetType());
+  C_ = m_module_->GetVariable("hobbit.eltwise_add.output", &A_->GetShape(),
+                               A_->GetType());
   // TODO: How to init C_'s llvm::Value?
 }
 
@@ -60,9 +63,9 @@ llvm::BasicBlock *Hobbit::ops::eltwise_add::InsertIntoFunction(Function *func) {
   LLVMContext &ctx = func->getContext();
 
   BasicBlock *prehead =
-          BasicBlock::Create(ctx, "hobbit.eltwise_add.prehead", func);
+      BasicBlock::Create(ctx, "hobbit.eltwise_add.prehead", func);
   BasicBlock *posttail =
-          BasicBlock::Create(ctx, "hobbit.eltwise_add.posttail", func);
+      BasicBlock::Create(ctx, "hobbit.eltwise_add.posttail", func);
 
   BasicBlock *prehead_pred;
   IRBuilder<> builder(ctx);
@@ -77,8 +80,8 @@ llvm::BasicBlock *Hobbit::ops::eltwise_add::InsertIntoFunction(Function *func) {
   one = builder.getInt64(1);
   size = builder.getInt64(A_->GetShape().Size());
 
-  util::LoopInfo loopinfo_i = util::EmitLoop(
-          "hobbit.eltwise_add.i", prehead, posttail, zero, size, one, false);
+  util::LoopInfo loopinfo_i = util::EmitLoop("hobbit.eltwise_add.i", prehead,
+                                             posttail, zero, size, one, false);
   util::AddLoopMetadata(loopinfo_i.cond, loopMD);
 
   const graph::Shape a_shape = A_->GetShape();
@@ -89,9 +92,9 @@ llvm::BasicBlock *Hobbit::ops::eltwise_add::InsertIntoFunction(Function *func) {
   Value *C_gep = builder.CreateInBoundsGEP(C_->GetVal(), idx);
 
   Value *A_elt = builder.CreateAlignedLoad(
-          builder.CreateInBoundsGEP(A_->GetVal(), idx), 32);
+      builder.CreateInBoundsGEP(A_->GetVal(), idx), 32);
   Value *B_elt = builder.CreateAlignedLoad(
-          builder.CreateInBoundsGEP(B_->GetVal(), idx), 32);
+      builder.CreateInBoundsGEP(B_->GetVal(), idx), 32);
 
   Value *C_elt;
   if (A_->GetType()->isFloatingPointTy()) {

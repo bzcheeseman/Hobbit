@@ -1,5 +1,5 @@
 //
-// Created by Aman LaChapelle on 5/13/18.
+// Created by Aman LaChapelle on 5/14/18.
 //
 // Hobbit
 // Copyright (c) 2018 Aman LaChapelle
@@ -20,58 +20,55 @@
     limitations under the License.
  */
 
-#ifndef HOBBIT_GEMM_HPP
-#define HOBBIT_GEMM_HPP
+#ifndef HOBBIT_MOCK_HPP
+#define HOBBIT_MOCK_HPP
 
-// STL
-#include <cstdint>
-#include <llvm/ADT/ArrayRef.h>
-// Project
 #include "Operator.hpp"
 
 namespace llvm {
-class Value;
 class Function;
 class BasicBlock;
+class Type;
+class LLVMContext;
 } // namespace llvm
 
 namespace Hobbit {
-namespace graph {
-class Variable;
-}
+
 namespace codegen {
 class Module;
 }
+
+namespace graph {
+class Variable;
+}
+
 namespace ops {
-class gemm : public Operator {
+class MockOperator : public Operator {
 public:
-  gemm(codegen::Module *m, graph::Variable *A, graph::Variable *B,
-       graph::Variable *alpha, graph::Variable *beta);
+  explicit MockOperator(codegen::Module *m);
 
-  OperatorType GetOperatorType() const override { return gemmID; }
-
+  OperatorType GetOperatorType() const override;
   static inline bool classof(const Operator *op) {
-    return op->GetOperatorType() == gemmID;
+    return op->GetOperatorType() == mockID;
   }
+
+  llvm::BasicBlock *InsertIntoFunction(llvm::Function *f) override;
 
   graph::Variable *GetOutputVariable() const override;
 
-  llvm::BasicBlock *InsertIntoFunction(llvm::Function *func) override;
-
 private:
-  uint64_t N_, M_, K_;
-  graph::Variable *A_, *B_, *alpha_, *beta_;
-  graph::Variable *C_;
+  graph::Variable *outvar;
+  llvm::LLVMContext &m_ctx_;
 };
 
 template <>
 Operator *
-CreateOperator<Operator::gemmID>(codegen::Module *module,
-                                 llvm::ArrayRef<graph::Variable *> args) {
-  return new gemm(module, args[0], args[1], args[2], args[3]);
+CreateOperator<Operator::mockID>(codegen::Module *module,
+                                 llvm::ArrayRef<graph::Variable *> /* args */) {
+  return new MockOperator(module);
 }
 
 } // namespace ops
 } // namespace Hobbit
 
-#endif // HOBBIT_GEMM_HPP
+#endif // HOBBIT_MOCK_HPP

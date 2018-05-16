@@ -43,11 +43,12 @@
 #include <random>
 
 #include <codegen/Module.hpp>
-#include <codegen/Visitor.hpp>
+#include <codegen/TreeVisitor.hpp>
 #include <graph/DataStorage.hpp>
 #include <graph/Node.hpp>
-#include <ops/Operator.hpp>
 #include <ops/eltwise_add.hpp>
+#include <ops/mock.hpp>
+#include <codegen/CGVisitor.hpp>
 
 namespace {
 using namespace Hobbit;
@@ -57,27 +58,27 @@ TEST(Basic, CreateGraph) {
 
   codegen::Module module("TestModule");
 
-  graph::Variable argA = module.GetVariable("argA", {32, 1, 28, 28}, FLOAT32);
-  graph::Variable argB = module.GetVariable("argB", {32, 1, 28, 28}, FLOAT32);
+  graph::Variable *argA = module.GetVariable("argA", {32, 1, 28, 28}, FLOAT32);
+  graph::Variable *argB = module.GetVariable("argB", {32, 1, 28, 28}, FLOAT32);
 
-  auto mock_op = ops::MockOperator(&module);
-  auto eltwise_add = ops::eltwise_add(&module, &argA, &argB);
+  graph::Operation *op =
+      module.GetOperation("basic", {argA, argB}, ops::Operator::mockID);
+  graph::Operation *opp =
+      module.GetOperation("basic_p", {op}, ops::Operator::mockID);
+  graph::Operation *op2 =
+      module.GetOperation("basic2", {argB}, ops::Operator::mockID);
+  graph::Operation *op3 =
+      module.GetOperation("basic3", {opp, op2, argA}, ops::Operator::mockID);
 
-  graph::Operation op = module.GetOperation("basic", {&argA, &argB}, &eltwise_add);
-  graph::Operation opp = module.GetOperation("basic_p", {&op}, &mock_op);
-  graph::Operation op2 = module.GetOperation("basic2", {&argB}, &mock_op);
-  graph::Operation op3 =
-      module.GetOperation("basic3", {&opp, &op2, &argA}, &mock_op);
-
-  codegen::Visitor visitor;
-  visitor.BuildTree(&op3);
-//  LOG(INFO) << visitor;
+  codegen::TreeVisitor visitor;
+  visitor.BuildTree(op3);
+  LOG(INFO) << visitor;
+  codegen::CGVisitor cgvisitor(&module, visitor.Args(), visitor.Tree());
+  cgvisitor.VisitTree();
   //  codegen::Function fp = visitor.GetWrapperFunction("test");
   //  module.InsertFunction(fp);
-  module.ParseTree("test", visitor);
-//  module.Print(llvm::errs());
-
-  LOG(INFO) << op3.Inputs()[0]->GetName();
+  //  module.ParseTree("test", visitor);
+  //  module.Print(llvm::errs());
 }
 
 // TEST(Basic, CreateLLVMFunction) {

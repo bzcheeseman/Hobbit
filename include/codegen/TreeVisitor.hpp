@@ -43,16 +43,15 @@ namespace codegen {
 
 class Function;
 
-class Visitor {
+class TreeVisitor {
 public:
   void BuildTree(graph::Node *root);
 
-  // TODO: should these be mutable?
-  std::list<graph::Operation *> &Tree();
-  std::set<graph::Variable *> &Args();
+  std::list<graph::Operation *> & Tree();
+  std::set<graph::Variable *> & Args();
 
-  friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os, Visitor &v);
-  friend std::ostream &operator<<(std::ostream &os, Visitor &v);
+  friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os, TreeVisitor &v);
+  friend std::ostream &operator<<(std::ostream &os, TreeVisitor &v);
 
 private:
   void BuildTree_(graph::Node *root);

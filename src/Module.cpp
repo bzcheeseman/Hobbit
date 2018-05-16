@@ -21,7 +21,7 @@
  */
 
 #include <codegen/Module.hpp>
-#include <codegen/Visitor.hpp>
+#include <codegen/TreeVisitor.hpp>
 #include <graph/Node.hpp>
 
 #include <llvm/IR/Module.h>
@@ -33,7 +33,7 @@ llvm::LLVMContext &Hobbit::codegen::Module::GetContext() { return m_ctx_; }
 
 Hobbit::codegen::Function *
 Hobbit::codegen::Module::ParseTree(const std::string &name,
-                                   Hobbit::codegen::Visitor &visitor) {
+                                   Hobbit::codegen::TreeVisitor &visitor) {
   llvm::FunctionType *ft = ParseArgs_(visitor.Args());
   llvm::Function *func =
       llvm::cast<llvm::Function>(m_module_->getOrInsertFunction(name, ft));
@@ -47,35 +47,36 @@ Hobbit::codegen::Module::ParseTree(const std::string &name,
     (&*iter)->setName((*visitor_arg_iter)->GetName());
   }
 
-  ParseTree_(func, visitor.Tree()); // should this return something?
+  //  ParseTree_(func, visitor.Tree()); // should this return something?
 
   return func_key;
 }
 
-Hobbit::graph::Variable Hobbit::codegen::Module::GetVariable(
+Hobbit::graph::Variable *Hobbit::codegen::Module::GetVariable(
     const std::string &name, llvm::ArrayRef<uint64_t> dims, TypeID type) {
   std::unique_ptr<graph::Shape> shape =
       llvm::make_unique<graph::Shape>(m_ctx_, dims);
-  return graph::Variable(name, std::move(shape), GetType(type, m_ctx_));
+  return new graph::Variable(name, std::move(shape), GetType(type, m_ctx_));
 }
 
-Hobbit::graph::Variable Hobbit::codegen::Module::GetVariable(
+Hobbit::graph::Variable *Hobbit::codegen::Module::GetVariable(
     const std::string &name, llvm::ArrayRef<uint64_t> dims, llvm::Type *type) {
   std::unique_ptr<graph::Shape> shape =
       llvm::make_unique<graph::Shape>(m_ctx_, dims);
-  return graph::Variable(name, std::move(shape), type);
+  return new graph::Variable(name, std::move(shape), type);
 }
 
-Hobbit::graph::Variable Hobbit::codegen::Module::GetVariable(
-        const std::string &name, graph::Shape *shape, llvm::Type *type) {
+Hobbit::graph::Variable *
+Hobbit::codegen::Module::GetVariable(const std::string &name,
+                                     graph::Shape *shape, llvm::Type *type) {
   shape->InitLLVM(m_ctx_);
-  return graph::Variable(name, std::move(shape), type);
+  return new graph::Variable(name, std::move(shape), type);
 }
 
-Hobbit::graph::Operation Hobbit::codegen::Module::GetOperation(
+Hobbit::graph::Operation *Hobbit::codegen::Module::GetOperation(
     const std::string &name, llvm::ArrayRef<Hobbit::graph::Node *> inputs,
-    Hobbit::ops::Operator *op) {
-  return graph::Operation(name, inputs, op);
+    Hobbit::ops::Operator::OperatorType op_type) {
+  return new graph::Operation(name, inputs, op_type);
 }
 
 void Hobbit::codegen::Module::Print(llvm::raw_ostream &os) {
@@ -94,11 +95,12 @@ llvm::FunctionType *Hobbit::codegen::Module::ParseArgs_(
   return ft;
 }
 
-void Hobbit::codegen::Module::ParseTree_(llvm::Function *f, std::list<Hobbit::graph::Operation *> &tree) {
+void Hobbit::codegen::Module::ParseTree_(
+    llvm::Function *f, std::list<Hobbit::graph::Operation *> &tree) {
   // first fill in the variables (filled from parse_args)
   // then each operation needs to generate its own code
-//  for (auto &op : tree) {
-//    llvm::BasicBlock *BB = op->GetOp()->InsertIntoFunction(f);
-//  }
+  //  for (auto &op : tree) {
+  //    llvm::BasicBlock *BB = op->GetOp()->InsertIntoFunction(f);
+  //  }
   ;
 }

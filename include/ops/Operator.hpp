@@ -23,9 +23,7 @@
 #ifndef HOBBIT_OPERATOR_HPP
 #define HOBBIT_OPERATOR_HPP
 
-// LLVM
-#include <llvm/IR/Function.h>
-#include <llvm/IR/IRBuilder.h>
+#include <llvm/ADT/ArrayRef.h>
 
 namespace llvm {
 class Function;
@@ -35,9 +33,15 @@ class LLVMContext;
 } // namespace llvm
 
 namespace Hobbit {
+
 namespace codegen {
-  class Module;
+class Module;
 }
+
+namespace graph {
+class Variable;
+}
+
 namespace ops {
 class Operator {
 public:
@@ -47,7 +51,7 @@ public:
 
   explicit Operator(codegen::Module *m) : m_module_(m) {}
 
-//  virtual void SetInputs(llvm::ArrayRef<graph::Variable *> inputs);
+  //  virtual void SetInputs(llvm::ArrayRef<graph::Variable *> inputs);
   virtual OperatorType GetOperatorType() const = 0;
   virtual llvm::BasicBlock *InsertIntoFunction(llvm::Function *) = 0;
   virtual graph::Variable *GetOutputVariable() const = 0;
@@ -56,23 +60,33 @@ protected:
   codegen::Module *m_module_;
 };
 
-class MockOperator : public Operator {
-public:
-  explicit MockOperator(codegen::Module *m);
+template <Operator::OperatorType>
+Operator *CreateOperator(codegen::Module *module,
+                         llvm::ArrayRef<graph::Variable *> args) {
+  return nullptr;
+}
 
-  OperatorType GetOperatorType() const override;
-  static inline bool classof(const Operator *op) {
-    return op->GetOperatorType() == mockID;
+template<> Operator *CreateOperator<Operator::mockID>(codegen::Module *module,
+                                                      llvm::ArrayRef<graph::Variable *> /* args */);
+template<> Operator *CreateOperator<Operator::gemmID>(codegen::Module *module,
+                                                      llvm::ArrayRef<graph::Variable *> args);
+template<> Operator *CreateOperator<Operator::eltwiseAddID>(codegen::Module *module,
+                                                            llvm::ArrayRef<graph::Variable *> args);
+
+inline Operator *Create(Operator::OperatorType op_id, codegen::Module *module,
+                 llvm::ArrayRef<graph::Variable *> args) {
+  switch (op_id) {
+  case Operator::mockID:
+    return CreateOperator<Operator::mockID>(module, args);
+  case Operator::gemmID:
+    return CreateOperator<Operator::gemmID>(module, args);
+  case Operator::eltwiseAddID:
+    CreateOperator<Operator::eltwiseAddID>(module, args);
+  default:
+    return nullptr;
   }
+}
 
-  llvm::BasicBlock *InsertIntoFunction(llvm::Function *f) override;
-
-  graph::Variable *GetOutputVariable() const override; // this should work decently well, I guess?
-
-private:
-  graph::Variable *outvar;
-  llvm::LLVMContext &m_ctx_;
-};
 } // namespace ops
 } // namespace Hobbit
 

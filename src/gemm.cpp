@@ -36,26 +36,26 @@
 
 using namespace llvm;
 
-Hobbit::ops::gemm::gemm(Hobbit::codegen::Module *module, uint64_t N, uint64_t M,
-                        uint64_t K, Hobbit::graph::Variable *A,
-                        Hobbit::graph::Variable *B, Value *alpha, Value *beta)
-    : Operator(module), N_(N), M_(M), K_(K), A_(A), B_(B), alpha_(alpha),
-      beta_(beta) {
+Hobbit::ops::gemm::gemm(Hobbit::codegen::Module *module,
+                        Hobbit::graph::Variable *A, Hobbit::graph::Variable *B,
+                        Hobbit::graph::Variable *alpha,
+                        Hobbit::graph::Variable *beta)
+    : Operator(module), N_(A_->GetShape().Dim((uint64_t)0)),
+      M_(B_->GetShape().Dim(1)), K_(A_->GetShape().Dim(1)), A_(A), B_(B),
+      alpha_(alpha), beta_(beta) {
   CHECK_EQ(A_->GetType(), B_->GetType());
-
-  CHECK_EQ(alpha_->getType(), A_->GetType());
-  CHECK_EQ(beta_->getType(), A_->GetType());
+  CHECK_EQ(A_->GetType(), alpha_->GetType());
+  CHECK_EQ(A_->GetType(), beta_->GetType());
 
   CHECK_EQ(A_->GetShape().NDim(), 2);
   CHECK_EQ(B_->GetShape().NDim(), 2);
 
-  CHECK_EQ(A_->GetShape().Dim((uint64_t)0), N_);
-  CHECK_EQ(A_->GetShape().Dim(1), K_);
+  CHECK_EQ(alpha_->GetShape().Size(), 1);
+  CHECK_EQ(beta_->GetShape().Size(), 1);
 
   CHECK_EQ(B_->GetShape().Dim((uint64_t)0), K_);
-  CHECK_EQ(B_->GetShape().Dim(1), M_);
 
-  *C_ = m_module_->GetVariable("hobbit.gemm.output", {N_, M_}, A_->GetType());
+  C_ = m_module_->GetVariable("hobbit.gemm.output", {N_, M_}, A_->GetType());
   // TODO: How to init C_'s llvm::Value?
 }
 
@@ -106,10 +106,10 @@ llvm::BasicBlock *Hobbit::ops::gemm::InsertIntoFunction(Function *func) {
 
   Value *C_elt = builder.CreateAlignedLoad(C_gep, 32);
   if (C_->GetType()->isFloatingPointTy()) {
-    C_elt = builder.CreateFMul(beta_, C_elt);
+    C_elt = builder.CreateFMul(beta_->GetVal(), C_elt);
   }
   if (C_->GetType()->isIntegerTy()) {
-    C_elt = builder.CreateMul(beta_, C_elt);
+    C_elt = builder.CreateMul(beta_->GetVal(), C_elt);
   }
 
   util::LoopInfo loopinfo_K = util::EmitLoop(
@@ -130,12 +130,14 @@ llvm::BasicBlock *Hobbit::ops::gemm::InsertIntoFunction(Function *func) {
       builder.CreateInBoundsGEP(B_->GetVal(), B_idx), 32);
 
   if (A_->GetType()->isFloatingPointTy()) {
-    Value *tmp = builder.CreateFMul(builder.CreateFMul(A_elt, B_elt), alpha_);
+    Value *tmp =
+        builder.CreateFMul(builder.CreateFMul(A_elt, B_elt), alpha_->GetVal());
     C_elt = builder.CreateFAdd(C_elt, tmp);
   }
 
   if (A_->GetType()->isIntegerTy()) {
-    Value *tmp = builder.CreateMul(builder.CreateMul(A_elt, B_elt), alpha_);
+    Value *tmp =
+        builder.CreateMul(builder.CreateMul(A_elt, B_elt), alpha_->GetVal());
     C_elt = builder.CreateAdd(C_elt, tmp);
   }
 

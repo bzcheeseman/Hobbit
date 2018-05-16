@@ -40,7 +40,7 @@ class raw_ostream;
 
 namespace Hobbit {
 namespace codegen {
-class Visitor;
+class TreeVisitor;
 }
 namespace graph {
 
@@ -122,13 +122,14 @@ private:
 class Operation : public Node { // How do I use another Operation as an input?
 public:
   Operation(const std::string &name, llvm::ArrayRef<Node *> inputs,
-            ops::Operator *op = nullptr)
-      : Node(name), m_inputs_(inputs.begin(), inputs.end()), m_op_(op) {}
+            ops::Operator::OperatorType op_type)
+      : Node(name), m_inputs_(inputs.begin(), inputs.end()),
+        m_op_type_(op_type), m_op_(nullptr) {}
 
   // LLVM-style RTTI
-  NodeType GetNodeType() const override { return OperatorID; }
+  NodeType GetNodeType() const override { return OperationID; }
   static inline bool classof(const Node *node) {
-    return node->GetNodeType() == OperatorID;
+    return node->GetNodeType() == OperationID;
   }
 
   void Print(llvm::raw_ostream &os) const override {
@@ -137,6 +138,8 @@ public:
       input->Print(os);
     }
   }
+
+  const ops::Operator::OperatorType &GetOperatorType() { return m_op_type_; }
 
   const ops::Operator *GetOp() const { return m_op_; }
   void SetOp(ops::Operator *op) {
@@ -148,6 +151,7 @@ public:
 
 private:
   llvm::SmallVector<Node *, 5> m_inputs_;
+  const ops::Operator::OperatorType m_op_type_;
   ops::Operator *m_op_;
 };
 

@@ -32,6 +32,7 @@
 // LLVM
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/IR/LLVMContext.h>
+#include <ops/Operator.hpp>
 
 namespace llvm {
 class Type;
@@ -54,13 +55,11 @@ class Operator;
 
 namespace codegen {
 
-class Visitor;
+class TreeVisitor;
 
 struct Function {
   std::string name;
 };
-
-// opid wraps the operator from the registry...how to register ops?
 
 class Module {
 public:
@@ -68,20 +67,20 @@ public:
 
   llvm::LLVMContext &GetContext();
 
-  Function *ParseTree(const std::string &name, Visitor &visitor);
+  Function *ParseTree(const std::string &name, TreeVisitor &visitor);
 
-  graph::Variable GetVariable(const std::string &name,
-                              llvm::ArrayRef<uint64_t> dims, TypeID type);
+  graph::Variable *GetVariable(const std::string &name,
+                                llvm::ArrayRef<uint64_t> dims, TypeID type);
 
-  graph::Variable GetVariable(const std::string &name,
-                              llvm::ArrayRef<uint64_t> dims, llvm::Type *type);
+  graph::Variable *GetVariable(const std::string &name,
+                                llvm::ArrayRef<uint64_t> dims, llvm::Type *type);
 
-  graph::Variable GetVariable(const std::string &name,
-                              graph::Shape *shape, llvm::Type *type);
+  graph::Variable *GetVariable(const std::string &name, graph::Shape *shape,
+                              llvm::Type *type);
 
-  graph::Operation GetOperation(const std::string &name,
-                                llvm::ArrayRef<graph::Node *> inputs,
-                                ops::Operator *op);
+  graph::Operation *GetOperation(const std::string &name,
+                                  llvm::ArrayRef<graph::Node *> inputs,
+                                  ops::Operator::OperatorType op_type);
 
   void Print(llvm::raw_ostream &os);
 
