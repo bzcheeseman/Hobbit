@@ -23,7 +23,6 @@
 #include <ops/gemm.hpp>
 
 #include <glog/logging.h>
-#include <graph/DataStorage.hpp>
 #include <llvm/IR/BasicBlock.h>
 #include <llvm/IR/Function.h>
 #include <llvm/IR/IRBuilder.h>
@@ -56,7 +55,7 @@ Hobbit::ops::gemm::gemm(Hobbit::codegen::Module *module,
   CHECK_EQ(B_->GetShape().Dim((uint64_t)0), K_);
 
   C_ = m_module_->GetVariable("hobbit.gemm.output", {N_, M_}, A_->GetType());
-  // TODO: How to init C_'s llvm::Value?
+  // TODO: How to init C_'s llvm::Value? Use alloca or malloc?
 }
 
 Hobbit::graph::Variable *Hobbit::ops::gemm::GetOutputVariable() const {

@@ -61,13 +61,6 @@ private:
   llvm::LLVMContext &m_ctx_;
 };
 
-template <>
-Operator *
-CreateOperator<Operator::mockID>(codegen::Module *module,
-                                 llvm::ArrayRef<graph::Variable *> /* args */) {
-  return new MockOperator(module);
-}
-
 } // namespace ops
 } // namespace Hobbit
 

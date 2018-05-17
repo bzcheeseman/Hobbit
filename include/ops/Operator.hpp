@@ -60,33 +60,6 @@ protected:
   codegen::Module *m_module_;
 };
 
-template <Operator::OperatorType>
-Operator *CreateOperator(codegen::Module *module,
-                         llvm::ArrayRef<graph::Variable *> args) {
-  return nullptr;
-}
-
-template<> Operator *CreateOperator<Operator::mockID>(codegen::Module *module,
-                                                      llvm::ArrayRef<graph::Variable *> /* args */);
-template<> Operator *CreateOperator<Operator::gemmID>(codegen::Module *module,
-                                                      llvm::ArrayRef<graph::Variable *> args);
-template<> Operator *CreateOperator<Operator::eltwiseAddID>(codegen::Module *module,
-                                                            llvm::ArrayRef<graph::Variable *> args);
-
-inline Operator *Create(Operator::OperatorType op_id, codegen::Module *module,
-                 llvm::ArrayRef<graph::Variable *> args) {
-  switch (op_id) {
-  case Operator::mockID:
-    return CreateOperator<Operator::mockID>(module, args);
-  case Operator::gemmID:
-    return CreateOperator<Operator::gemmID>(module, args);
-  case Operator::eltwiseAddID:
-    CreateOperator<Operator::eltwiseAddID>(module, args);
-  default:
-    return nullptr;
-  }
-}
-
 } // namespace ops
 } // namespace Hobbit
 

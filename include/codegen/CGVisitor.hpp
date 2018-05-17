@@ -28,6 +28,7 @@
 #include <set>
 
 #include <graph/Node.hpp>
+#include <ops/Factory.hpp>
 #include <llvm/Support/Casting.h>
 
 namespace llvm {

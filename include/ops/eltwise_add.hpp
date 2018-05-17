@@ -57,12 +57,6 @@ private:
   graph::Variable *A_, *B_, *C_;
 };
 
-template <>
-Operator *
-CreateOperator<Operator::eltwiseAddID>(codegen::Module *module,
-                                       llvm::ArrayRef<graph::Variable *> args) {
-  return new eltwise_add(module, args[0], args[1]);
-}
 } // namespace ops
 } // namespace Hobbit
 

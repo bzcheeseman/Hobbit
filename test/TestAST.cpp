@@ -44,7 +44,6 @@
 
 #include <codegen/Module.hpp>
 #include <codegen/TreeVisitor.hpp>
-#include <graph/DataStorage.hpp>
 #include <graph/Node.hpp>
 #include <ops/eltwise_add.hpp>
 #include <ops/mock.hpp>
@@ -62,7 +61,7 @@ TEST(Basic, CreateGraph) {
   graph::Variable *argB = module.GetVariable("argB", {32, 1, 28, 28}, FLOAT32);
 
   graph::Operation *op =
-      module.GetOperation("basic", {argA, argB}, ops::Operator::mockID);
+      module.GetOperation("basic", {argA, argB}, ops::Operator::eltwiseAddID);
   graph::Operation *opp =
       module.GetOperation("basic_p", {op}, ops::Operator::mockID);
   graph::Operation *op2 =

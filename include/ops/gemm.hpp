@@ -64,13 +64,6 @@ private:
   graph::Variable *C_;
 };
 
-template <>
-Operator *
-CreateOperator<Operator::gemmID>(codegen::Module *module,
-                                 llvm::ArrayRef<graph::Variable *> args) {
-  return new gemm(module, args[0], args[1], args[2], args[3]);
-}
-
 } // namespace ops
 } // namespace Hobbit
 

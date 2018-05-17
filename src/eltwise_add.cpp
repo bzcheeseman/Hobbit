@@ -23,12 +23,12 @@
 #include <ops/eltwise_add.hpp>
 
 #include <glog/logging.h>
-#include <graph/DataStorage.hpp>
 #include <llvm/IR/BasicBlock.h>
 #include <llvm/IR/Function.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/LLVMContext.h>
 
+#include <graph/Node.hpp>
 #include <codegen/Module.hpp>
 #include <ops/Operator.hpp>
 #include <utils/LoopCG.hpp>
@@ -48,7 +48,7 @@ Hobbit::ops::eltwise_add::eltwise_add(codegen::Module *m,
 
   C_ = m_module_->GetVariable("hobbit.eltwise_add.output", &A_->GetShape(),
                                A_->GetType());
-  // TODO: How to init C_'s llvm::Value?
+  // TODO: How to init C_'s llvm::Value? Use Alloca or malloc?
 }
 
 Hobbit::graph::Variable *Hobbit::ops::eltwise_add::GetOutputVariable() const {
