@@ -54,7 +54,7 @@ public:
   CGVisitor(codegen::Module *module, std::set<graph::Variable *> &args,
             std::list<graph::Operation *> &ops);
 
-  void VisitTree(const std::string &function_name);
+  void CodeGenTree(const std::string &function_name);
 
 private:
   void ResolveDependencies_(graph::Operation *op);

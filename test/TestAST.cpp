@@ -71,7 +71,7 @@ TEST(Basic, CreateGraph) {
   codegen::TreeVisitor visitor;
   visitor.BuildTree(gemm);
   codegen::CGVisitor cgvisitor(&module, visitor.Args(), visitor.Tree());
-  cgvisitor.VisitTree("test_func");
+    cgvisitor.CodeGenTree("test_func");
   module.Print(llvm::errs());
 }
 

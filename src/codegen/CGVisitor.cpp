@@ -33,7 +33,7 @@ Hobbit::codegen::CGVisitor::CGVisitor(
     std::list<Hobbit::graph::Operation *> &ops)
     : m_module_(std::move(module)), m_args_(args), m_ops_(ops) {}
 
-void Hobbit::codegen::CGVisitor::VisitTree(const std::string &function_name) {
+void Hobbit::codegen::CGVisitor::CodeGenTree(const std::string &function_name) {
   for (auto &op : m_ops_) {
     ResolveDependencies_(op);
   }
