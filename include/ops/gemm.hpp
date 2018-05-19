@@ -56,7 +56,8 @@ public:
 
   graph::Variable *GetOutputVariable() const override;
 
-  llvm::BasicBlock *InsertIntoFunction(llvm::Function *func) override;
+  llvm::BasicBlock *InsertIntoFunction(llvm::Function *func,
+                                       llvm::BasicBlock *previous) override;
 
 private:
   uint64_t N_, M_, K_;

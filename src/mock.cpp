@@ -37,15 +37,14 @@ Hobbit::ops::MockOperator::GetOperatorType() const {
 }
 
 llvm::BasicBlock *
-Hobbit::ops::MockOperator::InsertIntoFunction(llvm::Function *f) {
+Hobbit::ops::MockOperator::InsertIntoFunction(llvm::Function *f,
+                                              llvm::BasicBlock *previous) {
   llvm::BasicBlock *BB =
       llvm::BasicBlock::Create(m_ctx_, "hobbit.mock_operator", f);
-  llvm::BasicBlock *BB_predecessor;
   llvm::IRBuilder<> builder(m_ctx_);
-  if ((BB_predecessor = BB->getSinglePredecessor())) {
-    builder.SetInsertPoint(BB_predecessor);
-    builder.CreateBr(BB);
-  }
+
+  builder.SetInsertPoint(previous);
+  builder.CreateBr(BB);
 
   builder.SetInsertPoint(BB);
 

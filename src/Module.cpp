@@ -31,27 +31,6 @@ Hobbit::codegen::Module::Module(const std::string &name)
 
 llvm::LLVMContext &Hobbit::codegen::Module::GetContext() { return m_ctx_; }
 
-Hobbit::codegen::Function *
-Hobbit::codegen::Module::ParseTree(const std::string &name,
-                                   Hobbit::codegen::TreeVisitor &visitor) {
-  llvm::FunctionType *ft = ParseArgs_(visitor.Args());
-  llvm::Function *func =
-      llvm::cast<llvm::Function>(m_module_->getOrInsertFunction(name, ft));
-
-  Function *func_key = new Function{name};
-
-  auto visitor_arg_iter = visitor.Args().begin();
-  for (auto iter = func->arg_begin(), end = func->arg_end(); iter != end;
-       ++iter) {
-    (*visitor_arg_iter)->SetVal(&*iter);
-    (&*iter)->setName((*visitor_arg_iter)->GetName());
-  }
-
-  //  ParseTree_(func, visitor.Tree()); // should this return something?
-
-  return func_key;
-}
-
 Hobbit::graph::Variable *Hobbit::codegen::Module::GetVariable(
     const std::string &name, llvm::ArrayRef<uint64_t> dims, TypeID type) {
   std::unique_ptr<graph::Shape> shape =
@@ -79,28 +58,11 @@ Hobbit::graph::Operation *Hobbit::codegen::Module::GetOperation(
   return new graph::Operation(name, inputs, op_type);
 }
 
+llvm::Function *Hobbit::codegen::Module::GetFunction(const std::string &name,
+                                                     llvm::FunctionType *ft) {
+  return llvm::cast<llvm::Function>(m_module_->getOrInsertFunction(name, ft));
+}
+
 void Hobbit::codegen::Module::Print(llvm::raw_ostream &os) {
   m_module_->print(os, nullptr);
-}
-
-llvm::FunctionType *Hobbit::codegen::Module::ParseArgs_(
-    const std::set<Hobbit::graph::Variable *> &args) {
-  std::vector<llvm::Type *> arg_types;
-  for (auto &arg : args) {
-    arg_types.push_back(arg->GetType()->getPointerTo(0));
-  }
-
-  llvm::FunctionType *ft =
-      llvm::FunctionType::get(llvm::Type::getVoidTy(m_ctx_), arg_types, false);
-  return ft;
-}
-
-void Hobbit::codegen::Module::ParseTree_(
-    llvm::Function *f, std::list<Hobbit::graph::Operation *> &tree) {
-  // first fill in the variables (filled from parse_args)
-  // then each operation needs to generate its own code
-  //  for (auto &op : tree) {
-  //    llvm::BasicBlock *BB = op->GetOp()->InsertIntoFunction(f);
-  //  }
-  ;
 }

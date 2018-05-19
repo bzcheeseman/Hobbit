@@ -141,7 +141,7 @@ public:
 
   const ops::Operator::OperatorType &GetOperatorType() { return m_op_type_; }
 
-  const ops::Operator *GetOp() const { return m_op_; }
+  ops::Operator *GetOp() const { return m_op_; }
   void SetOp(ops::Operator *op) {
     CHECK_NOTNULL(op);
     m_op_ = std::move(op);

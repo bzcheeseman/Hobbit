@@ -42,12 +42,12 @@
 #include <llvm/Transforms/IPO/PassManagerBuilder.h>
 #include <random>
 
+#include <codegen/CGVisitor.hpp>
 #include <codegen/Module.hpp>
 #include <codegen/TreeVisitor.hpp>
 #include <graph/Node.hpp>
 #include <ops/eltwise_add.hpp>
 #include <ops/mock.hpp>
-#include <codegen/CGVisitor.hpp>
 
 namespace {
 using namespace Hobbit;
@@ -71,13 +71,9 @@ TEST(Basic, CreateGraph) {
 
   codegen::TreeVisitor visitor;
   visitor.BuildTree(op3);
-  LOG(INFO) << visitor;
   codegen::CGVisitor cgvisitor(&module, visitor.Args(), visitor.Tree());
-  cgvisitor.VisitTree();
-  //  codegen::Function fp = visitor.GetWrapperFunction("test");
-  //  module.InsertFunction(fp);
-  //  module.ParseTree("test", visitor);
-  //  module.Print(llvm::errs());
+  cgvisitor.VisitTree("test_func");
+  module.Print(llvm::errs());
 }
 
 // TEST(Basic, CreateLLVMFunction) {

@@ -27,13 +27,12 @@
 #include <list>
 #include <set>
 
-#include <graph/Node.hpp>
-#include <ops/Factory.hpp>
-#include <llvm/Support/Casting.h>
-
 namespace llvm {
 class raw_ostream;
-}
+class Function;
+class FunctionType;
+class BasicBlock;
+} // namespace llvm
 
 namespace Hobbit {
 
@@ -45,40 +44,29 @@ class Operation;
 
 namespace ops {
 class Operator;
-}
+} // namespace ops
 
 namespace codegen {
+class Module;
 
 class CGVisitor {
 public:
   CGVisitor(codegen::Module *module, std::set<graph::Variable *> &args,
-            std::list<graph::Operation *> &ops)
-      : m_module_(std::move(module)), m_args_(args), m_ops_(ops) {}
+            std::list<graph::Operation *> &ops);
 
-  void VisitTree() {
-    for (auto &op : m_ops_) {
-      ResolveDependencies_(op);
-    }
-  }
+  void VisitTree(const std::string &function_name);
 
 private:
-  void ResolveDependencies_(graph::Operation *op) {
-    std::vector<graph::Variable *> in_vars;
-    for (auto &in : op->Inputs()) {
-      graph::Variable *in_var;
-      if ((in_var = llvm::dyn_cast<graph::Variable>(in))) {
-        LOG(INFO) << "Variable: " << in_var->GetName();
-        // if it's a variable, then we're done.
-        in_vars.push_back(in_var);
-        continue;
-      }
-      // if it's an Operation, then I need to get the output variable
-      LOG(INFO) << "Operation: " << in->GetName();
-      in_var = llvm::cast<graph::Operation>(in)->GetOp()->GetOutputVariable();
-      in_vars.push_back(in_var);
-    }
-    op->SetOp(ops::Create(op->GetOperatorType(), m_module_, in_vars));
-  }
+  void ResolveDependencies_(graph::Operation *op);
+
+  llvm::FunctionType *InitFunctionType_();
+
+  llvm::Function *InitFunction_(const std::string &name);
+
+  llvm::BasicBlock *CodeGen_(ops::Operator *op, llvm::Function *f,
+                             llvm::BasicBlock *prev);
+
+  void FinalizeFunction_(llvm::BasicBlock *end_block);
 
 private:
   codegen::Module *m_module_;

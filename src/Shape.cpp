@@ -31,6 +31,7 @@
 
 // LLVM
 #include <llvm/IR/Constants.h>
+#include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/InstrTypes.h>
 
 Hobbit::graph::Shape::Shape(llvm::LLVMContext &ctx,
@@ -98,9 +99,12 @@ uint64_t Hobbit::graph::Shape::Size() const {
 
 llvm::Value *Hobbit::graph::Shape::Size(llvm::BasicBlock *BB) const {
   CHECK(m_has_llvm_) << "LLVM Value dims not initialized";
+
+  llvm::IRBuilder<> builder(BB);
+
   llvm::Value *out = llvm::ConstantInt::get(m_v_dims_[0]->getType(), 1);
   for (auto &dim : m_v_dims_) {
-    out = llvm::BinaryOperator::CreateMul(out, dim, "", BB);
+    out = builder.CreateMul(out, dim);
   }
   return out;
 }
@@ -121,14 +125,16 @@ uint64_t Hobbit::graph::Shape::At(llvm::ArrayRef<uint64_t> idx) const {
 llvm::Value *Hobbit::graph::Shape::At(llvm::ArrayRef<llvm::Value *> idx,
                                       llvm::BasicBlock *BB) const {
   CHECK(m_has_llvm_) << "LLVM Value dims not initialized";
-  CHECK_EQ(idx.size(), m_dims_.size());
+  CHECK_EQ(idx.size(), m_v_dims_.size()); // m_dims_.size() == 0???
+
+  llvm::IRBuilder<> builder(BB);
 
   llvm::Value *out = llvm::ConstantInt::get(m_v_dims_[0]->getType(), 0);
-  for (uint64_t i = 0; i < m_dims_.size() - 1; i++) {
-    out = llvm::BinaryOperator::CreateAdd(out, idx[i], "", BB);
-    out = llvm::BinaryOperator::CreateMul(out, m_v_dims_[i + 1], "", BB);
+  for (uint64_t i = 0; i < m_v_dims_.size() - 1; i++) {
+    out = builder.CreateAdd(out, idx[i]);
+    out = builder.CreateMul(out, m_v_dims_[i + 1]);
   }
-  out = llvm::BinaryOperator::CreateAdd(out, *(idx.end() - 1), "", BB);
+  out = builder.CreateAdd(out, *(idx.end() - 1));
 
   return out;
 }

@@ -52,7 +52,8 @@ public:
     return op->GetOperatorType() == mockID;
   }
 
-  llvm::BasicBlock *InsertIntoFunction(llvm::Function *f) override;
+  llvm::BasicBlock *InsertIntoFunction(llvm::Function *f,
+                                       llvm::BasicBlock *previous) override;
 
   graph::Variable *GetOutputVariable() const override;
 

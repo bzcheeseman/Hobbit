@@ -47,8 +47,8 @@ class TreeVisitor {
 public:
   void BuildTree(graph::Node *root);
 
-  std::list<graph::Operation *> & Tree();
-  std::set<graph::Variable *> & Args();
+  std::list<graph::Operation *> &Tree();
+  std::set<graph::Variable *> &Args();
 
   friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os, TreeVisitor &v);
   friend std::ostream &operator<<(std::ostream &os, TreeVisitor &v);

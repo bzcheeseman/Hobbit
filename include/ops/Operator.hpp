@@ -53,7 +53,8 @@ public:
 
   //  virtual void SetInputs(llvm::ArrayRef<graph::Variable *> inputs);
   virtual OperatorType GetOperatorType() const = 0;
-  virtual llvm::BasicBlock *InsertIntoFunction(llvm::Function *) = 0;
+  virtual llvm::BasicBlock *InsertIntoFunction(llvm::Function *,
+                                               llvm::BasicBlock *) = 0;
   virtual graph::Variable *GetOutputVariable() const = 0;
 
 protected:

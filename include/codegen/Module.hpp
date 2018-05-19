@@ -55,43 +55,32 @@ class Operator;
 
 namespace codegen {
 
-class TreeVisitor;
-
-struct Function {
-  std::string name;
-};
-
 class Module {
 public:
   explicit Module(const std::string &name);
 
   llvm::LLVMContext &GetContext();
 
-  Function *ParseTree(const std::string &name, TreeVisitor &visitor);
+  graph::Variable *GetVariable(const std::string &name,
+                               llvm::ArrayRef<uint64_t> dims, TypeID type);
 
   graph::Variable *GetVariable(const std::string &name,
-                                llvm::ArrayRef<uint64_t> dims, TypeID type);
-
-  graph::Variable *GetVariable(const std::string &name,
-                                llvm::ArrayRef<uint64_t> dims, llvm::Type *type);
+                               llvm::ArrayRef<uint64_t> dims, llvm::Type *type);
 
   graph::Variable *GetVariable(const std::string &name, graph::Shape *shape,
-                              llvm::Type *type);
+                               llvm::Type *type);
 
   graph::Operation *GetOperation(const std::string &name,
-                                  llvm::ArrayRef<graph::Node *> inputs,
-                                  ops::Operator::OperatorType op_type);
+                                 llvm::ArrayRef<graph::Node *> inputs,
+                                 ops::Operator::OperatorType op_type);
+
+  llvm::Function *GetFunction(const std::string &name, llvm::FunctionType *ft);
 
   void Print(llvm::raw_ostream &os);
 
 private:
-  llvm::FunctionType *ParseArgs_(const std::set<graph::Variable *> &args);
-  void ParseTree_(llvm::Function *f, std::list<graph::Operation *> &tree);
-
   llvm::LLVMContext m_ctx_;
   std::unique_ptr<llvm::Module> m_module_;
-
-  std::map<Function *, llvm::Function *> m_func_table_;
 };
 
 } // namespace codegen

@@ -55,31 +55,34 @@ Hobbit::ops::gemm::gemm(Hobbit::codegen::Module *module,
   CHECK_EQ(B_->GetShape().Dim((uint64_t)0), K_);
 
   C_ = m_module_->GetVariable("hobbit.gemm.output", {N_, M_}, A_->GetType());
-  // TODO: How to init C_'s llvm::Value? Use alloca or malloc?
 }
 
 Hobbit::graph::Variable *Hobbit::ops::gemm::GetOutputVariable() const {
   return C_;
 }
 
-llvm::BasicBlock *Hobbit::ops::gemm::InsertIntoFunction(Function *func) {
+llvm::BasicBlock *
+Hobbit::ops::gemm::InsertIntoFunction(llvm::Function *func,
+                                      llvm::BasicBlock *previous) {
   util::LoopMD loopMD;
   loopMD.vector_width = 4;
   loopMD.unroll_count = 32;
 
   LLVMContext &ctx = func->getContext();
+  IRBuilder<> builder(ctx);
+
+  builder.SetInsertPoint(&func->getEntryBlock());
+  llvm::Value *c_val = builder.CreateAlloca(
+      C_->GetType(), builder.getInt64(N_ * M_), C_->GetName());
+  C_->SetVal(c_val);
 
   BasicBlock *gemm_prehead =
       BasicBlock::Create(ctx, "hobbit.gemm.prehead", func);
   BasicBlock *gemm_posttail =
       BasicBlock::Create(ctx, "hobbit.gemm.posttail", func);
 
-  BasicBlock *gemm_prehead_pred;
-  IRBuilder<> builder(ctx);
-  if ((gemm_prehead_pred = gemm_prehead->getSinglePredecessor())) {
-    builder.SetInsertPoint(gemm_prehead_pred);
-    builder.CreateBr(gemm_prehead);
-  }
+  builder.SetInsertPoint(previous);
+  builder.CreateBr(gemm_prehead);
 
   builder.SetInsertPoint(gemm_prehead);
 

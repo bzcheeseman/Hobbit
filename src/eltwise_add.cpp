@@ -28,8 +28,8 @@
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/LLVMContext.h>
 
-#include <graph/Node.hpp>
 #include <codegen/Module.hpp>
+#include <graph/Node.hpp>
 #include <ops/Operator.hpp>
 #include <utils/LoopCG.hpp>
 
@@ -47,32 +47,35 @@ Hobbit::ops::eltwise_add::eltwise_add(codegen::Module *m,
   CHECK_EQ(A_->GetShape().Size(), B_->GetShape().Size());
 
   C_ = m_module_->GetVariable("hobbit.eltwise_add.output", &A_->GetShape(),
-                               A_->GetType());
-  // TODO: How to init C_'s llvm::Value? Use Alloca or malloc?
+                              A_->GetType());
 }
 
 Hobbit::graph::Variable *Hobbit::ops::eltwise_add::GetOutputVariable() const {
   return C_;
 }
 
-llvm::BasicBlock *Hobbit::ops::eltwise_add::InsertIntoFunction(Function *func) {
+llvm::BasicBlock *
+Hobbit::ops::eltwise_add::InsertIntoFunction(llvm::Function *func,
+                                             llvm::BasicBlock *previous) {
   util::LoopMD loopMD;
   loopMD.vector_width = 4;
   loopMD.unroll_count = 32;
 
   LLVMContext &ctx = func->getContext();
+  IRBuilder<> builder(ctx);
+
+  builder.SetInsertPoint(&func->getEntryBlock());
+  llvm::Value *c_val = builder.CreateAlloca(
+      C_->GetType(), builder.getInt64(A_->GetShape().Size()), C_->GetName());
+  C_->SetVal(c_val);
 
   BasicBlock *prehead =
       BasicBlock::Create(ctx, "hobbit.eltwise_add.prehead", func);
   BasicBlock *posttail =
       BasicBlock::Create(ctx, "hobbit.eltwise_add.posttail", func);
 
-  BasicBlock *prehead_pred;
-  IRBuilder<> builder(ctx);
-  if ((prehead_pred = prehead->getSinglePredecessor())) {
-    builder.SetInsertPoint(prehead_pred);
-    builder.CreateBr(prehead);
-  }
+  builder.SetInsertPoint(previous);
+  builder.CreateBr(prehead);
 
   builder.SetInsertPoint(prehead);
   Value *zero, *one, *size;
@@ -80,13 +83,14 @@ llvm::BasicBlock *Hobbit::ops::eltwise_add::InsertIntoFunction(Function *func) {
   one = builder.getInt64(1);
   size = builder.getInt64(A_->GetShape().Size());
 
-  util::LoopInfo loopinfo_i = util::EmitLoop("hobbit.eltwise_add.i", prehead,
-                                             posttail, zero, size, one, false);
-  util::AddLoopMetadata(loopinfo_i.cond, loopMD);
-
   const graph::Shape a_shape = A_->GetShape();
   graph::Shape flat = a_shape.Flatten(prehead);
 
+  util::LoopInfo loopinfo_i = util::EmitLoop("hobbit.eltwise_add.i", prehead,
+                                             posttail, zero, size, one, true);
+  util::AddLoopMetadata(loopinfo_i.cond, loopMD);
+
+  builder.SetInsertPoint(loopinfo_i.body_bb);
   Value *idx = flat.At({loopinfo_i.ind_var}, loopinfo_i.body_bb);
 
   Value *C_gep = builder.CreateInBoundsGEP(C_->GetVal(), idx);
@@ -105,7 +109,7 @@ llvm::BasicBlock *Hobbit::ops::eltwise_add::InsertIntoFunction(Function *func) {
   }
 
   builder.CreateAlignedStore(C_elt, C_gep, 32);
-  builder.CreateBr(posttail);
+  builder.CreateBr(loopinfo_i.tail_bb);
 
   return posttail;
 }
