@@ -51,7 +51,6 @@ public:
 
   explicit Operator(codegen::Module *m) : m_module_(m) {}
 
-  //  virtual void SetInputs(llvm::ArrayRef<graph::Variable *> inputs);
   virtual OperatorType GetOperatorType() const = 0;
   virtual llvm::BasicBlock *InsertIntoFunction(llvm::Function *,
                                                llvm::BasicBlock *) = 0;
