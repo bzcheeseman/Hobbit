@@ -53,24 +53,23 @@ namespace {
 using namespace Hobbit;
 
 TEST(Basic, CreateGraph) {
-    llvm::SmallVector<uint64_t, 4> tensor_dims = {32, 1, 28, 28};
+  llvm::SmallVector<uint64_t, 4> tensor_dims = {28, 28};
 
   codegen::Module module("TestModule");
 
   graph::Variable *argA = module.GetVariable("argA", tensor_dims, FLOAT32);
   graph::Variable *argB = module.GetVariable("argB", tensor_dims, FLOAT32);
+  graph::Variable *argC = module.GetVariable("argC", tensor_dims, FLOAT32);
+  graph::Variable *alpha = module.GetVariable("alpha", {1}, FLOAT32);
+  graph::Variable *beta = module.GetVariable("beta", {1}, FLOAT32);
 
-  graph::Operation *op =
-      module.GetOperation("basic", {argA, argB}, ops::Operator::eltwiseAddID);
-  graph::Operation *opp =
-      module.GetOperation("basic_p", {op}, ops::Operator::mockID);
-  graph::Operation *op2 =
-      module.GetOperation("basic2", {argB}, ops::Operator::mockID);
-  graph::Operation *op3 =
-      module.GetOperation("basic3", {opp, op2, argA}, ops::Operator::mockID);
+  graph::Operation *eltwise_add =
+      module.GetOperation("add", {argA, argB}, ops::Operator::eltwiseAddID);
+  graph::Operation *gemm =
+      module.GetOperation("gemm", {eltwise_add, argC, alpha, beta}, ops::Operator::gemmID);
 
   codegen::TreeVisitor visitor;
-  visitor.BuildTree(op3);
+  visitor.BuildTree(gemm);
   codegen::CGVisitor cgvisitor(&module, visitor.Args(), visitor.Tree());
   cgvisitor.VisitTree("test_func");
   module.Print(llvm::errs());

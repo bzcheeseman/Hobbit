@@ -43,15 +43,20 @@ Hobbit::ops::MockOperator::InsertIntoFunction(llvm::Function *f,
       llvm::BasicBlock::Create(m_ctx_, "hobbit.mock_operator", f);
   llvm::IRBuilder<> builder(m_ctx_);
 
+  if (!outvar->GetVal()) {
+    builder.SetInsertPoint(&f->getEntryBlock());
+    outvar->SetVal(builder.CreateAlloca(outvar->GetType(), nullptr, outvar->GetName()));
+  }
+
   builder.SetInsertPoint(previous);
   builder.CreateBr(BB);
 
   builder.SetInsertPoint(BB);
 
   llvm::ConstantInt *one = builder.getInt64(1), *two = builder.getInt64(2);
+  llvm::Value *result = builder.CreateAdd(one, two, "hobbit.mock_operator.add", true, true);
 
-  outvar->SetVal(
-      builder.CreateAdd(one, two, "hobbit.mock_operator.add", true, true));
+  builder.CreateStore(result, outvar->GetVal());
 
   return BB;
 }

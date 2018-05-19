@@ -64,10 +64,12 @@ Hobbit::ops::eltwise_add::InsertIntoFunction(llvm::Function *func,
   LLVMContext &ctx = func->getContext();
   IRBuilder<> builder(ctx);
 
-  builder.SetInsertPoint(&func->getEntryBlock());
-  llvm::Value *c_val = builder.CreateAlloca(
-      C_->GetType(), builder.getInt64(A_->GetShape().Size()), C_->GetName());
-  C_->SetVal(c_val);
+  if (!C_->GetVal()) {
+    builder.SetInsertPoint(&func->getEntryBlock());
+    llvm::Value *c_val = builder.CreateAlloca(
+            C_->GetType(), builder.getInt64(A_->GetShape().Size()), C_->GetName());
+    C_->SetVal(c_val);
+  }
 
   BasicBlock *prehead =
       BasicBlock::Create(ctx, "hobbit.eltwise_add.prehead", func);

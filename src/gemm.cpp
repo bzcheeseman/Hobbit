@@ -39,8 +39,8 @@ Hobbit::ops::gemm::gemm(Hobbit::codegen::Module *module,
                         Hobbit::graph::Variable *A, Hobbit::graph::Variable *B,
                         Hobbit::graph::Variable *alpha,
                         Hobbit::graph::Variable *beta)
-    : Operator(module), N_(A_->GetShape().Dim((uint64_t)0)),
-      M_(B_->GetShape().Dim(1)), K_(A_->GetShape().Dim(1)), A_(A), B_(B),
+    : Operator(module), N_(A->GetShape().Dim((uint64_t)0)),
+      M_(B->GetShape().Dim(1)), K_(A->GetShape().Dim(1)), A_(A), B_(B),
       alpha_(alpha), beta_(beta) {
   CHECK_EQ(A_->GetType(), B_->GetType());
   CHECK_EQ(A_->GetType(), alpha_->GetType());
@@ -71,10 +71,11 @@ Hobbit::ops::gemm::InsertIntoFunction(llvm::Function *func,
   LLVMContext &ctx = func->getContext();
   IRBuilder<> builder(ctx);
 
-  builder.SetInsertPoint(&func->getEntryBlock());
-  llvm::Value *c_val = builder.CreateAlloca(
-      C_->GetType(), builder.getInt64(N_ * M_), C_->GetName());
-  C_->SetVal(c_val);
+  if (!C_->GetVal()) {
+    builder.SetInsertPoint(&func->getEntryBlock());
+    llvm::Value *c_val = builder.CreateAlloca(C_->GetType(), builder.getInt64(N_ * M_), C_->GetName());
+    C_->SetVal(c_val);
+  }
 
   BasicBlock *gemm_prehead =
       BasicBlock::Create(ctx, "hobbit.gemm.prehead", func);
