@@ -73,7 +73,8 @@ Hobbit::ops::gemm::InsertIntoFunction(llvm::Function *func,
 
   if (!C_->GetVal()) {
     builder.SetInsertPoint(&func->getEntryBlock());
-    llvm::Value *c_val = builder.CreateAlloca(C_->GetType(), builder.getInt64(N_ * M_), C_->GetName());
+    llvm::Value *c_val = builder.CreateAlloca(
+        C_->GetType(), builder.getInt64(N_ * M_), C_->GetName());
     C_->SetVal(c_val);
   }
 

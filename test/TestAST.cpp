@@ -65,8 +65,8 @@ TEST(Basic, CreateGraph) {
 
   graph::Operation *eltwise_add =
       module.GetOperation("add", {argA, argB}, ops::Operator::eltwiseAddID);
-  graph::Operation *gemm =
-      module.GetOperation("gemm", {eltwise_add, argC, alpha, beta}, ops::Operator::gemmID);
+  graph::Operation *gemm = module.GetOperation(
+      "gemm", {eltwise_add, argC, alpha, beta}, ops::Operator::gemmID);
 
   codegen::TreeVisitor visitor;
   visitor.BuildTree(gemm);

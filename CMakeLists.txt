@@ -33,7 +33,6 @@ target_include_directories(Hobbit PUBLIC ${LLVM_INCLUDE_DIRS} ${CMAKE_CURRENT_SO
 
 add_subdirectory(KernelFusion)
 
-add_gtest(DataStorage Hobbit)
-add_gtest(AST Hobbit HobbitOpeltwise_add)
+add_gtest(AST Hobbit)
 
 include(AddClangFormat)

@@ -57,6 +57,7 @@ Hobbit::graph::Variable *Hobbit::ops::eltwise_add::GetOutputVariable() const {
 llvm::BasicBlock *
 Hobbit::ops::eltwise_add::InsertIntoFunction(llvm::Function *func,
                                              llvm::BasicBlock *previous) {
+  // TODO: Make these editable by platform? Maybe they live in codegen::Module?
   util::LoopMD loopMD;
   loopMD.vector_width = 4;
   loopMD.unroll_count = 32;
@@ -67,7 +68,7 @@ Hobbit::ops::eltwise_add::InsertIntoFunction(llvm::Function *func,
   if (!C_->GetVal()) {
     builder.SetInsertPoint(&func->getEntryBlock());
     llvm::Value *c_val = builder.CreateAlloca(
-            C_->GetType(), builder.getInt64(A_->GetShape().Size()), C_->GetName());
+        C_->GetType(), builder.getInt64(A_->GetShape().Size()), C_->GetName());
     C_->SetVal(c_val);
   }
 

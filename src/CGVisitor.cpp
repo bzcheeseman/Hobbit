@@ -66,8 +66,10 @@ void Hobbit::codegen::CGVisitor::ResolveDependencies_(
 llvm::FunctionType *Hobbit::codegen::CGVisitor::InitFunctionType_() {
   std::vector<llvm::Type *> arg_types;
   for (auto &arg : m_args_) {
-    if (arg->GetShape().Size() == 1) arg_types.push_back(arg->GetType());
-    else arg_types.push_back(arg->GetType()->getPointerTo(0));
+    if (arg->GetShape().Size() == 1)
+      arg_types.push_back(arg->GetType());
+    else
+      arg_types.push_back(arg->GetType()->getPointerTo(0));
   }
 
   // This may have multiple outputs? maybe it's ok to restrict it for now
@@ -98,7 +100,7 @@ Hobbit::codegen::CGVisitor::InitFunction_(const std::string &name) {
   }
 
   graph::Variable *out_var = (*(--m_ops_.end()))->GetOp()->GetOutputVariable();
-  llvm::Argument *last_arg = &*(f->arg_end()-1);
+  llvm::Argument *last_arg = &*(f->arg_end() - 1);
   last_arg->setName(out_var->GetName());
   out_var->SetVal(last_arg); // not initialized yet, so we just set it
 

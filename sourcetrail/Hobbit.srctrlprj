@@ -5,21 +5,19 @@
             <build_file_path>
                 <compilation_db_path>../cmake-build-debug/compile_commands.json</compilation_db_path>
             </build_file_path>
-            <exclude_paths>
-                <exclude_path>../cmake-build-debug</exclude_path>
-            </exclude_paths>
+            <exclude_filters>
+                <exclude_filter>../cmake-build-debug</exclude_filter>
+            </exclude_filters>
+            <indexed_header_paths>
+                <indexed_header_path>../cmake-build-debug/googletest-src/googlemock/src</indexed_header_path>
+                <indexed_header_path>../cmake-build-debug/googletest-src/googletest/src</indexed_header_path>
+                <indexed_header_path>../include</indexed_header_path>
+                <indexed_header_path>../src</indexed_header_path>
+            </indexed_header_paths>
             <name>C/C++ from Compilation Database</name>
-            <source_paths>
-                <source_path>../Buffer/src</source_path>
-                <source_path>../Buffer/test</source_path>
-                <source_path>../Module/src</source_path>
-                <source_path>../Module/test</source_path>
-                <source_path>../cmake-build-debug/googletest-src/googlemock/src</source_path>
-                <source_path>../cmake-build-debug/googletest-src/googletest/src</source_path>
-            </source_paths>
             <status>enabled</status>
             <type>C/C++ from Compilation Database</type>
         </source_group_c5edfc6a-2912-4eaf-a782-7b6bfb2869bf>
     </source_groups>
-    <version>4</version>
+    <version>6</version>
 </config>
