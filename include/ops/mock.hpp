@@ -1,5 +1,5 @@
 //
-// Created by Aman LaChapelle on 4/8/18.
+// Created by Aman LaChapelle on 5/14/18.
 //
 // Hobbit
 // Copyright (c) 2018 Aman LaChapelle
@@ -20,10 +20,10 @@
     limitations under the License.
  */
 
-#ifndef HOBBIT_OPERATOR_HPP
-#define HOBBIT_OPERATOR_HPP
+#ifndef HOBBIT_MOCK_HPP
+#define HOBBIT_MOCK_HPP
 
-#include <llvm/ADT/ArrayRef.h>
+#include "Operator.hpp"
 
 namespace llvm {
 class Function;
@@ -43,24 +43,26 @@ class Variable;
 }
 
 namespace ops {
-class Operator {
+class MockOperator : public Operator {
 public:
-  enum OperatorType {
-#include "OperatorTypes.def"
-  };
+  explicit MockOperator(codegen::Module *m);
 
-  explicit Operator(codegen::Module *m) : m_module_(m) {}
+  OperatorType GetOperatorType() const override;
+  static inline bool classof(const Operator *op) {
+    return op->GetOperatorType() == mockID;
+  }
 
-  virtual OperatorType GetOperatorType() const = 0;
-  virtual llvm::BasicBlock *InsertIntoFunction(llvm::Function *,
-                                               llvm::BasicBlock *) = 0;
-  virtual graph::Variable *GetOutputVariable() const = 0;
+  llvm::BasicBlock *InsertIntoFunction(llvm::Function *f,
+                                       llvm::BasicBlock *previous) override;
 
-protected:
-  codegen::Module *m_module_;
+  graph::Variable *GetOutputVariable() const override;
+
+private:
+  graph::Variable *outvar;
+  llvm::LLVMContext &m_ctx_;
 };
 
 } // namespace ops
 } // namespace Hobbit
 
-#endif // HOBBIT_OPERATOR_HPP
+#endif // HOBBIT_MOCK_HPP

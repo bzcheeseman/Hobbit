@@ -42,62 +42,37 @@
 #include <llvm/Transforms/IPO/PassManagerBuilder.h>
 #include <random>
 
-#include <ast/Node.hpp>
-#include <ast/DataStorage.hpp>
-#include <ops/Operator.hpp>
-#include <ast/Operator.hpp>
+#include <codegen/CGVisitor.hpp>
+#include <codegen/Module.hpp>
+#include <codegen/TreeVisitor.hpp>
+#include <graph/Node.hpp>
+#include <ops/eltwise_add.hpp>
+#include <ops/mock.hpp>
 
 namespace {
-  using namespace Hobbit;
+using namespace Hobbit;
 
 TEST(Basic, CreateGraph) {
-  llvm::SmallVector<uint64_t, 4> tensor_dims = {64, 3, 224, 224};
+  llvm::SmallVector<uint64_t, 4> tensor_dims = {28, 28};
 
-  ast::Tensor argA ("argA", tensor_dims);
-  ast::Tensor argB ("argB", tensor_dims);
+  codegen::Module module("TestModule");
 
-  ops::NoOp noop;
+  graph::Variable *argA = module.GetVariable("argA", tensor_dims, FLOAT32);
+  graph::Variable *argB = module.GetVariable("argB", tensor_dims, FLOAT32);
+  graph::Variable *argC = module.GetVariable("argC", tensor_dims, FLOAT32);
+  graph::Variable *alpha = module.GetVariable("alpha", {1}, FLOAT32);
+  graph::Variable *beta = module.GetVariable("beta", {1}, FLOAT32);
 
-  ast::Operator *astnoop = ast::Operator::Create("NoOp", &noop, {&argA, &argB});
-  llvm::errs() << *astnoop;
+  graph::Operation *eltwise_add =
+      module.GetOperation("add", {argA, argB}, ops::Operator::eltwiseAddID);
+  graph::Operation *gemm = module.GetOperation(
+      "gemm", {eltwise_add, argC, alpha, beta}, ops::Operator::gemmID);
+
+  codegen::TreeVisitor visitor;
+  visitor.BuildTree(gemm);
+  codegen::CGVisitor cgvisitor(&module, visitor.Args(), visitor.Tree());
+  cgvisitor.VisitTree("test_func");
+  module.Print(llvm::errs());
 }
-
-//TEST(Basic, CreateLLVMFunction) {
-//  llvm::LLVMContext ctx;
-//
-//  Hobbit::Visitor *cgvisitor = Hobbit::Visitor::Create(&ctx, "test_module");
-//
-//  Hobbit::Function *func = Hobbit::Function::Create("TestFunction");
-//
-//  const int n_elts = 153;
-//
-//  std::random_device rd;
-//  std::mt19937 gen(rd());
-//  std::uniform_real_distribution<float> dis(0.0, 1.0);
-//
-//  std::vector<float> f1,
-//      f2; // why are there a bunch of zeros in the middle...
-//  for (int i = 0; i < n_elts; i++) {
-//    f1.push_back(dis(gen));
-//    f2.push_back(dis(gen));
-//  }
-//
-//  Hobbit::Tensor *lhs =
-//      func->GetNewArg("lhs", {n_elts}, llvm::Type::getFloatPtrTy(ctx));
-//
-//  Hobbit::ast::Node *hsum = Hobbit::HSum::Create("hsum", func, 0, 153);
-//
-//  func->PushNode(hsum);
-//  Hobbit::Tensor *out = llvm::dyn_cast<Hobbit::HSum>(hsum)->SetArgs({lhs});
-//  func->SetArg(out);
-//
-//  func->Emit(cgvisitor);
-//
-//  cgvisitor->FinalizeFunction(func);
-//  cgvisitor->GetModule()->print(llvm::outs(), nullptr);
-//  cgvisitor->Finalize(3, llvm::sys::getDefaultTargetTriple(), "corei7-avx",
-//                      "+avx,+sse,+x87,+cx16");
-//  cgvisitor->GetModule()->print(llvm::outs(), nullptr);
-//}
 
 } // namespace

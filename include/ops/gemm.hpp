@@ -1,5 +1,5 @@
 //
-// Created by Aman LaChapelle on 4/8/18.
+// Created by Aman LaChapelle on 5/13/18.
 //
 // Hobbit
 // Copyright (c) 2018 Aman LaChapelle
@@ -20,47 +20,52 @@
     limitations under the License.
  */
 
-#ifndef HOBBIT_OPERATOR_HPP
-#define HOBBIT_OPERATOR_HPP
+#ifndef HOBBIT_GEMM_HPP
+#define HOBBIT_GEMM_HPP
 
+// STL
+#include <cstdint>
 #include <llvm/ADT/ArrayRef.h>
+// Project
+#include "Operator.hpp"
 
 namespace llvm {
+class Value;
 class Function;
 class BasicBlock;
-class Type;
-class LLVMContext;
 } // namespace llvm
 
 namespace Hobbit {
-
-namespace codegen {
-class Module;
-}
-
 namespace graph {
 class Variable;
 }
-
+namespace codegen {
+class Module;
+}
 namespace ops {
-class Operator {
+class gemm : public Operator {
 public:
-  enum OperatorType {
-#include "OperatorTypes.def"
-  };
+  gemm(codegen::Module *m, graph::Variable *A, graph::Variable *B,
+       graph::Variable *alpha, graph::Variable *beta);
 
-  explicit Operator(codegen::Module *m) : m_module_(m) {}
+  OperatorType GetOperatorType() const override { return gemmID; }
 
-  virtual OperatorType GetOperatorType() const = 0;
-  virtual llvm::BasicBlock *InsertIntoFunction(llvm::Function *,
-                                               llvm::BasicBlock *) = 0;
-  virtual graph::Variable *GetOutputVariable() const = 0;
+  static inline bool classof(const Operator *op) {
+    return op->GetOperatorType() == gemmID;
+  }
 
-protected:
-  codegen::Module *m_module_;
+  graph::Variable *GetOutputVariable() const override;
+
+  llvm::BasicBlock *InsertIntoFunction(llvm::Function *func,
+                                       llvm::BasicBlock *previous) override;
+
+private:
+  uint64_t N_, M_, K_;
+  graph::Variable *A_, *B_, *alpha_, *beta_;
+  graph::Variable *C_;
 };
 
 } // namespace ops
 } // namespace Hobbit
 
-#endif // HOBBIT_OPERATOR_HPP
+#endif // HOBBIT_GEMM_HPP

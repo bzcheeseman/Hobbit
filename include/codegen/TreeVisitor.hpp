@@ -1,5 +1,5 @@
 //
-// Created by Aman LaChapelle on 4/8/18.
+// Created by Aman LaChapelle on 5/3/18.
 //
 // Hobbit
 // Copyright (c) 2018 Aman LaChapelle
@@ -20,47 +20,50 @@
     limitations under the License.
  */
 
-#ifndef HOBBIT_OPERATOR_HPP
-#define HOBBIT_OPERATOR_HPP
+#ifndef HOBBIT_VISITOR_HPP
+#define HOBBIT_VISITOR_HPP
 
-#include <llvm/ADT/ArrayRef.h>
+// STL
+#include <list>
+#include <set>
 
 namespace llvm {
-class Function;
-class BasicBlock;
-class Type;
-class LLVMContext;
-} // namespace llvm
+class raw_ostream;
+}
 
 namespace Hobbit {
 
-namespace codegen {
-class Module;
-}
-
 namespace graph {
+class Node;
 class Variable;
-}
+class Operation;
+} // namespace graph
 
-namespace ops {
-class Operator {
+namespace codegen {
+
+class Function;
+
+class TreeVisitor {
 public:
-  enum OperatorType {
-#include "OperatorTypes.def"
-  };
+  void BuildTree(graph::Node *root);
 
-  explicit Operator(codegen::Module *m) : m_module_(m) {}
+  std::list<graph::Operation *> &Tree();
+  std::set<graph::Variable *> &Args();
 
-  virtual OperatorType GetOperatorType() const = 0;
-  virtual llvm::BasicBlock *InsertIntoFunction(llvm::Function *,
-                                               llvm::BasicBlock *) = 0;
-  virtual graph::Variable *GetOutputVariable() const = 0;
+  friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os, TreeVisitor &v);
+  friend std::ostream &operator<<(std::ostream &os, TreeVisitor &v);
 
-protected:
-  codegen::Module *m_module_;
+private:
+  void BuildTree_(graph::Node *root);
+  void SortTree_();
+
+private:
+  bool m_tree_built_ = false;
+  std::list<graph::Operation *> m_ops_;
+  std::set<graph::Variable *> m_args_;
 };
 
-} // namespace ops
+} // namespace codegen
 } // namespace Hobbit
 
-#endif // HOBBIT_OPERATOR_HPP
+#endif // HOBBIT_VISITOR_HPP

@@ -24,7 +24,7 @@
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/LLVMContext.h>
 
-#include "LoopCG.hpp"
+#include <utils/LoopCG.hpp>
 
 Hobbit::util::LoopInfo
 Hobbit::util::EmitLoop(const std::string &name, llvm::BasicBlock *loop_prehead,
