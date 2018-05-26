@@ -79,8 +79,8 @@ public:
 
   void CodeGen(const std::string &name, graph::Node *final_node);
 
-  llvm::Module &Finalize(const std::string &target_triple, const std::string &cpu,
-                const std::string &features);
+  llvm::Module &Finalize(const std::string &target_triple,
+                         const std::string &cpu, const std::string &features);
 
   void Print(llvm::raw_ostream &os);
 

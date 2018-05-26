@@ -24,10 +24,13 @@
 #include "codegen/Module.hpp"
 
 #include <llvm/IR/LegacyPassManager.h>
-#include <polly/RegisterPasses.h>
 #include <llvm/Transforms/IPO/PassManagerBuilder.h>
+#include <polly/RegisterPasses.h>
 
 void Hobbit::compile::Optimize::Initialize(unsigned int opt_level) {
+  llvm::PassRegistry &Registry = *llvm::PassRegistry::getPassRegistry();
+  polly::initializePollyPasses(Registry);
+
   llvm::PassManagerBuilder PMBuilder;
 
   PMBuilder.OptLevel = opt_level;
@@ -40,7 +43,9 @@ void Hobbit::compile::Optimize::Initialize(unsigned int opt_level) {
   PMBuilder.populateModulePassManager(m_pass_manager_);
 }
 
-void Hobbit::compile::Optimize::Run(Hobbit::Module *m, const std::string &target_triple, const std::string &cpu,
+void Hobbit::compile::Optimize::Run(Hobbit::Module *m,
+                                    const std::string &target_triple,
+                                    const std::string &cpu,
                                     const std::string &features) {
   m_pass_manager_.run(m->Finalize(target_triple, cpu, features));
 }

@@ -92,8 +92,8 @@ void Hobbit::Module::CodeGen(const std::string &name, graph::Node *final_node) {
 }
 
 llvm::Module &Hobbit::Module::Finalize(const std::string &target_triple,
-                              const std::string &cpu,
-                              const std::string &features) {
+                                       const std::string &cpu,
+                                       const std::string &features) {
   llvm::InitializeAllTargetInfos();
   llvm::InitializeAllTargets();
   llvm::InitializeAllTargetMCs();

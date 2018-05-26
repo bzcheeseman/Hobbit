@@ -45,10 +45,10 @@
 #include <codegen/CGVisitor.hpp>
 #include <codegen/Module.hpp>
 #include <codegen/TreeVisitor.hpp>
+#include <compile/Optimize.hpp>
 #include <graph/Node.hpp>
 #include <ops/eltwise_add.hpp>
 #include <ops/mock.hpp>
-#include <compile/Optimize.hpp>
 
 namespace {
 using namespace Hobbit;
@@ -70,7 +70,7 @@ TEST(Basic, CreateGraph) {
       "gemm", {eltwise_add, argC, alpha, beta}, ops::Operator::gemmID);
 
   module.RegisterOutput(gemm);
-  module.RegisterOutput(eltwise_add);
+  //  module.RegisterOutput(eltwise_add);
 
   module.CodeGen("test_func", gemm);
 
@@ -78,9 +78,11 @@ TEST(Basic, CreateGraph) {
                   llvm::sys::getHostCPUName(), "");
   module.Print(llvm::errs());
 
-//  compile::Optimize opt;
-//  opt.Initialize(3);
-//  opt.Run(&module, llvm::sys::getDefaultTargetTriple(), llvm::sys::getHostCPUName(), "");
+  compile::Optimize opt;
+  opt.Initialize(3);
+  opt.Run(&module, llvm::sys::getDefaultTargetTriple(),
+          llvm::sys::getHostCPUName(), "");
+  //  module.Print(llvm::errs());
 }
 
 } // namespace

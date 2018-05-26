@@ -23,8 +23,8 @@
 #ifndef HOBBIT_OPTIMIZE_HPP
 #define HOBBIT_OPTIMIZE_HPP
 
-#include <string>
 #include <llvm/IR/LegacyPassManager.h>
+#include <string>
 
 namespace Hobbit {
 class Module;
@@ -40,7 +40,7 @@ public:
 private:
   llvm::legacy::PassManager m_pass_manager_;
 };
-} // namespace codegen
+} // namespace compile
 } // namespace Hobbit
 
 #endif // HOBBIT_OPTIMIZE_HPP
