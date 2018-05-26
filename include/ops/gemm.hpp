@@ -39,13 +39,13 @@ namespace Hobbit {
 namespace graph {
 class Variable;
 }
-namespace codegen {
+
 class Module;
-}
+
 namespace ops {
 class gemm : public Operator {
 public:
-  gemm(codegen::Module *m, graph::Variable *A, graph::Variable *B,
+  gemm(Module *m, graph::Variable *A, graph::Variable *B,
        graph::Variable *alpha, graph::Variable *beta);
 
   OperatorType GetOperatorType() const override { return gemmID; }

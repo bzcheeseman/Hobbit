@@ -35,13 +35,13 @@ namespace Hobbit {
 namespace graph {
 class Variable;
 }
-namespace codegen {
+
 class Module;
-}
+
 namespace ops {
 class eltwise_add : public Operator {
 public:
-  eltwise_add(codegen::Module *m, graph::Variable *A, graph::Variable *B);
+  eltwise_add(Module *m, graph::Variable *A, graph::Variable *B);
 
   OperatorType GetOperatorType() const override { return eltwiseAddID; }
 

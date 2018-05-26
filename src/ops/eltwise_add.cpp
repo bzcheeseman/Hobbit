@@ -35,8 +35,7 @@
 
 using namespace llvm;
 
-Hobbit::ops::eltwise_add::eltwise_add(codegen::Module *m,
-                                      Hobbit::graph::Variable *A,
+Hobbit::ops::eltwise_add::eltwise_add(Module *m, Hobbit::graph::Variable *A,
                                       Hobbit::graph::Variable *B)
     : Operator(m), A_(A), B_(B) {
   CHECK_EQ(A_->GetType(), B_->GetType());

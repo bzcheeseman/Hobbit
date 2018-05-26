@@ -53,8 +53,6 @@ namespace ops {
 class Operator;
 }
 
-namespace codegen {
-
 class Module {
 public:
   explicit Module(const std::string &name);
@@ -74,16 +72,24 @@ public:
                                  llvm::ArrayRef<graph::Node *> inputs,
                                  ops::Operator::OperatorType op_type);
 
+  // this function allows us to have multiple return values
+  void RegisterOutput(graph::Node *parent_ref);
+
   llvm::Function *GetFunction(const std::string &name, llvm::FunctionType *ft);
+
+  void CodeGen(const std::string &name, graph::Node *final_node);
+
+  llvm::Module &Finalize(const std::string &target_triple, const std::string &cpu,
+                const std::string &features);
 
   void Print(llvm::raw_ostream &os);
 
 private:
   llvm::LLVMContext m_ctx_;
   std::unique_ptr<llvm::Module> m_module_;
+  llvm::SmallVector<graph::Node *, 2> m_outputs_;
 };
 
-} // namespace codegen
 } // namespace Hobbit
 
 #endif // HOBBIT_MODULE_HPP

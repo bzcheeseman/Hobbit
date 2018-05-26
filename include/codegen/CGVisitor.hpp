@@ -27,6 +27,9 @@
 #include <list>
 #include <set>
 
+// LLVM
+#include <llvm/ADT/ArrayRef.h>
+
 namespace llvm {
 class raw_ostream;
 class Function;
@@ -46,22 +49,26 @@ namespace ops {
 class Operator;
 } // namespace ops
 
-namespace codegen {
 class Module;
+
+namespace codegen {
 
 class CGVisitor {
 public:
-  CGVisitor(codegen::Module *module, std::set<graph::Variable *> &args,
+  CGVisitor(Module *module, std::set<graph::Variable *> &args,
             std::list<graph::Operation *> &ops);
 
-  void CodeGenTree(const std::string &function_name);
+  void CodeGenTree(const std::string &function_name,
+                   llvm::ArrayRef<graph::Node *> outputs);
 
 private:
   void ResolveDependencies_(graph::Operation *op);
 
-  llvm::FunctionType *InitFunctionType_();
+  llvm::FunctionType *
+  InitFunctionType_(llvm::ArrayRef<graph::Variable *> output_vars);
 
-  llvm::Function *InitFunction_(const std::string &name);
+  llvm::Function *InitFunction_(const std::string &name,
+                                llvm::ArrayRef<graph::Variable *> output_vars);
 
   llvm::BasicBlock *CodeGen_(ops::Operator *op, llvm::Function *f,
                              llvm::BasicBlock *prev);
@@ -69,7 +76,7 @@ private:
   void FinalizeFunction_(llvm::BasicBlock *end_block);
 
 private:
-  codegen::Module *m_module_;
+  Module *m_module_;
   std::list<graph::Operation *> m_ops_;
   std::set<graph::Variable *> m_args_;
 };

@@ -55,7 +55,7 @@ using namespace Hobbit;
 TEST(Basic, CreateGraph) {
   llvm::SmallVector<uint64_t, 4> tensor_dims = {28, 28};
 
-  codegen::Module module("TestModule");
+  Module module("TestModule");
 
   graph::Variable *argA = module.GetVariable("argA", tensor_dims, FLOAT32);
   graph::Variable *argB = module.GetVariable("argB", tensor_dims, FLOAT32);
@@ -68,10 +68,13 @@ TEST(Basic, CreateGraph) {
   graph::Operation *gemm = module.GetOperation(
       "gemm", {eltwise_add, argC, alpha, beta}, ops::Operator::gemmID);
 
-  codegen::TreeVisitor visitor;
-  visitor.BuildTree(gemm);
-  codegen::CGVisitor cgvisitor(&module, visitor.Args(), visitor.Tree());
-  cgvisitor.CodeGenTree("test_func");
+  module.RegisterOutput(gemm);
+  module.RegisterOutput(eltwise_add);
+
+  module.CodeGen("test_func", gemm);
+
+  module.Finalize(llvm::sys::getDefaultTargetTriple(),
+                  llvm::sys::getHostCPUName(), "");
   module.Print(llvm::errs());
 }
 

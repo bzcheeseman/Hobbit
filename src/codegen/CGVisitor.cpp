@@ -29,15 +29,31 @@
 #include <ops/Factory.hpp>
 
 Hobbit::codegen::CGVisitor::CGVisitor(
-    Hobbit::codegen::Module *module, std::set<Hobbit::graph::Variable *> &args,
+    Hobbit::Module *module, std::set<Hobbit::graph::Variable *> &args,
     std::list<Hobbit::graph::Operation *> &ops)
     : m_module_(std::move(module)), m_args_(args), m_ops_(ops) {}
 
-void Hobbit::codegen::CGVisitor::CodeGenTree(const std::string &function_name) {
+void Hobbit::codegen::CGVisitor::CodeGenTree(
+    const std::string &function_name, llvm::ArrayRef<graph::Node *> outputs) {
   for (auto &op : m_ops_) {
     ResolveDependencies_(op);
   }
-  llvm::Function *f = InitFunction_(function_name);
+
+  // Resolve outputs into their Variables
+  llvm::SmallVector<graph::Variable *, 2> output_vars;
+  graph::Operation *op;
+  graph::Variable *var;
+
+  for (auto &out : outputs) {
+    if ((op = llvm::dyn_cast<graph::Operation>(out))) {
+      output_vars.push_back(op->GetOp()->GetOutputVariable());
+    }
+    if ((var = llvm::dyn_cast<graph::Variable>(out))) {
+      output_vars.push_back(var);
+    }
+  }
+
+  llvm::Function *f = InitFunction_(function_name, output_vars);
   llvm::BasicBlock *prev = &f->getEntryBlock();
   for (auto &op : m_ops_) {
     prev = CodeGen_(op->GetOp(), f, prev);
@@ -63,7 +79,8 @@ void Hobbit::codegen::CGVisitor::ResolveDependencies_(
   op->SetOp(ops::Create(op->GetOperatorType(), m_module_, in_vars));
 }
 
-llvm::FunctionType *Hobbit::codegen::CGVisitor::InitFunctionType_() {
+llvm::FunctionType *Hobbit::codegen::CGVisitor::InitFunctionType_(
+    llvm::ArrayRef<graph::Variable *> output_vars) {
   std::vector<llvm::Type *> arg_types;
   for (auto &arg : m_args_) {
     if (arg->GetShape().Size() == 1)
@@ -72,37 +89,41 @@ llvm::FunctionType *Hobbit::codegen::CGVisitor::InitFunctionType_() {
       arg_types.push_back(arg->GetType()->getPointerTo(0));
   }
 
-  // This may have multiple outputs? maybe it's ok to restrict it for now
-  llvm::Type *out_type = (*--m_ops_.end())
-                             ->GetOp()
-                             ->GetOutputVariable()
-                             ->GetType()
-                             ->getPointerTo(0);
-  arg_types.push_back(out_type);
+  llvm::Type *out_type;
+  for (auto &out_var : output_vars) {
+    out_type = out_var->GetType()->getPointerTo(0);
+    arg_types.push_back(out_type);
+  }
 
   llvm::FunctionType *ft = llvm::FunctionType::get(
       llvm::Type::getVoidTy(m_module_->GetContext()), arg_types, false);
   return ft;
 }
 
-llvm::Function *
-Hobbit::codegen::CGVisitor::InitFunction_(const std::string &name) {
-  llvm::FunctionType *ft = InitFunctionType_();
+llvm::Function *Hobbit::codegen::CGVisitor::InitFunction_(
+    const std::string &name, llvm::ArrayRef<graph::Variable *> output_vars) {
+  llvm::FunctionType *ft = InitFunctionType_(output_vars);
   llvm::Function *f = m_module_->GetFunction(name, ft);
 
   auto m_arg_iter = m_args_.begin();
-  // Don't go to the last arg because that one is the output pointer
-  for (auto f_arg_iter = f->arg_begin(), f_arg_end = f->arg_end() - 1;
+  // Don't go to the last few args because they are output pointers
+  for (auto f_arg_iter = f->arg_begin(),
+            f_arg_end = f->arg_end() - output_vars.size();
        f_arg_iter != f_arg_end; ++f_arg_iter, ++m_arg_iter) {
     llvm::Argument *arg = &*f_arg_iter;
     arg->setName((*m_arg_iter)->GetName());
     (*m_arg_iter)->SetVal(arg);
   }
 
-  graph::Variable *out_var = (*(--m_ops_.end()))->GetOp()->GetOutputVariable();
-  llvm::Argument *last_arg = &*(f->arg_end() - 1);
-  last_arg->setName(out_var->GetName());
-  out_var->SetVal(last_arg); // not initialized yet, so we just set it
+  auto m_out_iter = output_vars.begin();
+  // Don't go to the last few args because they are output pointers
+  for (auto f_arg_iter = f->arg_end() - output_vars.size(),
+            f_arg_end = f->arg_end();
+       f_arg_iter != f_arg_end; ++f_arg_iter, ++m_out_iter) {
+    llvm::Argument *arg = &*f_arg_iter;
+    arg->setName((*m_out_iter)->GetName());
+    (*m_out_iter)->SetVal(arg);
+  }
 
   llvm::BasicBlock::Create(m_module_->GetContext(), "hobbit." + name + ".entry",
                            f);

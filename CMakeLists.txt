@@ -31,7 +31,7 @@ add_library(Hobbit SHARED ${CODEGEN} ${GRAPH} ${OPS} ${UTILS} ${COMPILE})
 target_link_libraries(Hobbit PUBLIC ${llvm_libs} glog::glog)
 target_include_directories(Hobbit PUBLIC ${LLVM_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-add_subdirectory(KernelFusion)
+add_subdirectory(passes)
 
 add_gtest(AST Hobbit)
 

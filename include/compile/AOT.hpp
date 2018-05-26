@@ -25,7 +25,7 @@
 
 namespace Hobbit {
 namespace compile {
-class AOT {
+class AOT { // can use PassManager to add a pass that just dumps to the stdout
   // TODO: AOT compile hobbit modules given a target arch
 };
 } // namespace compile

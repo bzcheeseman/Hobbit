@@ -34,9 +34,7 @@ class LLVMContext;
 
 namespace Hobbit {
 
-namespace codegen {
 class Module;
-}
 
 namespace graph {
 class Variable;
@@ -49,7 +47,7 @@ public:
 #include "OperatorTypes.def"
   };
 
-  explicit Operator(codegen::Module *m) : m_module_(m) {}
+  explicit Operator(Module *m) : m_module_(m) {}
 
   virtual OperatorType GetOperatorType() const = 0;
   virtual llvm::BasicBlock *InsertIntoFunction(llvm::Function *,
@@ -57,7 +55,7 @@ public:
   virtual graph::Variable *GetOutputVariable() const = 0;
 
 protected:
-  codegen::Module *m_module_;
+  Module *m_module_;
 };
 
 } // namespace ops

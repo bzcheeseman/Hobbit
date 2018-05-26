@@ -20,49 +20,100 @@
     limitations under the License.
  */
 
+#include <codegen/CGVisitor.hpp>
 #include <codegen/Module.hpp>
 #include <codegen/TreeVisitor.hpp>
 #include <graph/Node.hpp>
 
+#include <llvm/Bitcode/BitcodeWriter.h>
+#include <llvm/ExecutionEngine/ExecutionEngine.h>
+#include <llvm/ExecutionEngine/MCJIT.h>
+#include <llvm/ExecutionEngine/SectionMemoryManager.h>
+#include <llvm/IR/LegacyPassManager.h>
 #include <llvm/IR/Module.h>
+#include <llvm/IR/Verifier.h>
+#include <llvm/Support/FileSystem.h>
+#include <llvm/Support/Host.h>
+#include <llvm/Support/TargetRegistry.h>
+#include <llvm/Support/TargetSelect.h>
+#include <llvm/Target/TargetMachine.h>
+#include <llvm/Target/TargetOptions.h>
+#include <llvm/Transforms/IPO/PassManagerBuilder.h>
 
-Hobbit::codegen::Module::Module(const std::string &name)
+Hobbit::Module::Module(const std::string &name)
     : m_ctx_(), m_module_(llvm::make_unique<llvm::Module>(name, m_ctx_)) {}
 
-llvm::LLVMContext &Hobbit::codegen::Module::GetContext() { return m_ctx_; }
+llvm::LLVMContext &Hobbit::Module::GetContext() { return m_ctx_; }
 
-Hobbit::graph::Variable *Hobbit::codegen::Module::GetVariable(
-    const std::string &name, llvm::ArrayRef<uint64_t> dims, TypeID type) {
+Hobbit::graph::Variable *
+Hobbit::Module::GetVariable(const std::string &name,
+                            llvm::ArrayRef<uint64_t> dims, TypeID type) {
   std::unique_ptr<graph::Shape> shape =
       llvm::make_unique<graph::Shape>(m_ctx_, dims);
   return new graph::Variable(name, std::move(shape), GetType(type, m_ctx_));
 }
 
-Hobbit::graph::Variable *Hobbit::codegen::Module::GetVariable(
-    const std::string &name, llvm::ArrayRef<uint64_t> dims, llvm::Type *type) {
+Hobbit::graph::Variable *
+Hobbit::Module::GetVariable(const std::string &name,
+                            llvm::ArrayRef<uint64_t> dims, llvm::Type *type) {
   std::unique_ptr<graph::Shape> shape =
       llvm::make_unique<graph::Shape>(m_ctx_, dims);
   return new graph::Variable(name, std::move(shape), type);
 }
 
-Hobbit::graph::Variable *
-Hobbit::codegen::Module::GetVariable(const std::string &name,
-                                     graph::Shape *shape, llvm::Type *type) {
+Hobbit::graph::Variable *Hobbit::Module::GetVariable(const std::string &name,
+                                                     graph::Shape *shape,
+                                                     llvm::Type *type) {
   shape->InitLLVM(m_ctx_);
   return new graph::Variable(name, std::move(shape), type);
 }
 
-Hobbit::graph::Operation *Hobbit::codegen::Module::GetOperation(
-    const std::string &name, llvm::ArrayRef<Hobbit::graph::Node *> inputs,
-    Hobbit::ops::Operator::OperatorType op_type) {
+Hobbit::graph::Operation *
+Hobbit::Module::GetOperation(const std::string &name,
+                             llvm::ArrayRef<Hobbit::graph::Node *> inputs,
+                             Hobbit::ops::Operator::OperatorType op_type) {
   return new graph::Operation(name, inputs, op_type);
 }
 
-llvm::Function *Hobbit::codegen::Module::GetFunction(const std::string &name,
-                                                     llvm::FunctionType *ft) {
+void Hobbit::Module::RegisterOutput(Hobbit::graph::Node *parent_ref) {
+  m_outputs_.push_back(parent_ref);
+}
+
+llvm::Function *Hobbit::Module::GetFunction(const std::string &name,
+                                            llvm::FunctionType *ft) {
   return llvm::cast<llvm::Function>(m_module_->getOrInsertFunction(name, ft));
 }
 
-void Hobbit::codegen::Module::Print(llvm::raw_ostream &os) {
+void Hobbit::Module::CodeGen(const std::string &name, graph::Node *final_node) {
+  codegen::TreeVisitor visitor;
+  visitor.BuildTree(final_node);
+  codegen::CGVisitor cgvisitor(this, visitor.Args(), visitor.Tree());
+  cgvisitor.CodeGenTree(name, m_outputs_);
+}
+
+llvm::Module &Hobbit::Module::Finalize(const std::string &target_triple,
+                              const std::string &cpu,
+                              const std::string &features) {
+  llvm::InitializeAllTargetInfos();
+  llvm::InitializeAllTargets();
+  llvm::InitializeAllTargetMCs();
+
+  std::string error;
+  auto target = llvm::TargetRegistry::lookupTarget(target_triple, error);
+
+  llvm::TargetOptions options;
+  auto RM = llvm::Optional<llvm::Reloc::Model>();
+
+  llvm::TargetMachine *target_machine =
+      target->createTargetMachine(target_triple, cpu, features, options, RM);
+
+  m_module_->setDataLayout(target_machine->createDataLayout());
+  m_module_->setTargetTriple(target_triple);
+
+  llvm::verifyModule(*m_module_);
+  return *m_module_;
+}
+
+void Hobbit::Module::Print(llvm::raw_ostream &os) {
   m_module_->print(os, nullptr);
 }

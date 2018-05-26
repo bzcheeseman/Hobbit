@@ -25,7 +25,7 @@
 #include <llvm/IR/IRBuilder.h>
 #include <ops/mock.hpp>
 
-Hobbit::ops::MockOperator::MockOperator(codegen::Module *m)
+Hobbit::ops::MockOperator::MockOperator(Module *m)
     : Operator(m), m_ctx_(m->GetContext()) {
   outvar = m_module_->GetVariable("mock.output", {1},
                                   llvm::Type::getInt64Ty(m_ctx_));

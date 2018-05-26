@@ -31,33 +31,33 @@
 namespace Hobbit {
 namespace ops {
 template <Operator::OperatorType>
-Operator *CreateOperator(codegen::Module *module,
+Operator *CreateOperator(Module *module,
                          llvm::ArrayRef<graph::Variable *> args) {
   return nullptr;
 }
 
 template <>
 Operator *
-CreateOperator<Operator::mockID>(codegen::Module *module,
+CreateOperator<Operator::mockID>(Module *module,
                                  llvm::ArrayRef<graph::Variable *> /* args */) {
   return new MockOperator(module);
 }
 
 template <>
 Operator *
-CreateOperator<Operator::gemmID>(codegen::Module *module,
+CreateOperator<Operator::gemmID>(Module *module,
                                  llvm::ArrayRef<graph::Variable *> args) {
   return new gemm(module, args[0], args[1], args[2], args[3]);
 }
 
 template <>
 Operator *
-CreateOperator<Operator::eltwiseAddID>(codegen::Module *module,
+CreateOperator<Operator::eltwiseAddID>(Module *module,
                                        llvm::ArrayRef<graph::Variable *> args) {
   return new eltwise_add(module, args[0], args[1]);
 }
 
-inline Operator *Create(Operator::OperatorType op_id, codegen::Module *module,
+inline Operator *Create(Operator::OperatorType op_id, Module *module,
                         llvm::ArrayRef<graph::Variable *> args) {
   switch (op_id) {
   case Operator::mockID:

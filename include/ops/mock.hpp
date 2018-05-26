@@ -34,9 +34,7 @@ class LLVMContext;
 
 namespace Hobbit {
 
-namespace codegen {
 class Module;
-}
 
 namespace graph {
 class Variable;
@@ -45,7 +43,7 @@ class Variable;
 namespace ops {
 class MockOperator : public Operator {
 public:
-  explicit MockOperator(codegen::Module *m);
+  explicit MockOperator(Module *m);
 
   OperatorType GetOperatorType() const override;
   static inline bool classof(const Operator *op) {

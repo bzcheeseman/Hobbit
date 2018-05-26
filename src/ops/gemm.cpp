@@ -35,8 +35,8 @@
 
 using namespace llvm;
 
-Hobbit::ops::gemm::gemm(Hobbit::codegen::Module *module,
-                        Hobbit::graph::Variable *A, Hobbit::graph::Variable *B,
+Hobbit::ops::gemm::gemm(Hobbit::Module *module, Hobbit::graph::Variable *A,
+                        Hobbit::graph::Variable *B,
                         Hobbit::graph::Variable *alpha,
                         Hobbit::graph::Variable *beta)
     : Operator(module), N_(A->GetShape().Dim((uint64_t)0)),
