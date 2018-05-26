@@ -21,7 +21,7 @@ function(add_pass name)
     if(APPLE)
         set_target_properties(${name}Pass PROPERTIES
                 LINK_FLAGS "-undefined dynamic_lookup"
-                )
+        )
     endif(APPLE)
 endfunction()
 
