@@ -76,6 +76,10 @@ void Hobbit::util::AddLoopMetadata(llvm::BranchInst *loop_end_br,
   args.push_back(TempNode.get());
 
   llvm::Metadata *vecMD[] = {
+      llvm::MDString::get(ctx, "llvm.loop.vectorize.enable"),
+      llvm::ConstantAsMetadata::get(
+          llvm::ConstantInt::get(llvm::Type::getInt1Ty(ctx), 1))};
+  llvm::Metadata *vecwidMD[] = {
       llvm::MDString::get(ctx, "llvm.loop.vectorize.width"),
       llvm::ConstantAsMetadata::get(llvm::ConstantInt::get(
           llvm::Type::getInt32Ty(ctx), loopMD.vector_width))};
@@ -84,6 +88,7 @@ void Hobbit::util::AddLoopMetadata(llvm::BranchInst *loop_end_br,
       llvm::ConstantAsMetadata::get(llvm::ConstantInt::get(
           llvm::Type::getInt32Ty(ctx), loopMD.unroll_count))};
   args.push_back(llvm::MDNode::get(ctx, vecMD));
+  args.push_back(llvm::MDNode::get(ctx, vecwidMD));
   args.push_back(llvm::MDNode::get(ctx, unrollMD));
 
   llvm::MDNode *LoopID = llvm::MDNode::get(ctx, args);

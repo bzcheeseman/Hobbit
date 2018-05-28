@@ -104,6 +104,14 @@ llvm::Function *Hobbit::codegen::CGVisitor::InitFunction_(
     const std::string &name, llvm::ArrayRef<graph::Variable *> output_vars) {
   llvm::FunctionType *ft = InitFunctionType_(output_vars);
   llvm::Function *f = m_module_->GetFunction(name, ft);
+  f->setOnlyAccessesArgMemory();
+
+  for (auto &arg : f->args()) {
+    if (arg.getType()->isPointerTy()) {
+      arg.addAttr(llvm::Attribute::get(m_module_->GetContext(), llvm::Attribute::AttrKind::NoAlias));
+      arg.addAttr(llvm::Attribute::get(m_module_->GetContext(), llvm::Attribute::AttrKind::Alignment, 32));
+    }
+  }
 
   auto m_arg_iter = m_args_.begin();
   // Don't go to the last few args because they are output pointers
@@ -113,6 +121,11 @@ llvm::Function *Hobbit::codegen::CGVisitor::InitFunction_(
     llvm::Argument *arg = &*f_arg_iter;
     arg->setName((*m_arg_iter)->GetName());
     (*m_arg_iter)->SetVal(arg);
+    if (arg->getType()->isPointerTy()) {
+      arg->addAttr(llvm::Attribute::get(m_module_->GetContext(),
+                                        llvm::Attribute::AttrKind::Dereferenceable,
+                                        (*m_arg_iter)->GetShape().Size()));
+    }
   }
 
   auto m_out_iter = output_vars.begin();
@@ -123,6 +136,11 @@ llvm::Function *Hobbit::codegen::CGVisitor::InitFunction_(
     llvm::Argument *arg = &*f_arg_iter;
     arg->setName((*m_out_iter)->GetName());
     (*m_out_iter)->SetVal(arg);
+    if (arg->getType()->isPointerTy()) {
+      arg->addAttr(llvm::Attribute::get(m_module_->GetContext(),
+                                        llvm::Attribute::AttrKind::Dereferenceable,
+                                        (*m_out_iter)->GetShape().Size()));
+    }
   }
 
   llvm::BasicBlock::Create(m_module_->GetContext(), "hobbit." + name + ".entry",

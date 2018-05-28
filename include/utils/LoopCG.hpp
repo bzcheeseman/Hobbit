@@ -35,8 +35,8 @@ class Value;
 namespace Hobbit {
 namespace util {
 struct LoopMD {
-  uint32_t vector_width = 4;
-  uint32_t unroll_count = 32;
+  uint32_t vector_width;
+  uint32_t unroll_count;
 };
 
 struct LoopInfo {

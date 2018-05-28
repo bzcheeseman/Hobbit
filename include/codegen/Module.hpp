@@ -37,6 +37,7 @@
 namespace llvm {
 class Type;
 class raw_ostream;
+class raw_fd_ostream;
 class Module;
 class Function;
 } // namespace llvm
@@ -79,10 +80,11 @@ public:
 
   void CodeGen(const std::string &name, graph::Node *final_node);
 
-  llvm::Module &Finalize(const std::string &target_triple,
-                         const std::string &cpu, const std::string &features);
+  llvm::Module &SetTarget(const std::string &target_triple, const llvm::DataLayout &data_layout);
 
   void Print(llvm::raw_ostream &os);
+
+  void WriteToFile(llvm::raw_fd_ostream &os);
 
 private:
   llvm::LLVMContext m_ctx_;

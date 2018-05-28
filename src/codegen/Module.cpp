@@ -91,23 +91,8 @@ void Hobbit::Module::CodeGen(const std::string &name, graph::Node *final_node) {
   cgvisitor.CodeGenTree(name, m_outputs_);
 }
 
-llvm::Module &Hobbit::Module::Finalize(const std::string &target_triple,
-                                       const std::string &cpu,
-                                       const std::string &features) {
-  llvm::InitializeAllTargetInfos();
-  llvm::InitializeAllTargets();
-  llvm::InitializeAllTargetMCs();
-
-  std::string error;
-  auto target = llvm::TargetRegistry::lookupTarget(target_triple, error);
-
-  llvm::TargetOptions options;
-  auto RM = llvm::Optional<llvm::Reloc::Model>();
-
-  llvm::TargetMachine *target_machine =
-      target->createTargetMachine(target_triple, cpu, features, options, RM);
-
-  m_module_->setDataLayout(target_machine->createDataLayout());
+llvm::Module &Hobbit::Module::SetTarget(const std::string &target_triple, const llvm::DataLayout &data_layout) {
+  m_module_->setDataLayout(data_layout);
   m_module_->setTargetTriple(target_triple);
 
   llvm::verifyModule(*m_module_);
@@ -116,4 +101,8 @@ llvm::Module &Hobbit::Module::Finalize(const std::string &target_triple,
 
 void Hobbit::Module::Print(llvm::raw_ostream &os) {
   m_module_->print(os, nullptr);
+}
+
+void Hobbit::Module::WriteToFile(llvm::raw_fd_ostream &os) {
+  llvm::WriteBitcodeToFile(m_module_.get(), os);
 }

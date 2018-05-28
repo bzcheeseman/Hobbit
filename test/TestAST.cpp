@@ -54,7 +54,11 @@ namespace {
 using namespace Hobbit;
 
 TEST(Basic, CreateGraph) {
-  llvm::SmallVector<uint64_t, 4> tensor_dims = {28, 28};
+  llvm::InitializeAllTargetInfos();
+  llvm::InitializeAllTargets();
+  llvm::InitializeAllTargetMCs();
+
+  llvm::SmallVector<uint64_t, 4> tensor_dims = {400, 400};
 
   Module module("TestModule");
 
@@ -74,15 +78,33 @@ TEST(Basic, CreateGraph) {
 
   module.CodeGen("test_func", gemm);
 
-  module.Finalize(llvm::sys::getDefaultTargetTriple(),
-                  llvm::sys::getHostCPUName(), "");
-  module.Print(llvm::errs());
+  const std::string target_triple = llvm::sys::getDefaultTargetTriple();
+  const std::string cpu = llvm::sys::getHostCPUName();
+  llvm::StringMap<bool> feats_map;
+  llvm::sys::getHostCPUFeatures(feats_map);
 
-  compile::Optimize opt;
-  opt.Initialize(3);
-  opt.Run(&module, llvm::sys::getDefaultTargetTriple(),
-          llvm::sys::getHostCPUName(), "");
-  //  module.Print(llvm::errs());
+  std::string features = "";
+  for (auto &entry : feats_map) {
+    if (entry.second) features += std::string(entry.first()) + ",";
+  }
+
+  llvm::errs() << features;
+
+  std::string error;
+  auto target = llvm::TargetRegistry::lookupTarget(target_triple, error);
+
+  llvm::TargetOptions options;
+  auto RM = llvm::Optional<llvm::Reloc::Model>();
+
+  llvm::TargetMachine *target_machine =
+          target->createTargetMachine(target_triple, cpu, features, options, RM);
+  module.SetTarget(target_triple, target_machine->createDataLayout());
+
+  std::error_code EC;
+  llvm::raw_fd_ostream OS("test_module.ll", EC, llvm::sys::fs::F_None);
+  module.Print(OS);
+  OS.flush();
+
 }
 
 } // namespace
