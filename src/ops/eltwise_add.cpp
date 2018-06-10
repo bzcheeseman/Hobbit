@@ -29,7 +29,7 @@
 #include <llvm/IR/LLVMContext.h>
 
 #include <codegen/Module.hpp>
-#include <graph/Node.hpp>
+#include <graph/Variable.hpp>
 #include <ops/Operator.hpp>
 #include <utils/LoopCG.hpp>
 

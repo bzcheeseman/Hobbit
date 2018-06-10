@@ -23,11 +23,6 @@
 #ifndef HOBBIT_NODE_HPP
 #define HOBBIT_NODE_HPP
 
-// Project
-#include "Shape.hpp"
-#include <ops/Operator.hpp>
-// glog
-#include <glog/logging.h>
 // STL
 #include <string>
 // LLVM
@@ -50,7 +45,7 @@ public:
 #include "NodeTypes.def"
   };
 
-  explicit Node(const std::string &name) : m_name_(name) {}
+  explicit Node(std::string name) : m_name_(std::move(name)) {}
 
   const std::string &GetName() const { return m_name_; }
   virtual NodeType GetNodeType() const = 0;
@@ -59,100 +54,6 @@ public:
 
 protected:
   std::string m_name_;
-};
-
-class Operation;
-
-class Variable : public Node {
-public:
-  explicit Variable(const std::string &name, llvm::Type *type = nullptr,
-                    Node *creator = nullptr)
-      : Node(name), m_shape_(nullptr), m_val_(nullptr), m_type_(type),
-        m_creator_(creator) {}
-  Variable(const std::string &name, Shape *shape, llvm::Type *type = nullptr,
-           Node *creator = nullptr)
-      : Node(name), m_shape_(std::move(shape)), m_val_(nullptr), m_type_(type),
-        m_creator_(creator) {}
-  Variable(const std::string &name, std::unique_ptr<Shape> &&shape,
-           llvm::Type *type = nullptr, Node *creator = nullptr)
-      : Node(name), m_shape_(std::move(shape)), m_val_(nullptr), m_type_(type),
-        m_creator_(creator) {}
-
-  // LLVM-style RTTI
-  NodeType GetNodeType() const override { return VariableID; }
-  static inline bool classof(const Node *node) {
-    return node->GetNodeType() == VariableID;
-  }
-
-  void Print(llvm::raw_ostream &os) const override {
-    os << "Variable: " << m_name_;
-    if (m_shape_ != nullptr) {
-      os << " Shape: {";
-      for (uint64_t i = 0; i < m_shape_->NDim(); i++) {
-        os << m_shape_->Dim(i) << ", ";
-      }
-      os << "}";
-    }
-    os << "\n";
-  }
-
-  llvm::Value *GetVal() const { return m_val_; }
-  void SetVal(llvm::Value *val) {
-    CHECK_NOTNULL(val);
-    m_val_ = val;
-  }
-
-  llvm::Type *GetType() const { return m_type_; }
-  void SetType(llvm::Type *type) {
-    CHECK_NOTNULL(type);
-    m_type_ = type;
-  }
-
-  Node *Creator() { return m_creator_; }
-
-  Shape &GetShape() const { return *m_shape_; }
-
-private:
-  std::unique_ptr<Shape> m_shape_; // Variable owns its shape
-  llvm::Type *m_type_;
-  llvm::Value *m_val_;
-  Node *m_creator_;
-};
-
-class Operation : public Node { // How do I use another Operation as an input?
-public:
-  Operation(const std::string &name, llvm::ArrayRef<Node *> inputs,
-            ops::Operator::OperatorType op_type)
-      : Node(name), m_inputs_(inputs.begin(), inputs.end()),
-        m_op_type_(op_type), m_op_(nullptr) {}
-
-  // LLVM-style RTTI
-  NodeType GetNodeType() const override { return OperationID; }
-  static inline bool classof(const Node *node) {
-    return node->GetNodeType() == OperationID;
-  }
-
-  void Print(llvm::raw_ostream &os) const override {
-    os << "Operator: " << m_name_ << " - Inputs:\n";
-    for (auto &input : m_inputs_) {
-      input->Print(os);
-    }
-  }
-
-  const ops::Operator::OperatorType &GetOperatorType() { return m_op_type_; }
-
-  ops::Operator *GetOp() const { return m_op_; }
-  void SetOp(ops::Operator *op) {
-    CHECK_NOTNULL(op);
-    m_op_ = std::move(op);
-  }
-
-  llvm::ArrayRef<Node *> Inputs() { return m_inputs_; }
-
-private:
-  llvm::SmallVector<Node *, 5> m_inputs_;
-  const ops::Operator::OperatorType m_op_type_;
-  ops::Operator *m_op_;
 };
 
 } // namespace graph

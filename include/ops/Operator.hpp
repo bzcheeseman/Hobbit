@@ -50,6 +50,8 @@ public:
   explicit Operator(Module *m) : m_module_(m) {}
 
   virtual OperatorType GetOperatorType() const = 0;
+  virtual bool PreservesShape() const = 0;
+  virtual bool IsOrderInvariant() const = 0;
   virtual llvm::BasicBlock *InsertIntoFunction(llvm::Function *,
                                                llvm::BasicBlock *) = 0;
   virtual graph::Variable *GetOutputVariable() const = 0;

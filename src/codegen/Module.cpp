@@ -24,6 +24,8 @@
 #include <codegen/Module.hpp>
 #include <codegen/TreeVisitor.hpp>
 #include <graph/Node.hpp>
+#include <graph/Variable.hpp>
+#include <graph/Operation.hpp>
 
 #include <llvm/Bitcode/BitcodeWriter.h>
 #include <llvm/ExecutionEngine/ExecutionEngine.h>

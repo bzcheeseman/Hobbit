@@ -23,6 +23,11 @@
 #include <codegen/TreeVisitor.hpp>
 
 #include <graph/Node.hpp>
+#include <graph/Variable.hpp>
+#include <graph/Operation.hpp>
+
+// glog
+#include <glog/logging.h>
 
 #include <llvm/Support/Casting.h>
 #include <llvm/Support/raw_ostream.h>

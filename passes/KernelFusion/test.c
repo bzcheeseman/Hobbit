@@ -20,55 +20,18 @@
     limitations under the License.
  */
 
-#include <cstdlib>
-#include <cstring>
-#include <iostream>
+//#include <cstdlib>
+//#include <cstring>
+//#include <iostream>
 
-#include "include/Index.hpp"
-
-const size_t SIZE = 34000000;
-const size_t CHUNK = 32000;
-const size_t STRIDE = 8;
-
-//float dot(float *lhs, float *rhs) {
-//  float out[STRIDE];
-//
-//  memset(out, 0, STRIDE*sizeof(float));
-//
-//  size_t leftovers_start = SIZE - (SIZE % CHUNK);
-//
-//  for (size_t i = 0; i < leftovers_start; i += CHUNK) {
-//    for (size_t j = 0; j < CHUNK; j += 1) {
-//      out[j % STRIDE] += lhs[i + j] * rhs[i + j];
-//    }
-//  }
-//
-//  float result = 0.f;
-//  for (size_t i = 0; i < STRIDE; i++) {
-//    result += out[i];
-//  }
-//
-//  return result;
-//}
-
-//float simpledot(float *lhs, float *rhs) {
-//  float out  = 0.f;
-//
-//  for (size_t i = 0; i < SIZE; i++) {
-//    out += lhs[i] * rhs[i];
-//  }
-//
-//  return out;
-//}
-
-const size_t M = 1024;
-const size_t N = 512;
-const size_t M_TILE = 32;
+const unsigned long M = 1024;
+const unsigned long N = 512;
+const unsigned long M_TILE = 32;
 //const size_t STRIDE = 8;
 
 void simplegemv(float **lhs, float *rhs, float *out) {
-  for (size_t i = 0; i < M; i++) {
-    for (size_t j = 0; j < N; j++) {
+  for (unsigned long i = 0; i < M; i++) {
+    for (unsigned long j = 0; j < N; j++) {
       out[i] += lhs[i][j] * rhs[j];
     }
   }

@@ -23,7 +23,8 @@
 #include <codegen/CGVisitor.hpp>
 
 #include <codegen/Module.hpp>
-#include <graph/Node.hpp>
+#include <graph/Operation.hpp>
+#include <graph/Variable.hpp>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/Support/Casting.h>
 #include <ops/Factory.hpp>

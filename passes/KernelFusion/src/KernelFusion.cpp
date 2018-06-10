@@ -91,13 +91,13 @@ public:
   }
 
   void printScop(raw_ostream &OS, Scop &S) const override {
-    //      OS << "Schedule before flattening {\n";
-    //      printSchedule(OS, OldSchedule, 4);
-    //      OS << "}\n\n";
-    //
-    //      OS << "Schedule after flattening {\n";
-    //      printSchedule(OS, S.getSchedule(), 4);
-    //      OS << "}\n";
+          OS << "Schedule before flattening {\n";
+          printSchedule(OS, OldSchedule, 4);
+          OS << "}\n\n";
+
+          OS << "Schedule after flattening {\n";
+          printSchedule(OS, S.getSchedule(), 4);
+          OS << "}\n";
   }
 
   void releaseMemory() override {

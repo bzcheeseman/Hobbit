@@ -49,6 +49,14 @@ public:
     return op->GetOperatorType() == eltwiseAddID;
   }
 
+  bool PreservesShape() const override {
+    return true;
+  }
+
+  bool IsOrderInvariant() const override {
+    return true;
+  }
+
   graph::Variable *GetOutputVariable() const override;
 
   llvm::BasicBlock *InsertIntoFunction(llvm::Function *func,

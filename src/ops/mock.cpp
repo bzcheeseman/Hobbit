@@ -21,7 +21,7 @@
  */
 
 #include <codegen/Module.hpp>
-#include <graph/Node.hpp>
+#include <graph/Variable.hpp>
 #include <llvm/IR/IRBuilder.h>
 #include <ops/mock.hpp>
 

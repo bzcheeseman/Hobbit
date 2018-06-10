@@ -47,6 +47,8 @@
 #include <codegen/TreeVisitor.hpp>
 #include <compile/Optimize.hpp>
 #include <graph/Node.hpp>
+#include <graph/Operation.hpp>
+#include <graph/Variable.hpp>
 #include <ops/eltwise_add.hpp>
 #include <ops/mock.hpp>
 
@@ -54,11 +56,12 @@ namespace {
 using namespace Hobbit;
 
 TEST(Basic, CreateGraph) {
-  llvm::InitializeAllTargetInfos();
   llvm::InitializeAllTargets();
   llvm::InitializeAllTargetMCs();
+  llvm::InitializeAllAsmPrinters();
+  llvm::InitializeAllAsmParsers();
 
-  llvm::SmallVector<uint64_t, 4> tensor_dims = {400, 400};
+  llvm::SmallVector<uint64_t, 4> tensor_dims = {4, 4};
 
   Module module("TestModule");
 
