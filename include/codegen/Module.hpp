@@ -55,7 +55,7 @@ namespace ops {
 class Operator;
 }
 
-class Module { // TODO: Module has too many responsibilities
+class Module {
 public:
   explicit Module(const std::string &name);
 
@@ -78,6 +78,8 @@ public:
 
   // this function allows us to have multiple return values
   void RegisterOutput(graph::Node *parent_ref);
+
+  // TODO: get header for module (or in JIT?)
 
   llvm::Function *GetFunction(const std::string &name, llvm::FunctionType *ft);
 

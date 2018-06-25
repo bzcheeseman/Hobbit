@@ -53,4 +53,5 @@ void Hobbit::compile::JIT::BuildEngine(const std::string &target_triple,
       target->createTargetMachine(target_triple, cpu, features, opt, RM);
 
   llvm::EngineBuilder engine_builder;
+  m_engine_ = engine_builder.create(m_target_machine_);
 }

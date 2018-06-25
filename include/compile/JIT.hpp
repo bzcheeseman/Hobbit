@@ -28,6 +28,7 @@
 namespace llvm {
 class TargetMachine;
 class Target;
+class ExecutionEngine;
 } // namespace llvm
 
 namespace Hobbit {
@@ -46,6 +47,7 @@ private:
 
 private:
   llvm::TargetMachine *m_target_machine_;
+  llvm::ExecutionEngine *m_engine_;
 };
 } // namespace compile
 } // namespace Hobbit
