@@ -35,14 +35,15 @@ class raw_ostream;
 
 namespace Hobbit {
 namespace codegen {
-class TreeVisitor;
+class TreeBuilder;
 }
 namespace graph {
 
 class Node {
 public:
   enum NodeType {
-#include "NodeTypes.def"
+    VARIABLE_ID,
+    OPERATION_ID,
   };
 
   explicit Node(std::string name) : m_name_(std::move(name)) {}

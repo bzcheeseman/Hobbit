@@ -20,12 +20,12 @@
     limitations under the License.
  */
 
-#include <codegen/CGVisitor.hpp>
 #include <codegen/Module.hpp>
-#include <codegen/TreeVisitor.hpp>
+#include <codegen/TreeBuilder.hpp>
+#include <codegen/TreeCodeGen.hpp>
 #include <graph/Node.hpp>
-#include <graph/Variable.hpp>
 #include <graph/Operation.hpp>
+#include <graph/Variable.hpp>
 
 #include <llvm/Bitcode/BitcodeWriter.h>
 #include <llvm/ExecutionEngine/ExecutionEngine.h>
@@ -43,9 +43,12 @@
 #include <llvm/Transforms/IPO/PassManagerBuilder.h>
 
 Hobbit::Module::Module(const std::string &name)
-    : m_ctx_(), m_module_(llvm::make_unique<llvm::Module>(name, m_ctx_)) {}
+    : m_ctx_(), m_module_(llvm::make_unique<llvm::Module>(name, m_ctx_)),
+      m_loop_md_({4, 16}) {}
 
 llvm::LLVMContext &Hobbit::Module::GetContext() { return m_ctx_; }
+
+Hobbit::util::LoopMD &Hobbit::Module::GetLoopMD() { return m_loop_md_; }
 
 Hobbit::graph::Variable *
 Hobbit::Module::GetVariable(const std::string &name,
@@ -87,13 +90,14 @@ llvm::Function *Hobbit::Module::GetFunction(const std::string &name,
 }
 
 void Hobbit::Module::CodeGen(const std::string &name, graph::Node *final_node) {
-  codegen::TreeVisitor visitor;
-  visitor.BuildTree(final_node);
-  codegen::CGVisitor cgvisitor(this, visitor.Args(), visitor.Tree());
-  cgvisitor.CodeGenTree(name, m_outputs_);
+  codegen::TreeBuilder tree_builder;
+  tree_builder.BuildTree(final_node);
+  codegen::TreeCodeGen cg(this, tree_builder);
+  cg.CodeGen(name, m_outputs_);
 }
 
-llvm::Module &Hobbit::Module::SetTarget(const std::string &target_triple, const llvm::DataLayout &data_layout) {
+llvm::Module &Hobbit::Module::SetTarget(const std::string &target_triple,
+                                        const llvm::DataLayout &data_layout) {
   m_module_->setDataLayout(data_layout);
   m_module_->setTargetTriple(target_triple);
 

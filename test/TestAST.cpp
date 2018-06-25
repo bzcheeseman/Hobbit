@@ -42,9 +42,9 @@
 #include <llvm/Transforms/IPO/PassManagerBuilder.h>
 #include <random>
 
-#include <codegen/CGVisitor.hpp>
 #include <codegen/Module.hpp>
-#include <codegen/TreeVisitor.hpp>
+#include <codegen/TreeBuilder.hpp>
+#include <codegen/TreeCodeGen.hpp>
 #include <compile/Optimize.hpp>
 #include <graph/Node.hpp>
 #include <graph/Operation.hpp>
@@ -88,7 +88,8 @@ TEST(Basic, CreateGraph) {
 
   std::string features = "";
   for (auto &entry : feats_map) {
-    if (entry.second) features += std::string(entry.first()) + ",";
+    if (entry.second)
+      features += "+" + std::string(entry.first()) + ",";
   }
 
   llvm::errs() << features;
@@ -100,14 +101,12 @@ TEST(Basic, CreateGraph) {
   auto RM = llvm::Optional<llvm::Reloc::Model>();
 
   llvm::TargetMachine *target_machine =
-          target->createTargetMachine(target_triple, cpu, features, options, RM);
+      target->createTargetMachine(target_triple, cpu, features, options, RM);
   module.SetTarget(target_triple, target_machine->createDataLayout());
 
-  std::error_code EC;
-  llvm::raw_fd_ostream OS("test_module.ll", EC, llvm::sys::fs::F_None);
-  module.Print(OS);
-  OS.flush();
-
+  //  std::error_code EC;
+  //  llvm::raw_fd_ostream OS("/Users/Aman/Desktop/test_module.ll", EC,
+  //  llvm::sys::fs::F_None); module.Print(OS); OS.flush();
 }
 
 } // namespace

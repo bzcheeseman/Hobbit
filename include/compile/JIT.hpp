@@ -23,10 +23,29 @@
 #ifndef HOBBIT_JIT_HPP
 #define HOBBIT_JIT_HPP
 
+#include <string>
+
+namespace llvm {
+class TargetMachine;
+class Target;
+} // namespace llvm
+
 namespace Hobbit {
 namespace compile {
 class JIT { // takes in a Hobbit::codegen::Module
+public:
+  void InitializeLLVM();
+
+  void BuildEngine(const std::string &target_triple,
+                   const std::string &cpu = "",
+                   const std::string &features = "");
   // TODO: thin wrapper around llvm::ExecutionEngine
+
+private:
+  const llvm::Target *InitTarget_(const std::string &target_triple);
+
+private:
+  llvm::TargetMachine *m_target_machine_;
 };
 } // namespace compile
 } // namespace Hobbit

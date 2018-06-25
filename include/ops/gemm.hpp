@@ -54,13 +54,9 @@ public:
     return op->GetOperatorType() == gemmID;
   }
 
-  bool PreservesShape() const override {
-    return false;
-  }
+  bool PreservesShape() const override { return false; }
 
-  bool IsOrderInvariant() const override {
-    return false;
-  }
+  bool IsOrderInvariant() const override { return false; }
 
   graph::Variable *GetOutputVariable() const override;
 

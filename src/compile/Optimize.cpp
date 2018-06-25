@@ -69,15 +69,16 @@ void Hobbit::compile::Optimize::Run(Hobbit::Module *m,
   LLVMInitializeNVPTXTargetMC();
   LLVMInitializeNVPTXAsmPrinter();
 
-//  llvm::StringMap<llvm::cl::Option *> &Map = llvm::cl::getRegisteredOptions();
-//
-//  assert(Map.count("polly-target") > 0);
-//  Map["polly-target"]->setValueStr("gpu");
-//  assert(Map.count("polly-position") > 0);
-//  Map["polly-position"]->setValueStr("before-vectorizer");
+  //  llvm::StringMap<llvm::cl::Option *> &Map =
+  //  llvm::cl::getRegisteredOptions();
+  //
+  //  assert(Map.count("polly-target") > 0);
+  //  Map["polly-target"]->setValueStr("gpu");
+  //  assert(Map.count("polly-position") > 0);
+  //  Map["polly-position"]->setValueStr("before-vectorizer");
 
-//  llvm::PassRegistry &Registry = *llvm::PassRegistry::getPassRegistry();
-//  polly::initializePollyPasses(Registry);
+  //  llvm::PassRegistry &Registry = *llvm::PassRegistry::getPassRegistry();
+  //  polly::initializePollyPasses(Registry);
 
   llvm::PassManagerBuilder PMBuilder;
 
@@ -94,10 +95,13 @@ void Hobbit::compile::Optimize::Run(Hobbit::Module *m,
       target->createTargetMachine(target_triple, cpu, features, options, RM);
 
   target_machine->adjustPassManager(PMBuilder);
-//  polly::registerPollyPasses(m_pass_manager_);
-  PMBuilder.populateModulePassManager(m_pass_manager_);  // for some reason the pass manager isn't doing the thing...works with opt -O3
+  //  polly::registerPollyPasses(m_pass_manager_);
+  PMBuilder.populateModulePassManager(
+      m_pass_manager_); // for some reason the pass manager isn't doing the
+                        // thing...works with opt -O3
 
-  llvm::Module &module = m->SetTarget(target_triple, target_machine->createDataLayout());
+  llvm::Module &module =
+      m->SetTarget(target_triple, target_machine->createDataLayout());
 
   m_pass_manager_.run(module);
 }

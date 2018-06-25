@@ -30,6 +30,7 @@ namespace llvm {
 class PHINode;
 class BasicBlock;
 class Value;
+class BranchInst;
 } // namespace llvm
 
 namespace Hobbit {

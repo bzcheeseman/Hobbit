@@ -50,13 +50,9 @@ public:
     return op->GetOperatorType() == mockID;
   }
 
-  bool PreservesShape() const override {
-    return true;
-  }
+  bool PreservesShape() const override { return true; }
 
-  bool IsOrderInvariant() const override {
-    return true;
-  }
+  bool IsOrderInvariant() const override { return true; }
 
   llvm::BasicBlock *InsertIntoFunction(llvm::Function *f,
                                        llvm::BasicBlock *previous) override;

@@ -33,6 +33,7 @@
 #include <llvm/ADT/ArrayRef.h>
 #include <llvm/IR/LLVMContext.h>
 #include <ops/Operator.hpp>
+#include <utils/LoopCG.hpp>
 
 namespace llvm {
 class Type;
@@ -54,11 +55,13 @@ namespace ops {
 class Operator;
 }
 
-class Module {
+class Module { // TODO: Module has too many responsibilities
 public:
   explicit Module(const std::string &name);
 
   llvm::LLVMContext &GetContext();
+
+  util::LoopMD &GetLoopMD();
 
   graph::Variable *GetVariable(const std::string &name,
                                llvm::ArrayRef<uint64_t> dims, TypeID type);
@@ -80,7 +83,8 @@ public:
 
   void CodeGen(const std::string &name, graph::Node *final_node);
 
-  llvm::Module &SetTarget(const std::string &target_triple, const llvm::DataLayout &data_layout);
+  llvm::Module &SetTarget(const std::string &target_triple,
+                          const llvm::DataLayout &data_layout);
 
   void Print(llvm::raw_ostream &os);
 
@@ -90,6 +94,8 @@ private:
   llvm::LLVMContext m_ctx_;
   std::unique_ptr<llvm::Module> m_module_;
   llvm::SmallVector<graph::Node *, 2> m_outputs_;
+
+  util::LoopMD m_loop_md_;
 };
 
 } // namespace Hobbit

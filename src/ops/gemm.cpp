@@ -92,18 +92,18 @@ Hobbit::ops::gemm::InsertIntoFunction(llvm::Function *func,
   M = builder.getInt64(M_);
   K = builder.getInt64(K_);
 
-  util::LoopMD k_md = {4, 32};
+  util::LoopMD k_md = m_module_->GetLoopMD();
   util::LoopInfo loopinfo_K = util::EmitLoop(
       "hobbit.gemm.K", gemm_prehead, gemm_posttail, zero, K, one, false);
   util::AddLoopMetadata(loopinfo_K.cond, k_md);
 
-  util::LoopMD n_md = {4, 32};
+  util::LoopMD n_md = m_module_->GetLoopMD();
   util::LoopInfo loopinfo_N =
       util::EmitLoop("hobbit.gemm.N", loopinfo_K.head_bb, loopinfo_K.tail_bb,
                      zero, N, one, false);
   util::AddLoopMetadata(loopinfo_N.cond, n_md);
 
-  util::LoopMD m_md = {4, 32};
+  util::LoopMD m_md = m_module_->GetLoopMD();
   util::LoopInfo loopinfo_M = util::EmitLoop(
       "hobbit.gemm.M", loopinfo_N.head_bb, loopinfo_N.tail_bb, zero, M, one);
   util::AddLoopMetadata(loopinfo_M.cond, m_md);
@@ -119,11 +119,11 @@ Hobbit::ops::gemm::InsertIntoFunction(llvm::Function *func,
       C_->GetShape().At({loopinfo_N.ind_var, loopinfo_M.ind_var}, body_bb);
 
   Value *A_elt = builder.CreateAlignedLoad(
-      builder.CreateInBoundsGEP(A_->GetVal(), A_idx), 32);
+      builder.CreateInBoundsGEP(A_->GetVal(), A_idx), 16);
   Value *B_elt = builder.CreateAlignedLoad(
-      builder.CreateInBoundsGEP(B_->GetVal(), B_idx), 32);
+      builder.CreateInBoundsGEP(B_->GetVal(), B_idx), 16);
   Value *C_elt = builder.CreateAlignedLoad(
-      builder.CreateInBoundsGEP(C_->GetVal(), C_idx), 32);
+      builder.CreateInBoundsGEP(C_->GetVal(), C_idx), 16);
 
   if (A_->GetType()->isFloatingPointTy()) {
     Value *tmp =
@@ -137,7 +137,8 @@ Hobbit::ops::gemm::InsertIntoFunction(llvm::Function *func,
     C_elt = builder.CreateAdd(C_elt, tmp);
   }
 
-  builder.CreateAlignedStore(C_elt, builder.CreateInBoundsGEP(C_->GetVal(), C_idx), 32);
+  builder.CreateAlignedStore(
+      C_elt, builder.CreateInBoundsGEP(C_->GetVal(), C_idx), 16);
   builder.CreateBr(loopinfo_M.tail_bb);
 
   return gemm_posttail;

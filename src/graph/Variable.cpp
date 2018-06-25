@@ -10,9 +10,9 @@
     Licensed under the Apache License, Version 2.0 (the "License");
     you may not use this file except in compliance with the License.
     You may obtain a copy of the License at
-    
+
         http://www.apache.org/licenses/LICENSE-2.0
-    
+
     Unless required by applicable law or agreed to in writing, software
     distributed under the License is distributed on an "AS IS" BASIS,
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -25,22 +25,27 @@
 // glog
 #include <glog/logging.h>
 
-
-Hobbit::graph::Variable::Variable(const std::string &name, llvm::Type *type, Hobbit::graph::Node *creator)
-        : Node(name), m_shape_(nullptr), m_val_(nullptr), m_type_(type),
-          m_creator_(creator) {}
-
-Hobbit::graph::Variable::Variable(const std::string &name, Hobbit::graph::Shape *shape, llvm::Type *type,
+Hobbit::graph::Variable::Variable(const std::string &name, llvm::Type *type,
                                   Hobbit::graph::Node *creator)
-        : Node(name), m_shape_(std::move(shape)), m_val_(nullptr), m_type_(type),
-          m_creator_(creator) {}
+    : Node(name), m_shape_(nullptr), m_val_(nullptr), m_type_(type),
+      m_creator_(creator) {}
 
-Hobbit::graph::Variable::Variable(const std::string &name, std::unique_ptr<Hobbit::graph::Shape> &&shape,
-                                  llvm::Type *type, Hobbit::graph::Node *creator)
-        : Node(name), m_shape_(std::move(shape)), m_val_(nullptr), m_type_(type),
-          m_creator_(creator) {}
+Hobbit::graph::Variable::Variable(const std::string &name,
+                                  Hobbit::graph::Shape *shape, llvm::Type *type,
+                                  Hobbit::graph::Node *creator)
+    : Node(name), m_shape_(std::move(shape)), m_val_(nullptr), m_type_(type),
+      m_creator_(creator) {}
 
-Hobbit::graph::Node::NodeType Hobbit::graph::Variable::GetNodeType() const { return VariableID; }
+Hobbit::graph::Variable::Variable(const std::string &name,
+                                  std::unique_ptr<Hobbit::graph::Shape> &&shape,
+                                  llvm::Type *type,
+                                  Hobbit::graph::Node *creator)
+    : Node(name), m_shape_(std::move(shape)), m_val_(nullptr), m_type_(type),
+      m_creator_(creator) {}
+
+Hobbit::graph::Node::NodeType Hobbit::graph::Variable::GetNodeType() const {
+  return VARIABLE_ID;
+}
 
 void Hobbit::graph::Variable::Print(llvm::raw_ostream &os) const {
   os << "Variable: " << m_name_;
@@ -70,4 +75,6 @@ void Hobbit::graph::Variable::SetType(llvm::Type *type) {
 
 Hobbit::graph::Node *Hobbit::graph::Variable::Creator() { return m_creator_; }
 
-Hobbit::graph::Shape &Hobbit::graph::Variable::GetShape() const { return *m_shape_; }
+Hobbit::graph::Shape &Hobbit::graph::Variable::GetShape() const {
+  return *m_shape_;
+}

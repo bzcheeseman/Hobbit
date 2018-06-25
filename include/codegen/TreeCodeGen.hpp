@@ -52,14 +52,14 @@ class Operator;
 class Module;
 
 namespace codegen {
+class TreeBuilder;
 
-class CGVisitor {
+class TreeCodeGen {
 public:
-  CGVisitor(Module *module, std::set<graph::Variable *> &args,
-            std::list<graph::Operation *> &ops);
+  TreeCodeGen(Module *module, TreeBuilder &builder);
 
-  void CodeGenTree(const std::string &function_name,
-                   llvm::ArrayRef<graph::Node *> outputs);
+  void CodeGen(const std::string &function_name,
+               llvm::ArrayRef<graph::Node *> outputs);
 
 private:
   void ResolveDependencies_(graph::Operation *op);
@@ -77,7 +77,7 @@ private:
 
 private:
   Module *m_module_;
-  std::list<graph::Operation *> m_ops_;
+  std::list<graph::Operation *> m_op_tree_;
   std::set<graph::Variable *> m_args_;
 };
 

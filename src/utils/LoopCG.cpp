@@ -20,11 +20,12 @@
     limitations under the License.
  */
 
+#include <utils/LoopCG.hpp>
+
 #include <llvm/IR/BasicBlock.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/LLVMContext.h>
-
-#include <utils/LoopCG.hpp>
+#include <llvm/IR/Metadata.h>
 
 Hobbit::util::LoopInfo
 Hobbit::util::EmitLoop(const std::string &name, llvm::BasicBlock *loop_prehead,

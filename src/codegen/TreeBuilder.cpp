@@ -20,11 +20,11 @@
     limitations under the License.
  */
 
-#include <codegen/TreeVisitor.hpp>
+#include <codegen/TreeBuilder.hpp>
 
 #include <graph/Node.hpp>
-#include <graph/Variable.hpp>
 #include <graph/Operation.hpp>
+#include <graph/Variable.hpp>
 
 // glog
 #include <glog/logging.h>
@@ -48,13 +48,13 @@ bool OperationRHSDependsOnLHS(graph::Operation *lhs, graph::Operation *rhs) {
 }
 } // namespace
 
-void Hobbit::codegen::TreeVisitor::BuildTree(Hobbit::graph::Node *root) {
+void Hobbit::codegen::TreeBuilder::BuildTree(Hobbit::graph::Node *root) {
   BuildTree_(root);
   SortTree_();
   m_tree_built_ = true;
 }
 
-std::list<graph::Operation *> &codegen::TreeVisitor::Tree() {
+std::list<graph::Operation *> &codegen::TreeBuilder::Tree() {
   if (!m_tree_built_) {
     LOG(FATAL)
         << "Dependency scheduling step not executed, tree not built or sorted";
@@ -62,7 +62,7 @@ std::list<graph::Operation *> &codegen::TreeVisitor::Tree() {
   return m_ops_;
 }
 
-std::set<graph::Variable *> &codegen::TreeVisitor::Args() {
+std::set<graph::Variable *> &codegen::TreeBuilder::Args() {
   if (!m_tree_built_) {
     LOG(FATAL)
         << "Dependency scheduling step not executed, tree not built or sorted";
@@ -70,7 +70,7 @@ std::set<graph::Variable *> &codegen::TreeVisitor::Args() {
   return m_args_;
 }
 
-void Hobbit::codegen::TreeVisitor::BuildTree_(Hobbit::graph::Node *root) {
+void Hobbit::codegen::TreeBuilder::BuildTree_(Hobbit::graph::Node *root) {
 
   if (root == nullptr) {
     return;
@@ -91,14 +91,14 @@ void Hobbit::codegen::TreeVisitor::BuildTree_(Hobbit::graph::Node *root) {
   }
 }
 
-void Hobbit::codegen::TreeVisitor::SortTree_() {
+void Hobbit::codegen::TreeBuilder::SortTree_() {
   m_ops_.sort(OperationRHSDependsOnLHS);
 }
 
 /* ------------------- Friend functions ------------------- */
 
 llvm::raw_ostream &Hobbit::codegen::
-operator<<(llvm::raw_ostream &os, Hobbit::codegen::TreeVisitor &v) {
+operator<<(llvm::raw_ostream &os, Hobbit::codegen::TreeBuilder &v) {
   for (auto &node : v.m_ops_) {
     os << "Operation: " << node->GetName() << "\n";
     os << "\tOpArgs:\n";
@@ -111,7 +111,7 @@ operator<<(llvm::raw_ostream &os, Hobbit::codegen::TreeVisitor &v) {
 }
 
 std::ostream &Hobbit::codegen::operator<<(std::ostream &os,
-                                          Hobbit::codegen::TreeVisitor &v) {
+                                          Hobbit::codegen::TreeBuilder &v) {
   for (auto &node : v.m_ops_) {
     os << "Operation: " << node->GetName() << "\n";
     os << "\tOpArgs:\n";

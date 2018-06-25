@@ -43,15 +43,15 @@ namespace codegen {
 
 class Function;
 
-class TreeVisitor {
+class TreeBuilder {
 public:
   void BuildTree(graph::Node *root);
 
   std::list<graph::Operation *> &Tree();
   std::set<graph::Variable *> &Args();
 
-  friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os, TreeVisitor &v);
-  friend std::ostream &operator<<(std::ostream &os, TreeVisitor &v);
+  friend llvm::raw_ostream &operator<<(llvm::raw_ostream &os, TreeBuilder &v);
+  friend std::ostream &operator<<(std::ostream &os, TreeBuilder &v);
 
 private:
   void BuildTree_(graph::Node *root);

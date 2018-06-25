@@ -20,23 +20,24 @@
     limitations under the License.
  */
 
-#include <codegen/CGVisitor.hpp>
+#include <codegen/TreeCodeGen.hpp>
 
 #include <codegen/Module.hpp>
+#include <codegen/TreeBuilder.hpp>
 #include <graph/Operation.hpp>
 #include <graph/Variable.hpp>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/Support/Casting.h>
 #include <ops/Factory.hpp>
 
-Hobbit::codegen::CGVisitor::CGVisitor(
-    Hobbit::Module *module, std::set<Hobbit::graph::Variable *> &args,
-    std::list<Hobbit::graph::Operation *> &ops)
-    : m_module_(std::move(module)), m_args_(args), m_ops_(ops) {}
+Hobbit::codegen::TreeCodeGen::TreeCodeGen(Hobbit::Module *module,
+                                          TreeBuilder &tree_builder)
+    : m_module_(std::move(module)), m_args_(tree_builder.Args()),
+      m_op_tree_(tree_builder.Tree()) {}
 
-void Hobbit::codegen::CGVisitor::CodeGenTree(
+void Hobbit::codegen::TreeCodeGen::CodeGen(
     const std::string &function_name, llvm::ArrayRef<graph::Node *> outputs) {
-  for (auto &op : m_ops_) {
+  for (auto &op : m_op_tree_) {
     ResolveDependencies_(op);
   }
 
@@ -47,7 +48,7 @@ void Hobbit::codegen::CGVisitor::CodeGenTree(
 
   for (auto &out : outputs) {
     if ((op = llvm::dyn_cast<graph::Operation>(out))) {
-      output_vars.push_back(op->GetOp()->GetOutputVariable());
+      output_vars.push_back(op->GetOutputVariable());
     }
     if ((var = llvm::dyn_cast<graph::Variable>(out))) {
       output_vars.push_back(var);
@@ -56,14 +57,14 @@ void Hobbit::codegen::CGVisitor::CodeGenTree(
 
   llvm::Function *f = InitFunction_(function_name, output_vars);
   llvm::BasicBlock *prev = &f->getEntryBlock();
-  for (auto &op : m_ops_) {
+  for (auto &op : m_op_tree_) {
     prev = CodeGen_(op->GetOp(), f, prev);
   }
 
   FinalizeFunction_(prev);
 }
 
-void Hobbit::codegen::CGVisitor::ResolveDependencies_(
+void Hobbit::codegen::TreeCodeGen::ResolveDependencies_(
     Hobbit::graph::Operation *op) {
   std::vector<graph::Variable *> in_vars;
   for (auto &in : op->Inputs()) {
@@ -74,13 +75,13 @@ void Hobbit::codegen::CGVisitor::ResolveDependencies_(
       continue;
     }
     // if it's an Operation, then I need to get the output variable
-    in_var = llvm::cast<graph::Operation>(in)->GetOp()->GetOutputVariable();
+    in_var = llvm::cast<graph::Operation>(in)->GetOutputVariable();
     in_vars.push_back(in_var);
   }
   op->SetOp(ops::Create(op->GetOperatorType(), m_module_, in_vars));
 }
 
-llvm::FunctionType *Hobbit::codegen::CGVisitor::InitFunctionType_(
+llvm::FunctionType *Hobbit::codegen::TreeCodeGen::InitFunctionType_(
     llvm::ArrayRef<graph::Variable *> output_vars) {
   std::vector<llvm::Type *> arg_types;
   for (auto &arg : m_args_) {
@@ -101,7 +102,7 @@ llvm::FunctionType *Hobbit::codegen::CGVisitor::InitFunctionType_(
   return ft;
 }
 
-llvm::Function *Hobbit::codegen::CGVisitor::InitFunction_(
+llvm::Function *Hobbit::codegen::TreeCodeGen::InitFunction_(
     const std::string &name, llvm::ArrayRef<graph::Variable *> output_vars) {
   llvm::FunctionType *ft = InitFunctionType_(output_vars);
   llvm::Function *f = m_module_->GetFunction(name, ft);
@@ -109,8 +110,10 @@ llvm::Function *Hobbit::codegen::CGVisitor::InitFunction_(
 
   for (auto &arg : f->args()) {
     if (arg.getType()->isPointerTy()) {
-      arg.addAttr(llvm::Attribute::get(m_module_->GetContext(), llvm::Attribute::AttrKind::NoAlias));
-      arg.addAttr(llvm::Attribute::get(m_module_->GetContext(), llvm::Attribute::AttrKind::Alignment, 32));
+      arg.addAttr(llvm::Attribute::get(m_module_->GetContext(),
+                                       llvm::Attribute::AttrKind::NoAlias));
+      arg.addAttr(llvm::Attribute::get(
+          m_module_->GetContext(), llvm::Attribute::AttrKind::Alignment, 32));
     }
   }
 
@@ -123,9 +126,9 @@ llvm::Function *Hobbit::codegen::CGVisitor::InitFunction_(
     arg->setName((*m_arg_iter)->GetName());
     (*m_arg_iter)->SetVal(arg);
     if (arg->getType()->isPointerTy()) {
-      arg->addAttr(llvm::Attribute::get(m_module_->GetContext(),
-                                        llvm::Attribute::AttrKind::Dereferenceable,
-                                        (*m_arg_iter)->GetShape().Size()));
+      arg->addAttr(llvm::Attribute::get(
+          m_module_->GetContext(), llvm::Attribute::AttrKind::Dereferenceable,
+          (*m_arg_iter)->GetShape().Size()));
     }
   }
 
@@ -138,9 +141,9 @@ llvm::Function *Hobbit::codegen::CGVisitor::InitFunction_(
     arg->setName((*m_out_iter)->GetName());
     (*m_out_iter)->SetVal(arg);
     if (arg->getType()->isPointerTy()) {
-      arg->addAttr(llvm::Attribute::get(m_module_->GetContext(),
-                                        llvm::Attribute::AttrKind::Dereferenceable,
-                                        (*m_out_iter)->GetShape().Size()));
+      arg->addAttr(llvm::Attribute::get(
+          m_module_->GetContext(), llvm::Attribute::AttrKind::Dereferenceable,
+          (*m_out_iter)->GetShape().Size()));
     }
   }
 
@@ -149,12 +152,12 @@ llvm::Function *Hobbit::codegen::CGVisitor::InitFunction_(
   return f;
 }
 
-llvm::BasicBlock *Hobbit::codegen::CGVisitor::CodeGen_(
+llvm::BasicBlock *Hobbit::codegen::TreeCodeGen::CodeGen_(
     Hobbit::ops::Operator *op, llvm::Function *f, llvm::BasicBlock *prev) {
   return op->InsertIntoFunction(f, prev);
 }
 
-void Hobbit::codegen::CGVisitor::FinalizeFunction_(
+void Hobbit::codegen::TreeCodeGen::FinalizeFunction_(
     llvm::BasicBlock *end_block) {
   llvm::IRBuilder<> builder(end_block);
   builder.CreateRetVoid();

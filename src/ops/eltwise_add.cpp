@@ -57,9 +57,7 @@ llvm::BasicBlock *
 Hobbit::ops::eltwise_add::InsertIntoFunction(llvm::Function *func,
                                              llvm::BasicBlock *previous) {
   // TODO: Make these editable by platform? Maybe they live in codegen::Module?
-  util::LoopMD loopMD;
-  loopMD.vector_width = 4;
-  loopMD.unroll_count = 32;
+  util::LoopMD loopMD = m_module_->GetLoopMD();
 
   LLVMContext &ctx = func->getContext();
   IRBuilder<> builder(ctx);
